@@ -13,6 +13,7 @@ const users = [
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState(""); // ✅ Thêm state để lưu lỗi
   const router = useRouter();
 
   const handleLogin = (e: React.FormEvent) => {
@@ -21,11 +22,12 @@ export default function LoginPage() {
       (u) => u.username === username && u.password === password
     );
     if (user) {
+      setError(""); // ✅ Xóa lỗi nếu đăng nhập đúng
       if (user.role === "admin") router.push("/AdminDashboard");
       else if (user.role === "driver") router.push("/DriverDashboard");
       else if (user.role === "parent") router.push("/ParentDashboard");
     } else {
-      alert("Sai tài khoản hoặc mật khẩu");
+      setError("Sai tài khoản hoặc mật khẩu"); // ✅ Gán lỗi để hiển thị
     }
   };
 
@@ -45,6 +47,13 @@ export default function LoginPage() {
 
       {/* Form login chính giữa */}
       <div className="w-80 bg-white rounded-2xl shadow-lg p-6 space-y-6">
+        {/* ✅ Hiển thị lỗi nếu có */}
+        {error && (
+          <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm border border-red-300">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="flex flex-col space-y-4">
           <input
             type="text"
