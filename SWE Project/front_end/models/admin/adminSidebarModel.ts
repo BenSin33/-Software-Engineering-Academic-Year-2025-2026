@@ -1,3 +1,4 @@
+"use client"
 import { GrOverview,GrSchedule } from "react-icons/gr";
 import { BsFillPersonVcardFill } from "react-icons/bs";
 import { PiStudentBold } from "react-icons/pi";
@@ -10,7 +11,8 @@ export const adminSidebarModel = [
     {
         text:'Overview',
         url: '/Overview',
-        icon: GrOverview
+        icon: GrOverview,
+        
     },
     {
         text: 'Drivers',
