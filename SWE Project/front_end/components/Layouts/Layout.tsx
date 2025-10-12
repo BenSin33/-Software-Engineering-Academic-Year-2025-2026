@@ -4,12 +4,12 @@ import { Sidebar } from "./Sidebar";
 
 
 
-export function Layout({list,children}:any){
+export function Layout({list,children,user}:any){
     return(
         <>
         <div className="grid grid-cols-[200px_1fr] grid-rows-[50px_1fr_50px] w-screen h-screen">
         <div className="row-start-1 row-end-2 col-start-1 col-end-3">
-            <Header></Header>
+            <Header user={user}></Header>
         </div>
         <div className="col-start-1 col-end-2 row-start-2 row-end-3">
             <Sidebar list={list}/>
