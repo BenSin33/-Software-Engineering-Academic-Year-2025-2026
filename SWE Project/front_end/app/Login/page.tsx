@@ -3,37 +3,39 @@
 import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const users = [
-  { username: "admin", password: "admin123", role: "admin" },
-  { username: "driver", password: "driver123", role: "driver" },
-  { username: "parent", password: "parent123", role: "parent" },
-];
+import { login } from "../API/auth"; // ✅ Gọi từ thư mục API
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(""); // ✅ Thêm state để lưu lỗi
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find(
-      (u) => u.username === username && u.password === password
-    );
-    if (user) {
-      setError(""); // ✅ Xóa lỗi nếu đăng nhập đúng
-      if (user.role === "admin") router.push("/AdminDashboard");
-      else if (user.role === "driver") router.push("/DriverDashboard");
-      else if (user.role === "parent") router.push("/ParentDashboard");
-    } else {
-      setError("Sai tài khoản hoặc mật khẩu"); // ✅ Gán lỗi để hiển thị
+    try {
+      const data = await login(username, password);
+      setError("");
+  
+      const roleMap: Record<number, string> = {
+        1: "admin",
+        2: "parent",
+        3: "driver",
+      };
+  
+      const roleName = roleMap[Number(data.role)];
+  
+      if (roleName === "admin") router.push("/AdminDashboard");
+      else if (roleName === "parent") router.push("/ParentDashboard");
+      else if (roleName === "driver") router.push("/DriverDashboard");
+      else setError("Không xác định được vai trò người dùng");
+    } catch (err: any) {
+      setError(err.message);
     }
   };
 
   return (
     <div className="relative flex items-center justify-center min-h-screen w-screen overflow-hidden">
-      {/* Background image mờ */}
       <div className="absolute inset-0 -z-10 relative">
         <Image
           src="/SchoolBus.jpg"
@@ -45,9 +47,7 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* Form login chính giữa */}
       <div className="w-80 bg-white rounded-2xl shadow-lg p-6 space-y-6">
-        {/* ✅ Hiển thị lỗi nếu có */}
         {error && (
           <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm border border-red-300">
             {error}
@@ -78,16 +78,6 @@ export default function LoginPage() {
             Login
           </button>
         </form>
-
-        {/* Danh sách tài khoản demo */}
-        <div className="text-sm text-gray-600">
-          <p className="font-semibold mb-2">🧪 Tài khoản demo:</p>
-          <ul className="space-y-1">
-            <li>👑 <strong>Admin</strong>: admin / admin123</li>
-            <li>🚌 <strong>Driver</strong>: driver / driver123</li>
-            <li>👨‍👩‍👧 <strong>Parent</strong>: parent / parent123</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
