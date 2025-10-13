@@ -36,7 +36,7 @@ export function Sidebar({list=[]}:any){
 
   return(
     <>
-      <div style={{backgroundColor:'white'}} className="pt-5 h-full w-full">
+      <div style={{backgroundColor:'#FFFF99'}} className="pt-5 h-full w-full">
 
           <ul className="flex flex-col flex-start gap-[1.5rem]">
             {list.map((item,index)=>(
