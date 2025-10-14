@@ -10,43 +10,38 @@ import { FaBusAlt } from "react-icons/fa";
 export const adminSidebarModel = [
     {
         text:'Overview',
-        url: '/Overview',
+        url: '/AdminDashboard/Dashboard',
         icon: GrOverview,
         
     },
     {
         text: 'Drivers',
-        url: '/Drivers',
+        url: '/AdminDashboard/Drivers',
         icon: BsFillPersonVcardFill
     },
     {
         text: 'Students',
-        url: '/Students',
+        url: '/AdminDashboard/Students',
         icon: PiStudentBold
     },
     {
         text: 'Parents',
-        url: '/Parents',
+        url: '/AdminDashboard/Parents',
         icon: RiParentFill
     },
     {
         text: 'Tracks',
-        url: '/Tracks',
+        url: '/AdminDashboard/Tracks',
         icon: TbScanPosition,
         subModules:[
             {
-                text:'Schedules',
-                url:'/Schedules',
-                icon: GrSchedule
-            },
-            {
                 text:'Routes',
-                url:'/Routes',
+                url:'/AdminDashboard/Routes',
                 icon: ImRoad
             },
             {
                 text:'Buses',
-                url:'/Buses',
+                url:'/AdminDashboard/Buses',
                 icon: FaBusAlt
             },
         ]
