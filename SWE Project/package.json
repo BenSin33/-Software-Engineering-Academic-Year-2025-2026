@@ -1,0 +1,11 @@
+{
+  "name": "smart-school-bus-root",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix back_end\" \"npm run dev --prefix front_end\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+

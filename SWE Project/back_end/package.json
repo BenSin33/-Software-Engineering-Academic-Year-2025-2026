@@ -1,13 +1,22 @@
 {
-  "name": "back_end",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "smart-school-bus",
+  "private": true,
+  "workspaces": [
+    "Services/*",
+    "API_gateway",
+    "Shared-libs"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently \"npm run dev --workspace=auth-service\" \"npm run dev --workspace=user-service\" \"npm run dev --workspace=student-service\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "mysql2": "^3.15.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.10"
+  }
 }
