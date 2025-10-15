@@ -1,3 +1,4 @@
+
 'use client'
 import { NavModule} from './NavModule'
 import { useState } from 'react'
@@ -51,3 +52,4 @@ export function Sidebar({list=[]}:any){
     </>
   )
 }
+
