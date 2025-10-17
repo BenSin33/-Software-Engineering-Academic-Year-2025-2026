@@ -2,7 +2,7 @@
 
 import React, { useState, ReactElement } from "react";
 import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, MessageSquare, Bell, BellOff, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter, Bus, School, Route as RouteIcon, UserCheck } from "lucide-react";
-
+import './routes.css'
 // Interface for a single bus stop
 interface BusStop {
     id: number;
@@ -246,7 +246,7 @@ export default function RoutesPage() {
     ];
 
     return (
-        <div className="p-8 bg-gray-50 min-h-screen max-w-[1200px] mx-auto">
+        <div className="p-8 bg-gray-50 min-h-screen w-full">
             {/* Header */}
             <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
                 <div>
