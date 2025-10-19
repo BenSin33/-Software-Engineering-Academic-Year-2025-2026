@@ -71,25 +71,3 @@ export function Sidebar({ list = [] }: SidebarProps) {
     </div>
   )
 }
-<<<<<<< Updated upstream
-
-  return(
-    <>
-      <div style={{backgroundColor:'#FFFF99'}} className="pt-5 h-full w-full">
-
-          <ul className="flex flex-col flex-start gap-[1.5rem]">
-            {list.map((item,index)=>(
-              
-                <li key={`${index}-${item.text}`}>
-                   <NavModule isActiveModule={activeIndex===index} item={item} setIndex={()=>{handleToggle(index)}}/>
-                   {item.subModules && showSubModule(item.subModules,activeIndex,index)}
-                </li>
-            ))}
-          </ul>
-      </div>
-    </>
-  )
-}
-
-=======
->>>>>>> Stashed changes
