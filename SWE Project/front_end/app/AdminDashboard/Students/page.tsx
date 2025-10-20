@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ReactElement } from "react";
+import React, { useState, ReactElement, useEffect } from "react";
 import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, School, ChevronLeft, ChevronRight, Filter, Route as RouteIcon, UserCheck, CheckCircle, XCircle, Home } from "lucide-react";
 
 // --- Data Models ---
@@ -118,7 +118,17 @@ export default function StudentsPage() {
         parentName: "",
         parentPhone: ""
     });
-
+    useEffect(()=>{
+         fetch('http://localhost:3005/students')
+        .then((res)=>res.json())
+        .then((data)=>{
+            if(data) setStudents(data)
+            else return;
+        })
+        .catch((err)=>{
+            console.error('error fetching student data ',err)
+        })
+    },[])
     const itemsPerPage = 6;
 
     // Filter logic for students
