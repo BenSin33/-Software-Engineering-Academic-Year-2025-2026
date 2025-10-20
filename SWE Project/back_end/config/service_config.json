@@ -1,0 +1,38 @@
+{
+    "auth": {
+      "url": "http://localhost:3010/api/auth/batch",
+      "method": "POST"
+    },
+    "bus": {
+      "url": "http://localhost:3011/api/buses/batch",
+      "method": "POST"
+    },
+    "incident": {
+      "url": "http://localhost:3012/api/incidents/batch",
+      "method": "POST"
+    },
+    "location": {
+      "url": "http://localhost:3013/api/locations/batch",
+      "method": "POST"
+    },
+    "messaging": {
+      "url": "http://localhost:3014/api/messages/batch",
+      "method": "POST"
+    },
+    "notification": {
+      "url": "http://localhost:3015/api/notifications/batch",
+      "method": "POST"
+    },
+    "route": {
+      "url": "http://localhost:3016/api/routes/batch",
+      "method": "POST"
+    },
+    "student": {
+      "url": "http://localhost:3017/api/students/batch",
+      "method": "POST"
+    },
+    "trip": {
+      "url": "http://localhost:3018/api/trips/batch",
+      "method": "POST"
+    }
+  }
