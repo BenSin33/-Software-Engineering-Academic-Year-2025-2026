@@ -17,18 +17,19 @@ export default function LoginPage() {
       const data = await login(username, password);
       setError("");
   
-      const roleMap: Record<number, string> = {
-        1: "admin",
-        2: "parent",
-        3: "driver",
+      const roleMap: Record<string, string> = {
+        R001: "Admin",
+        R002: "Driver",
+        R003: "Parent",
       };
+      
+      const roleName = roleMap[data.roleID];
   
-      const roleName = roleMap[Number(data.role)];
-  
-      if (roleName === "admin") router.push("/AdminDashboard");
-      else if (roleName === "parent") router.push("/ParentDashboard");
-      else if (roleName === "driver") router.push("/DriverDashboard");
+      if (roleName === "Admin") router.push("/AdminDashboard");
+      else if (roleName === "Parent") router.push("/ParentDashboard");
+      else if (roleName === "Driver") router.push("/DriverDashboard");
       else setError("Không xác định được vai trò người dùng");
+      
     } catch (err: any) {
       setError(err.message);
     }
