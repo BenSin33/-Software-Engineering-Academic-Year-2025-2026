@@ -71,7 +71,7 @@ export function Sidebar({ list = [] }: SidebarProps) {
     </div>
   )
 }
-<<<<<<< Updated upstream
+/*<<<<<<< Updated upstream
 
   return(
     <>
@@ -92,4 +92,4 @@ export function Sidebar({ list = [] }: SidebarProps) {
 }
 
 =======
->>>>>>> Stashed changes
+>>>>>>> Stashed changes*/
