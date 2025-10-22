@@ -24,3 +24,26 @@ body {
   color: var(--foreground);
   font-family: 'Times new roman';
 }
+
+.search-bar-header {
+  display: flex;
+  align-items: center;
+  background-color: #f8f9fa; /* Màu nền xám nhạt */
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  max-width: 400px; /* Giới hạn chiều rộng */
+}
+
+.search-bar-header .search-icon {
+  color: #adb5bd;
+  margin-right: 8px;
+}
+
+.search-bar-header input {
+  border: none;
+  outline: none;
+  width: 100%;
+  background-color: transparent; /* Nền trong suốt */
+}
