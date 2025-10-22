@@ -9,34 +9,33 @@
 }
 
 /* Page Header */
-.page-header {
+.buses-page .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 32px;
 }
 
-.page-title {
+.buses-page .page-title {
   font-size: 32px;
   font-weight: 700;
   color: #111827;
   margin: 0 0 8px 0;
 }
 
-.page-subtitle {
+.buses-page .page-subtitle {
   font-size: 14px;
   color: #6b7280;
   margin: 0;
 }
 
-.btn-add-bus {
+.buses-page .btn-add-bus {
   background-color: #FFAC50;
   color: white;
   border: none;
   border-radius: 12px;
   padding: 10px 28px;
   font-size: 15px;
-
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -45,18 +44,18 @@
   transition: all 0.3s ease;
 }
 
-.btn-add-bus:hover {
+.buses-page .btn-add-bus:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
-.btn-icon {
+.buses-page .btn-icon {
   font-size: 20px;
   font-weight: 700;
 }
 
 /* Stats Grid - 4 columns per row */
-.stats-grid {
+.buses-page .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
@@ -64,7 +63,7 @@
   width: 100%;
 }
 
-.stat-card {
+.buses-page .stat-card {
   background: white;
   border-radius: 16px;
   padding: 20px;
@@ -75,12 +74,12 @@
   transition: all 0.3s ease;
 }
 
-.stat-card:hover {
+.buses-page .stat-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
-.stat-icon {
+.buses-page .stat-icon {
   width: 56px;
   height: 56px;
   border-radius: 12px;
@@ -91,69 +90,69 @@
   flex-shrink: 0;
 }
 
-.stat-blue .stat-icon {
+.buses-page .stat-blue .stat-icon {
   background: linear-gradient(135deg, #3b82f6 0%, #FFAC50 100%);
 }
 
-.stat-green .stat-icon {
+.buses-page .stat-green .stat-icon {
   background: linear-gradient(135deg, #10b981 0%, #FFAC50 100%);
 }
 
-.stat-orange .stat-icon {
+.buses-page .stat-orange .stat-icon {
   background: linear-gradient(135deg, #f59e0b 0%, #FFAC50 100%);
 }
 
-.stat-red .stat-icon {
+.buses-page .stat-red .stat-icon {
   background: linear-gradient(135deg, #ef4444 0%, #FFAC50 100%);
 }
 
-.stat-light-blue .stat-icon {
+.buses-page .stat-light-blue .stat-icon {
   background: linear-gradient(135deg, #3b82f6 0%, #FFAC50 100%);
 }
 
-.stat-purple .stat-icon {
+.buses-page .stat-purple .stat-icon {
   background: linear-gradient(135deg, #8b5cf6 0%, #FFAC50 100%);
 }
 
-.stat-dark-orange .stat-icon {
+.buses-page .stat-dark-orange .stat-icon {
   background: linear-gradient(135deg, #f97316 0%, #FFAC50 100%);
 }
 
-.stat-pink .stat-icon {
+.buses-page .stat-pink .stat-icon {
   background: linear-gradient(135deg, #ec4899 0%, #FFAC50 100%);
 }
 
-.stat-content {
+.buses-page .stat-content {
   flex: 1;
 }
 
-.stat-label {
+.buses-page .stat-label {
   font-size: 13px;
   color: #6b7280;
   margin-bottom: 4px;
 }
 
-.stat-value {
+.buses-page .stat-value {
   font-size: 28px;
   font-weight: 700;
   color: #111827;
 }
 
 /* Search and Filter Section */
-.search-filter-section {
+.buses-page .search-filter-section {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
 }
 
-.search-bar {
+.buses-page .search-bar {
   flex: 1;
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-icon {
+.buses-page .search-icon {
   position: absolute;
   left: 16px;
   font-size: 18px;
@@ -161,7 +160,7 @@
   pointer-events: none;
 }
 
-.search-input {
+.buses-page .search-input {
   width: 100%;
   padding: 14px 16px 14px 48px;
   border: 2px solid #e5e7eb;
@@ -171,13 +170,13 @@
   transition: all 0.3s ease;
 }
 
-.search-input:focus {
+.buses-page .search-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.btn-advanced-filter {
+.buses-page .btn-advanced-filter {
   background: white;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
@@ -193,20 +192,20 @@
   white-space: nowrap;
 }
 
-.btn-advanced-filter:hover {
+.buses-page .btn-advanced-filter:hover {
   background: #f9fafb;
   border-color: #d1d5db;
 }
 
 /* Filter Tabs */
-.filter-tabs {
+.buses-page .filter-tabs {
   display: flex;
   gap: 12px;
   margin-bottom: 28px;
   flex-wrap: wrap;
 }
 
-.filter-tab {
+.buses-page .filter-tab {
   padding: 10px 20px;
   border: 2px solid #e5e7eb;
   border-radius: 10px;
@@ -218,20 +217,20 @@
   transition: all 0.3s ease;
 }
 
-.filter-tab:hover {
+.buses-page .filter-tab:hover {
   background: #f9fafb;
   border-color: #d1d5db;
   color: #374151;
 }
 
-.filter-tab.active {
+.buses-page .filter-tab.active {
   background: #FFAC50;
   border-color: #FFAC50;
   color: white;
 }
 
 /* Bus Cards Grid - 2 columns per row */
-.bus-cards-grid {
+.buses-page .bus-cards-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 24px;
@@ -239,7 +238,7 @@
   width: 100%;
 }
 
-.bus-card {
+.buses-page .bus-card {
   background: white;
   border-radius: 16px;
   padding: 24px;
@@ -250,32 +249,32 @@
   box-sizing: border-box;
 }
 
-.bus-card:hover {
+.buses-page .bus-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   border-color: #e5e7eb;
 }
 
 /* Bus Card Header */
-.bus-card-header {
+.buses-page .bus-card-header {
   margin-bottom: 12px;
 }
 
-.bus-card-title-section {
+.buses-page .bus-card-title-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
 
-.bus-card-id {
+.buses-page .bus-card-id {
   font-size: 24px;
   font-weight: 700;
   color: #111827;
   margin: 0;
 }
 
-.status-badge {
+.buses-page .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -285,7 +284,7 @@
   font-weight: 600;
 }
 
-.status-dot {
+.buses-page .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -301,49 +300,49 @@
   }
 }
 
-.status-badge-running {
+.buses-page .status-badge-running {
   background: #d1fae5;
   color: #065f46;
 }
 
-.status-badge-running .status-dot {
+.buses-page .status-badge-running .status-dot {
   background: #10b981;
 }
 
-.status-badge-waiting {
+.buses-page .status-badge-waiting {
   background: #dbeafe;
   color: #1e40af;
 }
 
-.status-badge-waiting .status-dot {
+.buses-page .status-badge-waiting .status-dot {
   background: #3b82f6;
 }
 
-.status-badge-maintenance {
+.buses-page .status-badge-maintenance {
   background: #fee2e2;
   color: #991b1b;
 }
 
-.status-badge-maintenance .status-dot {
+.buses-page .status-badge-maintenance .status-dot {
   background: #ef4444;
 }
 
-.status-badge-ready {
+.buses-page .status-badge-ready {
   background: #dbeafe;
   color: #1e3a8a;
 }
 
-.status-badge-ready .status-dot {
+.buses-page .status-badge-ready .status-dot {
   background: #3b82f6;
 }
 
-.bus-card-license {
+.buses-page .bus-card-license {
   font-size: 18px;
   font-weight: 600;
   color: #374151;
 }
 
-.bus-model {
+.buses-page .bus-model {
   font-size: 14px;
   color: #9ca3af;
   padding: 12px 16px;
@@ -353,19 +352,19 @@
 }
 
 /* Progress Section */
-.progress-section {
+.buses-page .progress-section {
   margin-bottom: 20px;
 }
 
-.progress-item {
+.buses-page .progress-item {
   margin-bottom: 16px;
 }
 
-.progress-item:last-child {
+.buses-page .progress-item:last-child {
   margin-bottom: 0;
 }
 
-.progress-label {
+.buses-page .progress-label {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -375,12 +374,12 @@
   font-weight: 600;
 }
 
-.progress-value {
+.buses-page .progress-value {
   color: #111827;
   font-weight: 700;
 }
 
-.progress-bar {
+.buses-page .progress-bar {
   width: 100%;
   height: 8px;
   background: #e5e7eb;
@@ -388,35 +387,35 @@
   overflow: hidden;
 }
 
-.progress-fill {
+.buses-page .progress-fill {
   height: 100%;
   border-radius: 10px;
   transition: width 0.3s ease;
 }
 
-.progress-fill-blue {
+.buses-page .progress-fill-blue {
   background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
 }
 
-.progress-fill-green {
+.buses-page .progress-fill-green {
   background: linear-gradient(90deg, #10b981 0%, #059669 100%);
 }
 
 /* Bus Info Grid */
-.bus-info-grid {
+.buses-page .bus-info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-bottom: 20px;
 }
 
-.bus-info-item {
+.buses-page .bus-info-item {
   padding: 12px;
   background: #f9fafb;
   border-radius: 8px;
 }
 
-.info-label {
+.buses-page .info-label {
   font-size: 11px;
   font-weight: 700;
   color: #9ca3af;
@@ -424,14 +423,14 @@
   margin-bottom: 4px;
 }
 
-.info-value {
+.buses-page .info-value {
   font-size: 15px;
   font-weight: 700;
   color: #111827;
 }
 
 /* Location */
-.bus-location {
+.buses-page .bus-location {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -441,12 +440,12 @@
   margin-bottom: 16px;
 }
 
-.location-icon {
+.buses-page .location-icon {
   font-size: 20px;
   line-height: 1;
 }
 
-.location-label {
+.buses-page .location-label {
   font-size: 11px;
   font-weight: 700;
   color: #9ca3af;
@@ -454,14 +453,14 @@
   margin-bottom: 4px;
 }
 
-.location-value {
+.buses-page .location-value {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
 }
 
 /* Maintenance */
-.bus-maintenance {
+.buses-page .bus-maintenance {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -471,23 +470,23 @@
   margin-bottom: 20px;
 }
 
-.maintenance-icon {
+.buses-page .maintenance-icon {
   font-size: 16px;
 }
 
-.maintenance-text {
+.buses-page .maintenance-text {
   font-size: 13px;
   color: #6b7280;
   font-weight: 500;
 }
 
 /* Action Buttons */
-.bus-card-actions {
+.buses-page .bus-card-actions {
   display: flex;
   gap: 10px;
 }
 
-.btn-action {
+.buses-page .btn-action {
   padding: 12px 20px;
   border: 2px solid #e5e7eb;
   border-radius: 10px;
@@ -501,62 +500,62 @@
   gap: 8px;
 }
 
-.btn-primary {
+.buses-page .btn-primary {
   background: #FFAC50;
   border-color: #FFAC50;
   color: white;
   flex: 1;
 }
 
-.btn-primary:hover {
+.buses-page .btn-primary:hover {
   background: #2563eb;
   border-color: #2563eb;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-.btn-icon-only {
+.buses-page .btn-icon-only {
   padding: 12px;
   color: #6b7280;
   min-width: 44px;
   justify-content: center;
 }
 
-.btn-icon-only:hover {
+.buses-page .btn-icon-only:hover {
   background: #f9fafb;
   border-color: #d1d5db;
 }
 
-.btn-delete:hover {
+.buses-page .btn-delete:hover {
   background: #fee2e2;
   border-color: #fecaca;
   color: #dc2626;
 }
 
-.btn-action-icon {
+.buses-page .btn-action-icon {
   font-size: 16px;
 }
 
 /* Pagination */
-.pagination {
+.buses-page .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 24px 0;
 }
 
-.pagination-info {
+.buses-page .pagination-info {
   font-size: 14px;
   color: #6b7280;
   font-weight: 500;
 }
 
-.pagination-controls {
+.buses-page .pagination-controls {
   display: flex;
   gap: 8px;
 }
 
-.pagination-btn {
+.buses-page .pagination-btn {
   padding: 10px 16px;
   border: 2px solid #e5e7eb;
   border-radius: 8px;
@@ -569,34 +568,34 @@
   min-width: 44px;
 }
 
-.pagination-btn:hover:not(:disabled) {
+.buses-page .pagination-btn:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #d1d5db;
 }
 
-.pagination-btn:disabled {
+.buses-page .pagination-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.pagination-btn-active {
+.buses-page .pagination-btn-active {
   background: #FFAC50;
   border-color: #FFAC50;
   color: white;
 }
-S
-.pagination-btn-active:hover {
+
+.buses-page .pagination-btn-active:hover {
   background: #2563eb;
   border-color: #2563eb;
 }
 
 /* Responsive Design */
 @media (max-width: 1400px) {
-  .stats-grid {
+  .buses-page .stats-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  .bus-cards-grid {
+  .buses-page .bus-cards-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -606,21 +605,21 @@ S
     padding: 24px;
   }
 
-  .stats-grid {
+  .buses-page .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .bus-cards-grid {
+  .buses-page .bus-cards-grid {
     grid-template-columns: 1fr;
   }
 
-  .stat-icon {
+  .buses-page .stat-icon {
     width: 48px;
     height: 48px;
     font-size: 20px;
   }
 
-  .stat-value {
+  .buses-page .stat-value {
     font-size: 24px;
   }
 }
@@ -630,77 +629,77 @@ S
     padding: 16px;
   }
 
-  .page-header {
+  .buses-page .page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
   }
 
-  .btn-add-bus {
+  .buses-page .btn-add-bus {
     width: 100%;
     justify-content: center;
   }
 
-  .search-filter-section {
+  .buses-page .search-filter-section {
     flex-direction: column;
   }
 
-  .btn-advanced-filter {
+  .buses-page .btn-advanced-filter {
     width: 100%;
     justify-content: center;
   }
 
-  .stats-grid {
+  .buses-page .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 
-  .stat-card {
+  .buses-page .stat-card {
     padding: 16px;
   }
 
-  .bus-info-grid {
+  .buses-page .bus-info-grid {
     grid-template-columns: 1fr;
   }
 
-  .bus-card-actions {
+  .buses-page .bus-card-actions {
     flex-wrap: wrap;
   }
 
-  .btn-primary {
+  .buses-page .btn-primary {
     width: 100%;
   }
 
-  .pagination {
+  .buses-page .pagination {
     flex-direction: column;
     gap: 16px;
   }
 
-  .pagination-info {
+  .buses-page .pagination-info {
     text-align: center;
   }
 }
 
 @media (max-width: 480px) {
-  .page-title {
+  .buses-page .page-title {
     font-size: 24px;
   }
 
-  .bus-card-id {
+  .buses-page .bus-card-id {
     font-size: 20px;
   }
 
-  .stats-grid {
+  .buses-page .stats-grid {
     grid-template-columns: 1fr;
   }
 
-  .filter-tabs {
+  .buses-page .filter-tabs {
     overflow-x: auto;
     flex-wrap: nowrap;
     padding-bottom: 8px;
   }
 
-  .filter-tab {
+  .buses-page .filter-tab {
     white-space: nowrap;
     flex-shrink: 0;
   }
