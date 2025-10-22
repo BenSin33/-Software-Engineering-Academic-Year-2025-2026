@@ -9,10 +9,11 @@ app.use(bodyParser.json());
 //Import routes
 
 const authRoutes = require('../Services/auth_service/auth.controller');
-
+//const studentRoutes = require('../Services/student_service/routes/studentRouter');
 app.use("/api/auth",authRoutes);
-
+//app.use("/Students",studentRoutes)
 const PORT = 5000;
 app.listen(PORT, ()=>{
     console.log('API Gateway running on port', PORT);
+
 });
