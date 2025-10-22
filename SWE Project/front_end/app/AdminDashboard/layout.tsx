@@ -9,7 +9,7 @@ const user={
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen w-screen">
-        <Layout list={adminNavList} user={user} children={children} />
+        <Layout list={adminSidebarModel} user={user} children={children} />
     </div>
   )
 }

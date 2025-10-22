@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ReactElement } from "react";
+import React, { useState, ReactElement, useEffect } from "react";
 import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, School, ChevronLeft, ChevronRight, Filter, Route as RouteIcon, UserCheck, CheckCircle, XCircle, Home } from "lucide-react";
 
 // --- Data Models ---
@@ -118,7 +118,17 @@ export default function StudentsPage() {
         parentName: "",
         parentPhone: ""
     });
-
+    useEffect(()=>{
+         fetch('http://localhost:3005/students')
+        .then((res)=>res.json())
+        .then((data)=>{
+            if(data) setStudents(data)
+            else return;
+        })
+        .catch((err)=>{
+            console.error('error fetching student data ',err)
+        })
+    },[])
     const itemsPerPage = 6;
 
     // Filter logic for students
@@ -170,7 +180,7 @@ export default function StudentsPage() {
             alert("Vui lòng điền đầy đủ thông tin học sinh!");
             return;
         }
-        
+
         // Simple avatar generation
         const avatarInitials = formData.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
@@ -249,7 +259,7 @@ export default function StudentsPage() {
     ];
 
     return (
-        <div className="p-8 bg-gray-50 min-h-screen max-w-[1200px] mx-auto">
+        <div className="p-8 bg-gray-50 w-full">
             {/* Header */}
             <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
                 <div>
@@ -554,7 +564,7 @@ export default function StudentsPage() {
                                     <p className="text-xs text-gray-500 mt-1">*(Chưa có trong dữ liệu mẫu, chỉ để minh họa)*</p>
                                 </div>
                             </div>
-                            
+
                             <div className="flex gap-3 pt-4">
                                 <button onClick={() => openEditModal(selectedStudent)} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 active:bg-green-800"><Edit className="w-4.5 h-4.5" />Chỉnh sửa</button>
                                 <button onClick={() => { setStudentToDelete(selectedStudent); setShowDeleteConfirm(true); setSelectedStudent(null); }} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-700 active:bg-red-800"><Trash2 className="w-4.5 h-4.5" />Xóa</button>

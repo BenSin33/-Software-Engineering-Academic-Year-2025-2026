@@ -17,15 +17,16 @@ export function Header({ user }: any) {
     };
 
     return (
-        <header style={{ backgroundColor: 'white' }} className="flex items-center justify-between h-full px-6">
-            {/* Logo bên trái */}
-            <p className="font-bold text-2xl">SSB <span style={{ color: '#FFAC50' }}>1.0</span></p>
 
-            {/* ✅ Thanh tìm kiếm ở giữa */}
-            <div className="search-bar-header">
-              <Search size={20} className="search-icon" />
-              <input type="text" placeholder="Search..." />
-            </div>
+        <>
+            <header style={{ backgroundColor: 'white' }} className="flex items-center justify-between h-full">
+                <p className="font-extrabold text-[1.7rem] ml-[3rem]">SSB <span style={{ color: '#FFAC50' }}>1.0</span></p>
+                {(user && Object.keys(user).length > 0) && <div className="flex items-center gap-3 pr-3">
+                    <HiBell size={25} className="text-[#FFAC50]" />
+                    <HiChat size={25} className="text-[#FFAC50]" />
+                    <HiUserCircle className="text-[#FFAC50]" size={40} />
+                    <p>Admin</p>
+
 
             {/* Thông tin người dùng bên phải */}
             {(user) && <div className="flex items-center gap-4">
