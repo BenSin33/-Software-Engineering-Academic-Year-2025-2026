@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -25,9 +26,9 @@ export default function LoginPage() {
       
       const roleName = roleMap[data.roleID];
   
-      if (roleName === "Admin") router.push("/AdminDashboard");
-      else if (roleName === "Parent") router.push("/ParentDashboard");
-      else if (roleName === "Driver") router.push("/DriverDashboard");
+      if (roleName === "Admin") setTimeout (() => router.push("/AdminDashboard"), 1500);
+      else if (roleName === "Parent") setTimeout(() => router.push("/ParentDashboard"), 1500);
+      else if (roleName === "Driver") setTimeout(() => router.push("/DriverDashboard"),1500);
       else setError("Không xác định được vai trò người dùng");
       
     } catch (err: any) {

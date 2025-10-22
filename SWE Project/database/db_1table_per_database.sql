@@ -48,8 +48,7 @@ CREATE DATABASE IF NOT EXISTS routes_db;
 USE routes_db;
 
 CREATE TABLE routes (
-  RouteID CHAR(36) PRIMARY KEY,
-  StudentID CHAR(36),
+  RouteID INT AUTO_INCREMENT PRIMARY KEY,
   DriverID CHAR(36),
   BusID CHAR(36),
   RouteName VARCHAR(100),
@@ -62,8 +61,8 @@ CREATE DATABASE IF NOT EXISTS schedules_db;
 USE schedules_db;
 
 CREATE TABLE schedules (
-  ScheduleID CHAR(36) PRIMARY KEY,
-  RouteID CHAR(36),
+  ScheduleID INT PRIMARY KEY,
+  RouteID INT,
   Date DATE,
   TimeStart TIME,
   TimeEnd TIME

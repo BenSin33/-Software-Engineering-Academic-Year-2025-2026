@@ -1,31 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
+import MapView from '@/components/Layouts/MapView'; // Đường dẫn đúng tới MapView.tsx
 
 export default function TrackingPage() {
-  const [busLocation, setBusLocation] = useState({ lat: 10.762622, lng: 106.660172 });
-
-  // Mô phỏng vị trí xe di chuyển
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBusLocation((prev) => ({
-        lat: prev.lat + (Math.random() - 0.5) * 0.001,
-        lng: prev.lng + (Math.random() - 0.5) * 0.001,
-      }));
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Tracking Bus Location 🚌</h1>
-      <div className="bg-white p-4 rounded-xl shadow">
-        <p>
-          <b>Latitude:</b> {busLocation.lat.toFixed(6)} <br />
-          <b>Longitude:</b> {busLocation.lng.toFixed(6)}
-        </p>
-        <p className="mt-2 text-gray-500">(Simulated real-time data)</p>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4 text-center">Tuyến đường từ TP.HCM đến Hà Nội 🛣️</h1>
+
+      <div className="bg-white rounded-xl shadow-xl overflow-hidden p-2 mx-auto" style={{ maxWidth: 800 }}>
+        <MapView />
+        <div className="p-4 text-center text-sm text-gray-500">
+          Dữ liệu tuyến đường được lấy từ OpenRouteService và hiển thị bằng MapTiler.
+        </div>
       </div>
     </div>
   );

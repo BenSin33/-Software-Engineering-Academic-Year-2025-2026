@@ -27,6 +27,9 @@ SET time_zone = "+00:00";
 -- Cấu trúc bảng cho bảng `roles`
 --
 
+CREATE DATABASE auth_service;
+USE auth_service;
+
 CREATE TABLE `roles` (
   `RoleID` char(36) NOT NULL,
   `RoleName` varchar(50) DEFAULT NULL
