@@ -1,4 +1,3 @@
-
 'use client'
 import Image from "next/image"
 import { HiUserCircle } from "react-icons/hi"
@@ -37,4 +36,3 @@ export function Header({ user }: any) {
         </>
     )
 }
-
