@@ -1,23 +1,33 @@
+'use client';
 
-import { Layout } from "@/components/Layouts/Layout"; 
-import { driverNavList } from "@/configs/driver-nav"; 
+import { Layout } from '../../components/Layouts/Layout';
+import { HiUserCircle, HiBell, HiChat, HiExclamationCircle, HiDocument, HiDocumentReport } from 'react-icons/hi';
 
-export default function DriverLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const driverUser = {
-    name: "Anh Tài xế",
-    role: "Driver",
+export default function ParentDashboardLayout({ children }: { children: React.ReactNode }) {
+  const user = {
+    name: 'Admin',
   };
 
+  const navItems = [
+    {
+      text: 'Alert',
+      url: '/DriverDashboard/Alert',
+      icon: HiExclamationCircle,
+    },
+    {
+      text: 'Pickup reports',
+      url: '/DriverDashboard/Tracking',
+      icon: HiDocumentReport,
+    },
+    {
+      text: 'Notifications',
+      url: '/DriverDashboard/Schedule',
+      icon: HiBell,
+    },
+  ];
+
   return (
-    // Gọi component Layout chung của bạn và truyền vào các props cần thiết
-    <Layout list={driverNavList} user={driverUser}>
-      {/* Đây là nơi Next.js sẽ tự động chèn nội dung 
-        của các file page.tsx (ví dụ: app/driver/dashboard/page.tsx) vào
-      */}
+    <Layout list={navItems} user={user} >
       {children}
     </Layout>
   );

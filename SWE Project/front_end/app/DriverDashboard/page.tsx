@@ -93,32 +93,6 @@ export default function DriverJourneyPage() {
             </div>
           </div>
         </div>
-
-        {/* Cột bên phải */}
-        <div className="right-sidebar">
-          {/* Bản đồ */}
-          <div className="card map-card">
-             <h4>Bản đồ Tuyến đường</h4>
-             {/* Bạn có thể thay thế bằng component bản đồ thật hoặc ảnh tĩnh */}
-             <div className="map-placeholder">
-                <Image 
-                    src="/map-placeholder.png" // Thay bằng đường dẫn ảnh bản đồ của bạn
-                    alt="Map" 
-                    layout="fill"
-                    objectFit="cover"
-                />
-             </div>
-          </div>
-
-          {/* Thông báo hệ thống */}
-          <div className="card notification-card">
-            <div className="card-header">
-              <Bell size={18} />
-              <h4>THÔNG BÁO HỆ THỐNG</h4>
-            </div>
-            <p>Bạn có 1 học sinh chưa được đón tại điểm dừng kế tiếp.</p>
-          </div>
-        </div>
       </div>
     </div>
   );

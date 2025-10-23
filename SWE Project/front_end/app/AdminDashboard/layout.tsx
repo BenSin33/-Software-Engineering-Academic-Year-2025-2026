@@ -1,7 +1,6 @@
+// app/admin/layout.tsx
 import { Layout } from "@/components/Layouts/Layout"
-
-import { adminNavList } from "@/configs/admin-nav"; 
-
+import { adminSidebarModel } from "@/models/admin/adminSidebarModel"
 const user={
     name:"Minh",
     age:30
@@ -9,7 +8,7 @@ const user={
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen w-screen">
-        <Layout list={adminNavList} user={user} children={children} />
+        <Layout list={adminSidebarModel} user={user} children={children} />
     </div>
   )
 }
