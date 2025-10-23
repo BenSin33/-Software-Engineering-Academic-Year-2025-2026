@@ -1,11 +1,10 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
-import { Search, Settings, AlertTriangle, Bus, MapPin, Bell } from 'lucide-react';
-import Image from 'next/image';
-import './DriverJourney.css'; 
+import { AlertTriangle, Bus } from 'lucide-react';
+import MapView from '@/components/Layouts/MapView';
+import './DriverJourney.css';
 
-// Component Toggle Switch tùy chỉnh
 type ToggleSwitchProps = {
   checked: boolean;
   onChange: () => void;
@@ -19,7 +18,6 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange }) => (
 );
 
 export default function DriverJourneyPage() {
-  // Dữ liệu giả lập cho danh sách học sinh
   const initialStudents = [
     { id: 1, name: 'Nguyễn Văn A', status: 'Chưa đón' },
     { id: 2, name: 'Nguyễn Văn/Trà', status: 'Đã đón' },
@@ -43,7 +41,7 @@ export default function DriverJourneyPage() {
 
   return (
     <div className="driver-journey-page">
-      {/* Header của trang */}
+      {/* Header */}
       <div className="page-main-header">
         <div className="user-actions">
           <button className="report-button">
@@ -53,12 +51,12 @@ export default function DriverJourneyPage() {
         </div>
       </div>
 
-      <div className="journey-content-grid">
-        {/* Cột nội dung chính */}
-        <div className="main-content">
+      {/* Nội dung chia 2 cột */}
+      <div className="journey-content-grid" style={{ display: 'flex', gap: '24px' }}>
+        {/* Cột trái: lịch trình và danh sách học sinh */}
+        <div className="main-content" style={{ flex: 1 }}>
           <p className="page-breadcrumb">Lịch trình</p>
-          
-          {/* Thẻ Lịch trình ngày hôm nay */}
+
           <div className="card current-trip-card">
             <div className="card-icon-wrapper">
               <Bus size={32} />
@@ -70,7 +68,6 @@ export default function DriverJourneyPage() {
             </div>
           </div>
 
-          {/* Danh sách học sinh */}
           <div className="card student-list-card">
             <h4>DANH SÁCH HỌC SINH</h4>
             <div className="student-list">
@@ -82,7 +79,7 @@ export default function DriverJourneyPage() {
                 <div key={student.id} className="student-item">
                   <span className="student-name">{student.name}</span>
                   <div className="student-status">
-                    <span>{student.status === 'Đã đón' ? 'Đã đón' : 'Chưa đón'}</span>
+                    <span>{student.status}</span>
                     <ToggleSwitch
                       checked={student.status === 'Đã đón'}
                       onChange={() => handleToggle(student.id)}
@@ -91,6 +88,19 @@ export default function DriverJourneyPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Cột phải: bản đồ */}
+        <div className="map-content" style={{ flex: 1 }}>
+          <div className="map-wrapper" style={{
+            height: '100%',
+            minHeight: '400px',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            boxShadow: '0 0 10px rgba(0,0,0,0.1)'
+          }}>
+            <MapView />
           </div>
         </div>
       </div>
