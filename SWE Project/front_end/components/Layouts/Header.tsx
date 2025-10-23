@@ -21,27 +21,22 @@ export function Header({ user }: any) {
         <>
             <header style={{ backgroundColor: 'white' }} className="flex items-center justify-between h-full">
                 <p className="font-extrabold text-[1.7rem] ml-[3rem]">SSB <span style={{ color: '#FFAC50' }}>1.0</span></p>
-                {(user && Object.keys(user).length > 0) && <div className="flex items-center gap-3 pr-3">
-                    <HiBell size={25} className="text-[#FFAC50]" />
-                    <HiChat size={25} className="text-[#FFAC50]" />
-                    <HiUserCircle className="text-[#FFAC50]" size={40} />
-                    <p>Admin</p>
-
-
-            {/* Thông tin người dùng bên phải */}
-            {(user) && <div className="flex items-center gap-4">
-                <HiBell size={25} className="text-[#FFAC50] cursor-pointer" />
-                <HiChat size={25} className="text-[#FFAC50] cursor-pointer" />
-                <HiUserCircle className="text-[#FFAC50]" size={40} />
-                <p>{user?.name || roleText}</p> 
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-1 text-gray-600 hover:text-red-500 transition"
-                >
-                    <HiOutlineLogout size={25} />
-                    <span className="text-sm font-medium">Logout</span>
-                </button>
-            </div>}
-        </header>
+                {(user && Object.keys(user).length > 0) && (
+                    <div className="flex items-center gap-4 pr-3">
+                        <HiBell size={25} className="text-[#FFAC50] cursor-pointer" />
+                        <HiChat size={25} className="text-[#FFAC50] cursor-pointer" />
+                        <HiUserCircle className="text-[#FFAC50]" size={40} />
+                        <p>{user?.name || 'Admin'}</p>
+                        <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-1 text-gray-600 hover:text-red-500 transition"
+                        >
+                            <HiOutlineLogout size={25} />
+                            <span className="text-sm font-medium">Logout</span>
+                        </button>
+                    </div>
+                )}
+            </header>
+        </>
     )
 }
