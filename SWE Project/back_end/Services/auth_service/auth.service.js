@@ -1,4 +1,4 @@
-const db = require("dbUsers");
+const db = require("./dbUsers");
 const bcrypt = require("bcrypt");
 const axios = require("axios");
 

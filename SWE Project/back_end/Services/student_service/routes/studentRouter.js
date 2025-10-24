@@ -1,7 +1,11 @@
-const {Router} = require('express');
-const studentController= require('../controllers/studentController')
+const { Router } = require('express');
+const studentController = require('../controllers/studentController');
 const studentRouter = Router();
-studentRouter.get('/',studentController.getAllStudents)
-studentRouter.post('/add',studentController.addNewStudent)
-// studentRouter.post('/add',studentController.addNewStudent)
-module.exports=studentRouter
+
+
+// Các route khác
+studentRouter.get('/', studentController.getAllStudents);
+studentRouter.post('/add', studentController.addNewStudent);
+studentRouter.post('/edit/:studentID',studentController.updateCurrentStudent)
+studentRouter.post('/delete/:studentID',studentController.deleteStudent)
+module.exports = studentRouter;

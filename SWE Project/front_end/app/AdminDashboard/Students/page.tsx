@@ -7,33 +7,28 @@ import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye
 
 // Interface for a single student
 interface Student {
-    id: number;
-    fullName: string;
-    class: string; // e.g., '10A1', '12B5'
-    studentId: string;
-    email: string;
-    parentName: string;
-    parentPhone: string;
-    registeredDate: string;
-    status: 'active' | 'inactive' | 'graduated'; // e.g., 'active', 'inactive', 'graduated'
-    avatar: string; // Short initials for display
+    StudentID: string,
+    ParentName: string,
+    ParentID: string,
+    FullName: string,
+    DateOfBirth: String,
+    PickUpPoint: string,
+    DropOffPoint: string
 }
 
 // Interface for the form data (Add/Edit)
 interface FormData {
-    fullName: string;
-    class: string;
-    studentId: string;
-    email: string;
-    parentName: string;
-    parentPhone: string;
+    FullName: string;
+    ParentID: string;
+    DateOfBirth: String;
+    PickUpPoint: string;
+    DropOffPoint: string;
 }
 
 // Interface for advanced filters
 interface AdvancedFilters {
-    studentId: string;
-    class: string;
-    parentName: string;
+    StudentID: string;
+    ParentName: string;
 }
 
 // --- Màu sắc tùy chỉnh (Orange-Yellow: #FFAC50, Dark Hover: #E59B48) ---
@@ -47,9 +42,8 @@ export default function StudentsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
     const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
-        studentId: "",
-        class: "",
-        parentName: ""
+        StudentID: "",
+        ParentName: ""
     });
 
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -59,100 +53,57 @@ export default function StudentsPage() {
     const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
     // Sample data for students
-    const [students, setStudents] = useState<Student[]>([
-        {
-            id: 1,
-            fullName: "Lê Minh Khang",
-            class: "10A1",
-            studentId: "HS2024001",
-            email: "khanglm@school.com",
-            parentName: "Lê Văn Tùng",
-            parentPhone: "0901112233",
-            registeredDate: "01/08/2024",
-            status: "active",
-            avatar: "LK"
-        },
-        {
-            id: 2,
-            fullName: "Trần Mai Phương",
-            class: "12B5",
-            studentId: "HS2022045",
-            email: "phuongtm@school.com",
-            parentName: "Trần Thị Lan",
-            parentPhone: "0912223344",
-            registeredDate: "15/08/2022",
-            status: "active",
-            avatar: "TP"
-        },
-        {
-            id: 3,
-            fullName: "Nguyễn Duy Anh",
-            class: "11C3",
-            studentId: "HS2023101",
-            email: "anhnd@school.com",
-            parentName: "Nguyễn Văn Hùng",
-            parentPhone: "0923334455",
-            registeredDate: "10/08/2023",
-            status: "inactive",
-            avatar: "NA"
-        },
-        {
-            id: 4,
-            fullName: "Phạm Khánh Ly",
-            class: "12B5",
-            studentId: "HS2022080",
-            email: "lypk@school.com",
-            parentName: "Phạm Thanh Lâm",
-            parentPhone: "0934445566",
-            registeredDate: "05/08/2022",
-            status: "graduated",
-            avatar: "PL"
-        },
-    ]);
-
+    const [students, setStudents] = useState<Student[]>([]);
+    const [parents,setParents] = useState([])
     const [formData, setFormData] = useState<FormData>({
-        fullName: "",
-        class: "",
-        studentId: "",
-        email: "",
-        parentName: "",
-        parentPhone: ""
+        FullName: "",
+        ParentID: "",
+        DateOfBirth: '',
+        PickUpPoint: '',
+        DropOffPoint: ''
     });
-    useEffect(()=>{
-         fetch('http://localhost:3005/students')
-        .then((res)=>res.json())
-        .then((data)=>{
-            if(data) setStudents(data)
-            else return;
-        })
-        .catch((err)=>{
-            console.error('error fetching student data ',err)
-        })
-    },[])
+    useEffect(() => {
+      fetch('http://localhost:5000/Students')
+    .then(res => res.json())
+    .then(data => {
+      console.log("📦 Raw data from API:", data);
+
+      if (Array.isArray(data)) {
+        // ✅ trường hợp trả mảng trực tiếp
+        setStudents(data);
+      } else if (Array.isArray(data.mergedData)) {
+        // ✅ trường hợp backend trả { mergedData: [...] }
+        setStudents(data.mergedData);
+      } else {
+        console.warn("⚠️ Dữ liệu trả về không phải array:", data);
+        setStudents([]); // fallback
+      }
+    })
+    .catch(err => console.error("❌ Lỗi fetch:", err));
+    }
+    , [])
     const itemsPerPage = 6;
 
     // Filter logic for students
     const filteredStudents = students.filter(student => {
         const searchTermLower = searchTerm.toLowerCase();
-        const matchesSearch = student.fullName.toLowerCase().includes(searchTermLower) ||
-            student.studentId.toLowerCase().includes(searchTermLower) ||
-            student.email.toLowerCase().includes(searchTermLower) ||
-            student.class.toLowerCase().includes(searchTermLower);
+        const matchesSearch = student.FullName.toLowerCase().includes(searchTermLower) ||
+            String(student.StudentID).toLowerCase().includes(searchTermLower)
 
-        const matchesStudentId = advancedFilters.studentId === "" ||
-            student.studentId.toLowerCase().includes(advancedFilters.studentId.toLowerCase());
+        const matchesStudentId = advancedFilters.StudentID === "" ||
+            String(student.StudentID).toLowerCase().includes(advancedFilters.StudentID.toLowerCase());
 
-        const matchesClass = advancedFilters.class === "" ||
-            student.class.toLowerCase().includes(advancedFilters.class.toLowerCase());
 
-        const matchesParentName = advancedFilters.parentName === "" ||
-            student.parentName.toLowerCase().includes(advancedFilters.parentName.toLowerCase());
+        const matchesParentName = advancedFilters.ParentName === "" ||
+            String(student.ParentName).toLowerCase().includes(advancedFilters.ParentName.toLowerCase());
 
-        const matchesStatus = filterStatus === "all" || student.status === filterStatus;
 
-        return matchesSearch && matchesStudentId && matchesClass && matchesParentName && matchesStatus;
+        return matchesSearch && matchesStudentId && matchesParentName;
     });
-
+    const formatDate = (day: any) => {
+        const formattedDate = new Date(day).toISOString().split("T")[0];
+        return formattedDate
+    }
     const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -164,62 +115,99 @@ export default function StudentsPage() {
 
     const clearAdvancedFilters = () => {
         setAdvancedFilters({
-            studentId: "",
-            class: "",
-            parentName: ""
+            StudentID: "",
+            ParentName: ""
         });
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleAddStudent = () => {
-        if (!formData.fullName || !formData.studentId || !formData.class || !formData.email || !formData.parentName || !formData.parentPhone) {
+    const handleAddStudent = async (e: any) => {
+        e.preventDefault();
+        if (!formData.FullName || !formData.ParentID || !formData.PickUpPoint || !formData.DropOffPoint) {
             alert("Vui lòng điền đầy đủ thông tin học sinh!");
             return;
         }
+        try {
+            console.log('ta')
+            const response = await fetch('http://localhost:5000/Students/add', {
+                method: 'POST',
+                headers: { "content-type": 'application/json' },
+                body: JSON.stringify(formData)
+            })
+            console.log('formData: ', formData)
+            console.log(response)
+            if (response.ok) {
+                console.log('mani')
+                const data = await response.json();
+                console.log('data log: ', data)
+                if (data) setStudents(data);
+                alert('thêm học sinh thành công');
+                setShowAddModal(false);
+            } else {
+                alert('có lỗi xảy ra')
+            }
+        } catch (err) {
+            console.error(err)
+        }
+        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' });
 
-        // Simple avatar generation
-        const avatarInitials = formData.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-
-        const newStudent: Student = {
-            id: students.length + 1,
-            ...formData,
-            status: "active",
-            registeredDate: new Date().toLocaleDateString('vi-VN'),
-            avatar: avatarInitials
-        };
-
-        setStudents([...students, newStudent]);
-        setShowAddModal(false);
-        setFormData({ fullName: "", class: "", studentId: "", email: "", parentName: "", parentPhone: "" });
-        alert("Thêm học sinh mới thành công!");
     };
 
-    const handleEditStudent = () => {
+    const handleEditStudent = async (e: any) => {
+        e.preventDefault();
+        if (!formData.DateOfBirth || !formData.FullName || !formData.DropOffPoint || !formData.PickUpPoint)
+            alert('nhap day du cac field')
+        try {
+            const response = await fetch(`http://localhost:3005/students/edit/${selectedStudent && selectedStudent.StudentID}`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
+            if (response.ok) {
+                const data = await response.json();
+                if (data) setStudents(data)
+            }
+        } catch (err) {
+            console.error(err)
+        }
+
+
         if (!selectedStudent) return;
 
-        const updatedStudents = students.map(s =>
-            s.id === selectedStudent.id ? {
-                ...selectedStudent,
-                ...formData,
-                avatar: formData.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
-            } : s
-        );
+        // const updatedStudents = students.map(s =>
+        //     s.id === selectedStudent.id ? {
+        //         ...selectedStudent,
+        //         ...formData,
+        //         avatar: formData.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+        //     } : s
+        // );
 
-        setStudents(updatedStudents);
-        setShowEditModal(false);
+        // setStudents(updatedStudents);
+        setShowEditModal(false)
         setSelectedStudent(null);
-        setFormData({ fullName: "", class: "", studentId: "", email: "", parentName: "", parentPhone: "" });
+        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' });
         alert("Cập nhật thông tin học sinh thành công!");
     };
 
-    const handleDeleteStudent = () => {
+    const handleDeleteStudent = async () => {
         if (!studentToDelete) return;
-
-        setStudents(students.filter(s => s.id !== studentToDelete.id));
+        try {
+            const response = await fetch(`http://localhost:5000/students/delete/${studentToDelete && studentToDelete.StudentID}`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+            })
+            if (response.ok) {
+                const data = await response.json();
+                if (data?.result) setStudents(data.result);
+            }
+        } catch (err) {
+            console.error(err)
+        }
+        // setStudents(students.filter(s => s.id !== studentToDelete.id));
         setShowDeleteConfirm(false);
         setStudentToDelete(null);
         alert("Xóa học sinh thành công!");
@@ -228,34 +216,32 @@ export default function StudentsPage() {
     const openEditModal = (student: Student) => {
         setSelectedStudent(student);
         setFormData({
-            fullName: student.fullName,
-            class: student.class,
-            studentId: student.studentId,
-            email: student.email,
-            parentName: student.parentName,
-            parentPhone: student.parentPhone,
+            FullName: student.FullName,
+
+            ParentID: student.ParentID,
+            DateOfBirth: student.DateOfBirth,
+
+            PickUpPoint: student.PickUpPoint,
+            DropOffPoint: student.DropOffPoint,
         });
         setShowEditModal(true);
     };
 
-    const getStatusBadge = (status: Student['status']): ReactElement => {
-        switch (status) {
-            case "active":
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3.5 h-3.5" /> Đang học</span>;
-            case "inactive":
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3.5 h-3.5" /> Tạm nghỉ</span>;
-            case "graduated":
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"><School className="w-3.5 h-3.5" /> Đã tốt nghiệp</span>;
-            default:
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Không rõ</span>;
-        }
-    };
+    // const getStatusBadge = (status: Student['status']): ReactElement => {
+    //     switch (status) {
+    //         case "active":
+    //             return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3.5 h-3.5" /> Đang học</span>;
+    //         case "inactive":
+    //             return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3.5 h-3.5" /> Tạm nghỉ</span>;
+    //         case "graduated":
+    //             return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"><School className="w-3.5 h-3.5" /> Đã tốt nghiệp</span>;
+    //         default:
+    //             return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Không rõ</span>;
+    //     }
+    // };
 
     const stats = [
         { label: "Tổng số Học sinh", value: students.length.toString(), color: "bg-orange-400", icon: Users },
-        { label: "Đang học", value: students.filter(s => s.status === "active").length.toString(), color: "bg-green-500", icon: CheckCircle },
-        { label: "Số lớp học", value: new Set(students.map(s => s.class)).size.toString(), color: "bg-blue-400", icon: School },
-        { label: "Đã tốt nghiệp", value: students.filter(s => s.status === "graduated").length.toString(), color: "bg-indigo-400", icon: UserCheck }
     ];
 
     return (
@@ -270,8 +256,9 @@ export default function StudentsPage() {
                     onClick={() => {
                         setShowAddModal(true);
                         // Clear form data when opening add modal
-                        setFormData({ fullName: "", class: "", studentId: "", email: "", parentName: "", parentPhone: "" });
+                        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' });
                     }}
+                    suppressHydrationWarning={true}
                     className="flex items-center gap-2 text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium transition duration-200 shadow-md hover:bg-orange-600 active:bg-orange-700"
                     style={{ backgroundColor: PRIMARY_COLOR, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                 >
@@ -310,12 +297,14 @@ export default function StudentsPage() {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-200"
+                                suppressHydrationWarning={true}
                                 style={{
                                     '--tw-ring-color': PRIMARY_RING
                                 } as React.CSSProperties}
                             />
                         </div>
                         <button
+                        suppressHydrationWarning={true}
                             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
                             className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${showAdvancedSearch ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                             style={showAdvancedSearch ? { backgroundColor: PRIMARY_COLOR } : {}}
@@ -333,41 +322,27 @@ export default function StudentsPage() {
                                     <input
                                         type="text"
                                         placeholder="VD: HS2024001"
-                                        value={advancedFilters.studentId}
+                                        value={advancedFilters.StudentID}
                                         onChange={(e) =>
                                             setAdvancedFilters({
                                                 ...advancedFilters,
-                                                studentId: e.target.value,
+                                                StudentID: e.target.value,
                                             })
                                         }
                                         className="p-2.5 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                                     />
                                 </div>
-                                <div className="flex flex-col">
-                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Lớp</label>
-                                    <input
-                                        type="text"
-                                        placeholder="VD: 10A1"
-                                        value={advancedFilters.class}
-                                        onChange={(e) =>
-                                            setAdvancedFilters({
-                                                ...advancedFilters,
-                                                class: e.target.value,
-                                            })
-                                        }
-                                        className="p-2.5 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                                    />
-                                </div>
+
                                 <div className="flex flex-col">
                                     <label className="text-sm text-gray-700 font-medium mb-1.5">Tên phụ huynh</label>
                                     <input
                                         type="text"
                                         placeholder="VD: Nguyễn Văn Hùng"
-                                        value={advancedFilters.parentName}
+                                        value={advancedFilters.ParentName}
                                         onChange={(e) =>
                                             setAdvancedFilters({
                                                 ...advancedFilters,
-                                                parentName: e.target.value,
+                                                ParentName: e.target.value,
                                             })
                                         }
                                         className="p-2.5 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -382,6 +357,7 @@ export default function StudentsPage() {
 
                     <div className="flex gap-2 flex-wrap mt-4">
                         <button
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('all')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'all' ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                             style={filterStatus === 'all' ? { backgroundColor: PRIMARY_COLOR } : {}}
@@ -389,6 +365,7 @@ export default function StudentsPage() {
                             Tất cả
                         </button>
                         <button
+                        suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('active')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
@@ -396,6 +373,7 @@ export default function StudentsPage() {
                             Đang học
                         </button>
                         <button
+                        suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('inactive')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'inactive' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
@@ -403,6 +381,7 @@ export default function StudentsPage() {
                             Tạm nghỉ
                         </button>
                         <button
+                        suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('graduated')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'graduated' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
@@ -429,36 +408,33 @@ export default function StudentsPage() {
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên học sinh</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã số & Lớp</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thông tin liên hệ</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã số</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phụ huynh</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày nhập học</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày sinh</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm đón</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm Trả</th>
                                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {currentStudents.length > 0 ? (
                                 currentStudents.map((student) => (
-                                    <tr key={student.id} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
+                                    <tr key={student.StudentID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-base bg-orange-500" style={{ backgroundColor: PRIMARY_COLOR }}>{student.avatar}</div>
+                                                {/* <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-base bg-orange-500" style={{ backgroundColor: PRIMARY_COLOR }}>{student.avatar}</div> */}
                                                 <div>
-                                                    <p className="font-medium text-sm text-gray-900 mb-0.5">{student.fullName}</p>
-                                                    <p className="text-xs text-gray-500">{student.email}</p>
+                                                    <p className="font-medium text-sm text-gray-900 mb-0.5">{student.FullName}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">
-                                                    <UserCircle className="w-4 h-4 text-gray-400" />
-                                                    <span className="font-medium">{student.studentId}</span>
-                                                </div>
                                                 <div className="flex items-center gap-1.5 text-sm text-gray-500">
                                                     <School className="w-4 h-4 text-gray-400" />
-                                                    Lớp: <span className="text-gray-900">{student.class}</span>
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900 mb-0.5">HS-{student.StudentID}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -466,7 +442,9 @@ export default function StudentsPage() {
                                             <div className="flex flex-col gap-1.5">
                                                 <div className="flex items-center gap-1.5 text-sm text-gray-500">
                                                     <Mail className="w-4 h-4 text-gray-400" />
-                                                    {student.email}
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900 mb-0.5">{student.ParentName}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -474,19 +452,34 @@ export default function StudentsPage() {
                                             <div className="flex flex-col gap-1.5">
                                                 <div className="flex items-center gap-1.5 text-sm">
                                                     <UserCheck className="w-4 h-4 text-gray-400" />
-                                                    {student.parentName}
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900 mb-0.5">{formatDate(student.DateOfBirth)}</p>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                                    <Phone className="w-4 h-4 text-gray-400" />
-                                                    {student.parentPhone}
-                                                </div>
+
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm text-gray-900 whitespace-nowrap">{student.registeredDate}</span>
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-sm">
+                                                    <UserCheck className="w-4 h-4 text-gray-400" />
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900 mb-0.5">{student.PickUpPoint}</p>
+                                                    </div>
+                                                </div>
+
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {getStatusBadge(student.status)}
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-sm">
+                                                    <UserCheck className="w-4 h-4 text-gray-400" />
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900 mb-0.5">{student.DropOffPoint}</p>
+                                                    </div>
+                                                </div>
+
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
@@ -508,7 +501,7 @@ export default function StudentsPage() {
 
                 {/* Pagination */}
                 {filteredStudents.length > 0 && (
-                    <div className="flex justify-between items-center p-6 bg-white border-t border-gray-200 flex-wrap gap-4">
+                    <div suppressHydrationWarning={true} className="flex justify-between items-center p-6 bg-white border-t border-gray-200 flex-wrap gap-4">
                         <div className="text-gray-500 text-sm">
                             Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredStudents.length)} trong tổng số {filteredStudents.length} học sinh
                         </div>
@@ -536,10 +529,10 @@ export default function StudentsPage() {
                     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0" style={{ backgroundColor: PRIMARY_COLOR }}>{selectedStudent.avatar}</div>
+                                {/* <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0" style={{ backgroundColor: PRIMARY_COLOR }}>{selectedStudent.avatar}</div> */}
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-0.5">{selectedStudent.fullName}</h2>
-                                    <p className="text-gray-500 text-sm">Mã số: {selectedStudent.studentId} | Ngày nhập học: {selectedStudent.registeredDate}</p>
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-0.5">{selectedStudent.FullName}</h2>
+                                    <p className="text-gray-500 text-sm">Mã số: {selectedStudent.StudentID}</p>
                                 </div>
                             </div>
                             <button onClick={() => setSelectedStudent(null)} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
@@ -548,11 +541,10 @@ export default function StudentsPage() {
                             <div className="mb-6">
                                 <h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin cơ bản</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    <div><p className="text-sm text-gray-500 mb-1">Lớp</p><p className="text-base text-gray-900 font-medium">{selectedStudent.class}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">Email</p><p className="text-base text-gray-900 font-medium">{selectedStudent.email}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">Tên Phụ huynh</p><p className="text-base text-gray-900 font-medium">{selectedStudent.parentName}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">SĐT Phụ huynh</p><p className="text-base text-gray-900 font-medium">{selectedStudent.parentPhone}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">Trạng thái</p>{getStatusBadge(selectedStudent.status)}</div>
+
+                                    <div><p className="text-sm text-gray-500 mb-1">Tên Phụ huynh</p><p className="text-base text-gray-900 font-medium">{selectedStudent.ParentName}</p></div>
+                                    <div><p className="text-sm text-gray-500 mb-1">SĐT Phụ huynh</p><p className="text-base text-gray-900 font-medium">{5}</p></div>
+
                                 </div>
                             </div>
 
@@ -576,54 +568,88 @@ export default function StudentsPage() {
 
             {/* Add/Edit Student Modal */}
             {(showAddModal || showEditModal) && (
-                <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200 flex justify-between items-start">
-                            <h2 className="text-2xl font-bold text-gray-900">{showAddModal ? "Thêm Học sinh mới" : "Chỉnh sửa Học sinh"}</h2>
-                            <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ fullName: "", class: "", studentId: "", email: "", parentName: "", parentPhone: "" }); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
-                        </div>
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Họ và Tên</label>
-                                    <input type="text" name="fullName" placeholder="VD: Nguyễn Văn A" value={formData.fullName} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
+                <form>
+                    <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6 border-b border-gray-200 flex justify-between items-start">
+                                <h2 className="text-2xl font-bold text-gray-900">{showAddModal ? "Thêm Học sinh mới" : "Chỉnh sửa Học sinh"}</h2>
+                                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' }); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
+                            </div>
+                            <div className="p-6">
+                                <div className="grid grid-cols-1 gap-4">
                                     <div className="flex flex-col">
-                                        <label className="text-sm text-gray-700 font-medium mb-1.5">Mã số học sinh</label>
-                                        <input type="text" name="studentId" placeholder="VD: HS2024001" value={formData.studentId} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                        <label className="text-sm text-gray-700 font-medium mb-1.5">Họ và Tên</label>
+                                        <input type="text" name="FullName" placeholder="VD: Nguyễn Văn A" value={formData.FullName} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                     </div>
+                                    {/* <div className="grid grid-cols-2 gap-4">
                                     <div className="flex flex-col">
                                         <label className="text-sm text-gray-700 font-medium mb-1.5">Lớp</label>
                                         <input type="text" name="class" placeholder="VD: 10A1" value={formData.class} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                     </div>
+                                      <div className="flex flex-col">
+                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Mã Phụ huynh</label>
+                                    <input type="text" name="ParentID" placeholder="VD: 2000" value={formData.ParentID} onChange={handle} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                 </div>
-                                <div className="flex flex-col">
+
+                                </div> */}
+                                    <div className="flex flex-col">
+                                        <label className="text-sm text-gray-700 font-medium mb-1.5">Phụ huynh</label>
+                                        <select
+                                            name="ParentID"
+                                            value={formData.ParentID}
+                                            onChange={handleInputChange}
+                                            className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                            required
+                                        >
+                                            <option value="">-- Chọn phụ huynh --</option>
+                                            {parents.map((p) => (
+                                                <option key={p.ParentID} value={p.ParentID}>
+                                                    {p.FullName} (ID: {p.ParentID})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    {/* <div className="flex flex-col">
                                     <label className="text-sm text-gray-700 font-medium mb-1.5">Email</label>
                                     <input type="email" name="email" placeholder="VD: vanana@school.com" value={formData.email} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                </div> */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="flex flex-col">
+                                            <label className="text-sm text-gray-700 font-medium mb-1.5">Date Of Birth: </label>
+                                            <input type="date" name="DateOfBirth" placeholder="VD: 2007-12-06" value={formData.DateOfBirth ? formatDate(formData.DateOfBirth?.toString()) : ''} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                        </div>
+                                        {/* <div className="flex flex-col">
+                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Ngày Đăng Kí: </label>
+                                    <input type="date" name="registeredDate" placeholder="VD: 2007-12-07" value={formData.registeredDate} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                </div> */}
+                                    </div>
+
+                                    <div className="flex flex-col">
+                                        <label className="text-sm text-gray-700 font-medium mb-1.5">Pick up point: </label>
+                                        <input type="text" name="PickUpPoint" placeholder="VD: 22/1 Đồng Đen,Phường 5, Quận Tân Bình, TPHCM" value={formData.PickUpPoint} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <label className="text-sm text-gray-700 font-medium mb-1.5">drop off point: </label>
+                                        <input type="text" name="DropOffPoint" placeholder="VD: 22/1 Đồng Đen,Phường 5, Quận Tân Bình, TPHCM" value={formData.DropOffPoint} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                    </div>
                                 </div>
-                                <div className="flex flex-col">
-                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Tên Phụ huynh</label>
-                                    <input type="text" name="parentName" placeholder="VD: Nguyễn Văn Hùng" value={formData.parentName} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                <div className="flex gap-4 mt-6">
+                                    <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' }); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
+                                    <button
+                                        type="submit"
+                                        onClick={showAddModal ? handleAddStudent : handleEditStudent}
+                                        className="flex-1 px-4 py-3 rounded-lg border-none font-medium cursor-pointer transition duration-200 text-white"
+                                        style={{ backgroundColor: PRIMARY_COLOR, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                    >
+                                        {showAddModal ? "Thêm mới" : "Cập nhật"}
+                                    </button>
                                 </div>
-                                <div className="flex flex-col">
-                                    <label className="text-sm text-gray-700 font-medium mb-1.5">SĐT Phụ huynh</label>
-                                    <input type="tel" name="parentPhone" placeholder="VD: 09xxxxxxxx" value={formData.parentPhone} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
-                                </div>
-                            </div>
-                            <div className="flex gap-4 mt-6">
-                                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ fullName: "", class: "", studentId: "", email: "", parentName: "", parentPhone: "" }); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
-                                <button
-                                    onClick={showAddModal ? handleAddStudent : handleEditStudent}
-                                    className="flex-1 px-4 py-3 rounded-lg border-none font-medium cursor-pointer transition duration-200 text-white"
-                                    style={{ backgroundColor: PRIMARY_COLOR, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                >
-                                    {showAddModal ? "Thêm mới" : "Cập nhật"}
-                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
+
+                </form>
+
             )}
 
             {/* Delete Confirmation Modal */}
@@ -633,7 +659,7 @@ export default function StudentsPage() {
                         <div className="flex flex-col items-center text-center">
                             <Trash2 className="w-12 h-12 text-red-500 mb-4" />
                             <h3 className="text-xl font-bold text-gray-900 mb-2">Xác nhận xóa học sinh</h3>
-                            <p className="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa học sinh **{studentToDelete?.fullName}** ra khỏi hệ thống không? Hành động này không thể hoàn tác.</p>
+                            <p className="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa học sinh **{studentToDelete?.FullName}** ra khỏi hệ thống không? Hành động này không thể hoàn tác.</p>
                             <div className="flex gap-4 w-full">
                                 <button onClick={() => { setShowDeleteConfirm(false); setStudentToDelete(null); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
                                 <button onClick={handleDeleteStudent} className="flex-1 px-4 py-3 rounded-lg border-none font-medium cursor-pointer transition duration-200 text-white bg-red-600 hover:bg-red-700">Xóa</button>

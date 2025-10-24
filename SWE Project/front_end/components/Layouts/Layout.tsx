@@ -7,7 +7,7 @@ import { Sidebar } from "./Sidebar";
 export function Layout({list,children,user}:any){
     return(
         <>
-        <div className="grid grid-cols-[65px_1fr] lg:grid-cols-[200px_1fr] grid-rows-[50px_1fr_50px] h-screen w-full overflow-hidden">
+        <div className="grid grid-cols-[60px_1fr] lg:grid-cols-[200px_1fr] grid-rows-[50px_1fr_50px] h-screen w-full overflow-hidden">
         <div className="row-start-1 row-end-2 col-start-1 col-end-3">
             <Header user={user}></Header>
         </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, ReactElement } from "react";
+import React, { useState, ReactElement, useEffect, FormEvent } from "react";
 import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, MessageSquare, Bell, BellOff, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter, Bus, School, Route as RouteIcon, UserCheck } from "lucide-react";
 import './routes.css'
-// Interface for a single bus stop
+
+// Interface for a single bus stop (Kept for potential future use, though not used in form/API)
 interface BusStop {
     id: number;
     name: string;
@@ -12,23 +13,22 @@ interface BusStop {
 
 // Interface for a bus route
 interface Route {
-    id: number;
-    name: string;
-    busNumber: string;
-    driverName: string;
-    driverPhone: string;
-    stops: BusStop[];
-    status: string; // e.g., 'active', 'inactive', 'maintenance'
-    registeredDate: string;
-    avatar: string;
+    RouteID: number;
+    RouteName: string;
+    BusID: string;
+    DriverID: string;
+    StartLocation: string;
+    EndLocation: string;
+    // Add 'status' here if the backend supports it, otherwise filtering by status won't work
 }
 
 // Interface for the form data
 interface FormData {
-    name: string;
-    busNumber: string;
-    driverName: string;
-    driverPhone: string;
+    routeName: string;
+    driverID: string;
+    busID: string;
+    startLocation: string;
+    endLocation: string;
 }
 
 // Interface for advanced filters
@@ -42,6 +42,22 @@ interface AdvancedFilters {
 const PRIMARY_COLOR = "#FFAC50";
 const PRIMARY_HOVER = "#E59B48";
 const PRIMARY_RING = "rgba(255, 172, 80, 0.3)";
+const API_BASE_URL = 'http://localhost:3005/routes'; // Centralize API URL
+
+// Hàm khởi tạo form rỗng
+const initialFormData: FormData = {
+    routeName: '',
+    driverID: '',
+    busID: '',
+    startLocation: '',
+    endLocation: ''
+};
+
+// =================================================================
+// ╔═╗┌─┐┬ ┬┌─┐┌┬┐┌─┐  Main Component
+// ╚═╗├┤ │ │├─┘ │ ├┤
+// ╚═╝└─┘└─┘┴  ┴ └─┘
+// =================================================================
 
 export default function RoutesPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -60,97 +76,47 @@ export default function RoutesPage() {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [routeToDelete, setRouteToDelete] = useState<Route | null>(null);
 
-    // Sample data for bus routes
-    const [routes, setRoutes] = useState<Route[]>([
-        {
-            id: 1,
-            name: "Tuyến Quận 1 - Quận 3",
-            busNumber: "51F-123.45",
-            driverName: "Nguyễn Văn A",
-            driverPhone: "0901112233",
-            stops: [
-                { id: 1, name: "Chợ Bến Thành", time: "06:30" },
-                { id: 2, name: "Dinh Độc Lập", time: "06:45" },
-                { id: 3, name: "Hồ Con Rùa", time: "07:00" },
-            ],
-            status: "active",
-            registeredDate: "01/01/2024",
-            avatar: "T1"
-        },
-        {
-            id: 2,
-            name: "Tuyến Gò Vấp - Bình Thạnh",
-            busNumber: "51G-678.90",
-            driverName: "Trần Thị B",
-            driverPhone: "0912223344",
-            stops: [
-                { id: 1, name: "Vincom Quang Trung", time: "06:15" },
-                { id: 2, name: "Đại học Công Nghiệp", time: "06:35" },
-                { id: 3, name: "Bến xe Miền Đông", time: "07:10" },
-            ],
-            status: "active",
-            registeredDate: "15/01/2024",
-            avatar: "T2"
-        },
-        {
-            id: 3,
-            name: "Tuyến Sân Bay",
-            busNumber: "51A-112.23",
-            driverName: "Lê Văn C",
-            driverPhone: "0923334455",
-            stops: [
-                { id: 1, name: "Ga Quốc Nội", time: "07:00" },
-                { id: 2, name: "Công viên Hoàng Văn Thụ", time: "07:20" },
-            ],
-            status: "maintenance",
-            registeredDate: "10/02/2024",
-            avatar: "S"
-        },
-        {
-            id: 4,
-            name: "Tuyến Quận 7",
-            busNumber: "51H-555.44",
-            driverName: "Phạm Thị D",
-            driverPhone: "0934445566",
-            stops: [
-                { id: 1, name: "SC VivoCity", time: "06:40" },
-                { id: 2, name: "Đại học RMIT", time: "06:55" },
-                { id: 3, name: "Crescent Mall", time: "07:15" },
-            ],
-            status: "inactive",
-            registeredDate: "05/03/2024",
-            avatar: "T7"
-        },
-    ]);
+    const [routes, setRoutes] = useState<Route[]>([]);
+    const [formData, setFormData] = useState<FormData>(initialFormData);
 
-    const [formData, setFormData] = useState<FormData>({
-        name: "",
-        busNumber: "",
-        driverName: "",
-        driverPhone: ""
-    });
+    // --- Data Fetching ---
+    useEffect(() => {
+        fetch(API_BASE_URL)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data) setRoutes(data);
+            })
+            .catch((err) => {
+                console.error('Error fetching route data:', err);
+            });
+    }, []);
 
     const itemsPerPage = 6;
 
-    // Filter logic for routes
+    // --- Filtering Logic ---
     const filteredRoutes = routes.filter(route => {
         const searchTermLower = searchTerm.toLowerCase();
-        const matchesSearch = route.name.toLowerCase().includes(searchTermLower) ||
-            route.busNumber.toLowerCase().includes(searchTermLower) ||
-            route.driverName.toLowerCase().includes(searchTermLower);
+        // Check if route data is available before filtering
+        if (routes.length === 0) return true;
+
+        const matchesSearch = route.RouteName.toLowerCase().includes(searchTermLower) ||
+            String(route.BusID).toLowerCase().includes(searchTermLower) ||
+            String(route.DriverID).toLowerCase().includes(searchTermLower);
 
         const matchesDriver = advancedFilters.driverName === "" ||
-            route.driverName.toLowerCase().includes(advancedFilters.driverName.toLowerCase());
+            String(route.DriverID).toLowerCase().includes(advancedFilters.driverName.toLowerCase());
 
         const matchesBusNumber = advancedFilters.busNumber === "" ||
-            route.busNumber.toLowerCase().includes(advancedFilters.busNumber.toLowerCase());
+            String(route.BusID).toLowerCase().includes(advancedFilters.busNumber.toLowerCase());
 
-        const matchesStatus = filterStatus === "all" || route.status === filterStatus;
+        // Note: Status filtering is disabled as 'status' field is missing from Route interface/sample data
+        // const matchesStatus = filterStatus === 'all' || (route as any).status === filterStatus;
 
-        return matchesSearch && matchesDriver && matchesBusNumber && matchesStatus;
+        return matchesSearch && matchesDriver && matchesBusNumber; // && matchesStatus;
     });
 
-    const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage);
+    const routeLength = filteredRoutes.length;
+    const totalPages = Math.ceil(routeLength / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentRoutes = filteredRoutes.slice(startIndex, endIndex);
@@ -167,63 +133,106 @@ export default function RoutesPage() {
         });
     };
 
-    const handleAddRoute = () => {
-        if (!formData.name || !formData.busNumber || !formData.driverName || !formData.driverPhone) {
-            alert("Vui lòng điền đầy đủ thông tin!");
+    const closeAllModals = () => {
+        setShowAddModal(false);
+        setShowEditModal(false);
+        setShowDeleteConfirm(false);
+        setSelectedRoute(null);
+        setRouteToDelete(null);
+        setFormData(initialFormData);
+    };
+
+    // --- CRUD Handlers ---
+
+    const handleAddRoute = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!formData.routeName || !formData.startLocation || !formData.endLocation) {
+            alert("Vui lòng điền đầy đủ thông tin tuyến đường!");
             return;
         }
+        try {
+            const response = await fetch(`${API_BASE_URL}/add`, {
+                method: 'POST',
+                headers: { "Content-Type": 'application/json' },
+                body: JSON.stringify(formData)
+            });
 
-        const newRoute: Route = {
-            id: routes.length + 1,
-            ...formData,
-            stops: [], // Add logic to add stops if needed
-            status: "active",
-            registeredDate: new Date().toLocaleDateString('vi-VN'),
-            avatar: formData.name.substring(0, 2).toUpperCase()
-        };
-
-        setRoutes([...routes, newRoute]);
-        setShowAddModal(false);
-        setFormData({ name: "", busNumber: "", driverName: "", driverPhone: "" });
-        alert("Thêm tuyến xe thành công!");
+            if (response.ok) {
+                const data = await response.json();
+                if (data) setRoutes(data);
+                alert('Thêm tuyến xe thành công!');
+                closeAllModals();
+            } else {
+                alert('Có lỗi xảy ra khi thêm tuyến.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Lỗi kết nối hoặc hệ thống.');
+        }
     };
 
-    const handleEditRoute = () => {
-        if (!selectedRoute) return;
+    const handleEditRoute = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!selectedRoute || !formData.routeName || !formData.startLocation || !formData.endLocation) {
+            alert('Vui lòng nhập đầy đủ các trường!');
+            return;
+        }
+        try {
+            const response = await fetch(`${API_BASE_URL}/edit/${selectedRoute.RouteID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
 
-        const updatedRoutes = routes.map(r =>
-            r.id === selectedRoute.id ? {
-                ...selectedRoute,
-                ...formData
-            } : r
-        );
-
-        setRoutes(updatedRoutes);
-        setShowEditModal(false);
-        setSelectedRoute(null);
-        setFormData({ name: "", busNumber: "", driverName: "", driverPhone: "" });
-        alert("Cập nhật thông tin tuyến thành công!");
+            if (response.ok) {
+                const data = await response.json();
+                if (data) setRoutes(data);
+                alert('Cập nhật thông tin tuyến thành công!');
+                closeAllModals();
+            } else {
+                alert('Có lỗi xảy ra khi cập nhật tuyến.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Lỗi kết nối hoặc hệ thống.');
+        }
     };
 
-    const handleDeleteRoute = () => {
+    const handleDeleteRoute = async (e: FormEvent) => {
+        e.preventDefault();
         if (!routeToDelete) return;
-
-        setRoutes(routes.filter(r => r.id !== routeToDelete.id));
-        setShowDeleteConfirm(false);
-        setRouteToDelete(null);
-        alert("Xóa tuyến xe thành công!");
+        try {
+            const response = await fetch(`${API_BASE_URL}/delete/${routeToDelete.RouteID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data) setRoutes(data);
+                alert("Xóa tuyến xe thành công!");
+                closeAllModals();
+            } else {
+                alert('Có lỗi xảy ra khi xóa tuyến.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Lỗi kết nối hoặc hệ thống.');
+        }
     };
 
     const openEditModal = (route: Route) => {
         setSelectedRoute(route);
         setFormData({
-            name: route.name,
-            busNumber: route.busNumber,
-            driverName: route.driverName,
-            driverPhone: route.driverPhone,
+            routeName: route.RouteName,
+            busID: route.BusID,
+            driverID: route.DriverID,
+            startLocation: route.StartLocation,
+            endLocation: route.EndLocation
         });
         setShowEditModal(true);
     };
+
+    // --- UI Helpers ---
 
     const getStatusBadge = (status: string): ReactElement => {
         switch (status) {
@@ -240,10 +249,39 @@ export default function RoutesPage() {
 
     const stats = [
         { label: "Tổng số tuyến", value: routes.length.toString(), color: "bg-orange-400", icon: RouteIcon },
-        { label: "Đang hoạt động", value: routes.filter(r => r.status === "active").length.toString(), color: "bg-orange-400", icon: CheckCircle },
-        { label: "Số xe buýt", value: new Set(routes.map(r => r.busNumber)).size.toString(), color: "bg-orange-400", icon: Bus },
-        { label: "Tài xế", value: new Set(routes.map(r => r.driverName)).size.toString(), color: "bg-orange-400", icon: UserCheck }
+        // Placeholder stats (will be meaningful if status field is added to Route)
+        // { label: "Đang hoạt động", value: routes.filter(r => (r as any).status === "active").length.toString(), color: "bg-green-400", icon: CheckCircle },
+        // { label: "Số xe buýt", value: new Set(routes.map(r => r.BusID)).size.toString(), color: "bg-blue-400", icon: Bus },
+        // { label: "Tài xế", value: new Set(routes.map(r => r.DriverID)).size.toString(), color: "bg-purple-400", icon: UserCheck }
     ];
+
+    // --- Render Components ---
+
+    const ModalFormContent = (
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-col">
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Tên tuyến *</label>
+                <input type="text" value={formData.routeName} onChange={(e) => setFormData({ ...formData, routeName: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Tuyến Quận 1 - Quận 3" />
+            </div>
+            <div className="flex flex-col">
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Mã xe *</label>
+                <input type="text" value={formData.busID} onChange={(e) => setFormData({ ...formData, busID: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: 51F-123.45" />
+            </div>
+            <div className="flex flex-col">
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Mã Tài xế *</label>
+                <input type="text" value={formData.driverID} onChange={(e) => setFormData({ ...formData, driverID: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: DRV001" />
+            </div>
+            <div className="flex flex-col">
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Điểm bắt đầu *</label>
+                <input type="text" value={formData.startLocation} onChange={(e) => setFormData({ ...formData, startLocation: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Trường THPT A" />
+            </div>
+            {/* Thêm trường Điểm kết thúc bị thiếu */}
+            <div className="flex flex-col">
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Điểm kết thúc *</label>
+                <input type="text" value={formData.endLocation} onChange={(e) => setFormData({ ...formData, endLocation: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Ký túc xá B" />
+            </div>
+        </div>
+    );
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen w-full">
@@ -254,9 +292,10 @@ export default function RoutesPage() {
                     <p className="text-gray-500 text-base">Quản lý thông tin các tuyến xe buýt</p>
                 </div>
                 <button
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => { setShowAddModal(true); setFormData(initialFormData); }}
                     className="flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium transition duration-200 shadow-md hover:bg-orange-600 active:bg-orange-700"
                     style={{ backgroundColor: PRIMARY_COLOR, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                    suppressHydrationWarning={true}
                 >
                     <Plus className="w-5 h-5" />
                     Thêm tuyến mới
@@ -289,12 +328,13 @@ export default function RoutesPage() {
                             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                             <input
                                 type="text"
-                                placeholder="Tìm kiếm theo tên tuyến, biển số xe, tên tài xế..."
+                                placeholder="Tìm kiếm theo tên tuyến, mã xe, mã tài xế..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-200"
+                                suppressHydrationWarning={true}
                                 style={{
-                                    '--tw-ring-color': PRIMARY_RING // Custom ring color for consistency
+                                    '--tw-ring-color': PRIMARY_RING
                                 } as React.CSSProperties}
                             />
                         </div>
@@ -312,10 +352,10 @@ export default function RoutesPage() {
                         <div className="mt-4 pt-4 border-t border-gray-200">
                             <div className="grid gap-4 mb-4 grid-cols-1 sm:grid-cols-2">
                                 <div className="flex flex-col">
-                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Tên tài xế</label>
+                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Mã tài xế</label>
                                     <input
                                         type="text"
-                                        placeholder="VD: Nguyễn Văn A"
+                                        placeholder="VD: DRV001"
                                         value={advancedFilters.driverName}
                                         onChange={(e) =>
                                             setAdvancedFilters({
@@ -327,10 +367,10 @@ export default function RoutesPage() {
                                     />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Biển số xe</label>
+                                    <label className="text-sm text-gray-700 font-medium mb-1.5">Mã xe</label>
                                     <input
                                         type="text"
-                                        placeholder="VD: 51F-123.45"
+                                        placeholder="VD: BUS001"
                                         value={advancedFilters.busNumber}
                                         onChange={(e) =>
                                             setAdvancedFilters({
@@ -356,24 +396,22 @@ export default function RoutesPage() {
                         >
                             Tất cả
                         </button>
+                        {/* Note: Status filters below are non-functional until 'status' is added to Route interface/data */}
                         <button
                             onClick={() => setFilterStatus('active')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
                             Đang hoạt động
                         </button>
                         <button
                             onClick={() => setFilterStatus('inactive')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'inactive' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'inactive' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
                             Tạm ngưng
                         </button>
                         <button
                             onClick={() => setFilterStatus('maintenance')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'maintenance' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'maintenance' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
                             Bảo trì
                         </button>
@@ -403,58 +441,53 @@ export default function RoutesPage() {
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên tuyến</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Xe buýt</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tài xế</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số điểm dừng</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã tuyến</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã xe</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã tài xế</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm bắt đầu</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm kết thúc</th>
                                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {currentRoutes.length > 0 ? (
                                 currentRoutes.map((route) => (
-                                    <tr key={route.id} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
+                                    <tr key={route.RouteID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-base" style={{ backgroundColor: PRIMARY_COLOR }}>{route.avatar}</div>
                                                 <div>
-                                                    <p className="font-medium text-sm text-gray-900 mb-0.5">{route.name}</p>
+                                                    <p className="font-medium text-sm text-gray-900 mb-0.5">{route.RouteName}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">
-                                                    <Bus className="w-4 h-4 text-gray-400" />
-                                                    {route.busNumber}
-                                                </div>
+                                                <div className="flex items-center gap-1.5 text-sm">{route.RouteID}</div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">
-                                                    <UserCircle className="w-4 h-4 text-gray-400" />
-                                                    {route.driverName}
-                                                </div>
-                                                <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                                                    <Phone className="w-4 h-4 text-gray-400" />
-                                                    {route.driverPhone}
-                                                </div>
+                                                <div className="flex items-center gap-1.5 text-sm">{route.BusID}</div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm text-gray-900 whitespace-nowrap">{route.stops.length} điểm</span>
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-sm">{route.DriverID}</div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="text-sm text-gray-900 whitespace-nowrap">{route.registeredDate}</span>
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-sm">{route.StartLocation}</div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {getStatusBadge(route.status)}
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-sm">{route.EndLocation}</div>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => setSelectedRoute(route)} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-orange-50 text-orange-500" title="Xem chi tiết" style={{ color: PRIMARY_COLOR, '--tw-bg-opacity': 0.1 } as React.CSSProperties}><Eye className="w-4 h-4" /></button>
+                                                <button onClick={() => setSelectedRoute(route)} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-orange-50 text-orange-500" title="Xem chi tiết" style={{ color: PRIMARY_COLOR, backgroundColor: 'rgba(255, 172, 80, 0.1)' } as React.CSSProperties}><Eye className="w-4 h-4" /></button>
                                                 <button onClick={() => openEditModal(route)} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-green-100 text-green-600" title="Chỉnh sửa"><Edit className="w-4 h-4" /></button>
                                                 <button onClick={() => { setRouteToDelete(route); setShowDeleteConfirm(true); }} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-red-100 text-red-600" title="Xóa"><Trash2 className="w-4 h-4" /></button>
                                             </div>
@@ -472,7 +505,7 @@ export default function RoutesPage() {
 
                 {/* Pagination */}
                 {filteredRoutes.length > 0 && (
-                    <div className="flex justify-between items-center p-6 bg-white border-t border-gray-200 flex-wrap gap-4">
+                    <div suppressHydrationWarning={true} className="flex justify-between items-center p-6 bg-white border-t border-gray-200 flex-wrap gap-4">
                         <div className="text-gray-500 text-sm">
                             Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredRoutes.length)} trong tổng số {filteredRoutes.length} tuyến
                         </div>
@@ -500,10 +533,8 @@ export default function RoutesPage() {
                     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                             <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0" style={{ backgroundColor: PRIMARY_COLOR }}>{selectedRoute.avatar}</div>
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-0.5">{selectedRoute.name}</h2>
-                                    <p className="text-gray-500 text-sm">Ngày tạo: {selectedRoute.registeredDate}</p>
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-0.5">{selectedRoute.RouteName}</h2>
                                 </div>
                             </div>
                             <button onClick={() => setSelectedRoute(null)} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
@@ -512,62 +543,61 @@ export default function RoutesPage() {
                             <div className="mb-6">
                                 <h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin tuyến</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    <div><p className="text-sm text-gray-500 mb-1">Biển số xe</p><p className="text-base text-gray-900 font-medium">{selectedRoute.busNumber}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">Tên tài xế</p><p className="text-base text-gray-900 font-medium">{selectedRoute.driverName}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">SĐT Tài xế</p><p className="text-base text-gray-900 font-medium">{selectedRoute.driverPhone}</p></div>
-                                    <div><p className="text-sm text-gray-500 mb-1">Trạng thái</p>{getStatusBadge(selectedRoute.status)}</div>
-                                </div>
-                            </div>
-                            <div className="mb-6">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Danh sách điểm dừng ({selectedRoute.stops.length})</h3>
-                                <div className="flex flex-col gap-3">
-                                    {selectedRoute.stops.map((stop) => (
-                                        <div key={stop.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                                <div><p className="text-base text-gray-900 font-semibold mb-0.5">{stop.name}</p></div>
-                                                <div className="flex-shrink-0 text-left sm:text-right">
-                                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Giờ đón</p>
-                                                    <p className="text-sm text-gray-900 font-semibold">{stop.time}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {selectedRoute.stops.length === 0 && <p className="text-gray-500">Chưa có điểm dừng nào được thêm.</p>}
+                                    <div><p className="text-sm text-gray-500 mb-1">Tên tuyến</p><p className="text-base text-gray-900 font-medium">{selectedRoute.RouteName}</p></div>
+                                    <div><p className="text-sm text-gray-500 mb-1">Mã tài xế</p><p className="text-base text-gray-900 font-medium">{selectedRoute.DriverID}</p></div>
+                                    <div><p className="text-sm text-gray-500 mb-1">Mã xe</p><p className="text-base text-gray-900 font-medium">{selectedRoute.BusID}</p></div>
+                                    <div><p className="text-sm text-gray-500 mb-1">Điểm bắt đầu</p><p className="text-base text-gray-900 font-medium">{selectedRoute.StartLocation}</p></div>
+                                    <div><p className="text-sm text-gray-500 mb-1">Điểm kết thúc</p><p className="text-base text-gray-900 font-medium">{selectedRoute.EndLocation}</p></div>
+                                    {/* <div><p className="text-sm text-gray-500 mb-1">Trạng thái</p>{getStatusBadge(selectedRoute.status)}</div> */}
                                 </div>
                             </div>
                             <div className="flex gap-3 pt-4">
-                                <button onClick={() => openEditModal(selectedRoute)} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 active:bg-green-800"><Edit className="w-4.5 h-4.5" />Chỉnh sửa</button>
+                                <button onClick={() => openEditModal(selectedRoute)} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 active:bg-green-800"><Edit className="w-4 h-4" /> Chỉnh sửa</button>
+                                <button
+                                    onClick={() => {
+                                        setRouteToDelete(selectedRoute);
+                                        setSelectedRoute(null);
+                                        setShowDeleteConfirm(true);
+                                    }}
+                                    className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-700 active:bg-red-800"
+                                >
+                                    <Trash2 className="w-4 h-4" /> Xóa tuyến
+                                </button>
+                                <button
+                                    onClick={() => setSelectedRoute(null)}
+                                    className="flex-1 px-4 py-3 border rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
+                                >
+                                    Đóng
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Add/Edit Modal */}
+            {/* Add/Edit Modal (Sử dụng ModalFormContent đã refactor) */}
             {(showAddModal || showEditModal) && (
                 <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                             <h2 className="text-2xl font-bold text-gray-900">{showAddModal ? 'Thêm tuyến mới' : 'Chỉnh sửa thông tin tuyến'}</h2>
-                            <button onClick={() => { showAddModal ? setShowAddModal(false) : setShowEditModal(false); setFormData({ name: "", busNumber: "", driverName: "", driverPhone: "" }); setSelectedRoute(null); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
+                            <button onClick={closeAllModals} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
                         </div>
-                        <div className="p-6">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-col"><label className="text-sm text-gray-700 font-medium mb-1.5">Tên tuyến *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Tuyến Quận 1 - Quận 3" /></div>
-                                <div className="flex flex-col"><label className="text-sm text-gray-700 font-medium mb-1.5">Biển số xe *</label><input type="text" value={formData.busNumber} onChange={(e) => setFormData({ ...formData, busNumber: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: 51F-123.45" /></div>
-                                <div className="flex flex-col"><label className="text-sm text-gray-700 font-medium mb-1.5">Tên tài xế *</label><input type="text" value={formData.driverName} onChange={(e) => setFormData({ ...formData, driverName: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Nguyễn Văn A" /></div>
-                                <div className="flex flex-col"><label className="text-sm text-gray-700 font-medium mb-1.5">SĐT Tài xế *</label><input type="text" value={formData.driverPhone} onChange={(e) => setFormData({ ...formData, driverPhone: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: 0901234567" /></div>
+                        <form onSubmit={showAddModal ? handleAddRoute : handleEditRoute}>
+                            <div className="p-6">
+                                {ModalFormContent}
+                                <div className="flex gap-3 pt-4 flex-col sm:flex-row">
+                                    <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-4 py-3 rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 transition duration-200"
+                                        style={{ backgroundColor: PRIMARY_COLOR, hover: PRIMARY_HOVER } as React.CSSProperties}
+                                    >
+                                        {showAddModal ? 'Thêm' : 'Cập nhật'}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex gap-3 pt-4 flex-col sm:flex-row">
-                                <button onClick={() => { showAddModal ? setShowAddModal(false) : setShowEditModal(false); setFormData({ name: "", busNumber: "", driverName: "", driverPhone: "" }); setSelectedRoute(null); }} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</button>
-                                <button
-                                    onClick={showAddModal ? handleAddRoute : handleEditRoute}
-                                    className="flex-1 px-4 py-3 rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 transition duration-200"
-                                >
-                                    {showAddModal ? 'Thêm' : 'Cập nhật'}
-                                </button>
-                            </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
             )}
@@ -578,16 +608,18 @@ export default function RoutesPage() {
                     <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                             <h2 className="text-2xl font-bold text-gray-900">Xác nhận xóa</h2>
-                            <button onClick={() => { setShowDeleteConfirm(false); setRouteToDelete(null); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
+                            <button onClick={closeAllModals} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
                         </div>
-                        <div className="p-6">
-                            <p className="text-gray-500 mb-3 text-base leading-relaxed">Bạn có chắc chắn muốn xóa tuyến **{routeToDelete.name}**?</p>
-                            <p className="text-sm font-semibold p-3 rounded-lg border border-red-300 bg-red-100 text-red-600">Hành động này không thể hoàn tác!</p>
-                            <div className="flex gap-3 pt-4 flex-col sm:flex-row">
-                                <button onClick={() => { setShowDeleteConfirm(false); setRouteToDelete(null); }} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</button>
-                                <button onClick={handleDeleteRoute} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-700 active:bg-red-800">Xóa</button>
+                        <form onSubmit={handleDeleteRoute}>
+                            <div className="p-6">
+                                <p className="text-gray-500 mb-3 text-base leading-relaxed">Bạn có chắc chắn muốn xóa tuyến **{routeToDelete.RouteName}**?</p>
+                                <p className="text-sm font-semibold p-3 rounded-lg border border-red-300 bg-red-100 text-red-600">Hành động này không thể hoàn tác!</p>
+                                <div className="flex gap-3 pt-4 flex-col sm:flex-row">
+                                    <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</button>
+                                    <button type="submit" className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-700 active:bg-red-800">Xóa</button>
+                                </div>
                             </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
             )}

@@ -2,9 +2,9 @@ require('dotenv').config();
 const cors=require('cors')
 const express=require('express');
 const app=express();
-const studentRouter=require('./routes/studentRouter')
+const routeRouter=require('./routes/routeRouter')
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-app.use('/students',studentRouter);
-app.listen(5001, () => console.log('Server running on port 3005'));
+app.use('/Routes',routeRouter);
+app.listen(3005, () => console.log('Server running on port 3005'));
