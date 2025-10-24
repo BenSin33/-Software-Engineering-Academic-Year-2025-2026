@@ -6,14 +6,14 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-//Import routes
-
+// Import routes
 const authRoutes = require('../Services/auth_service/auth.controller');
-//const studentRoutes = require('../Services/student_service/routes/studentRouter');
-app.use("/api/auth",authRoutes);
-//app.use("/Students",studentRoutes)
-const PORT = 5000;
-app.listen(PORT, ()=>{
-    console.log('API Gateway running on port', PORT);
+const studentRoutes = require('./routes/studentRoutes');
 
+app.use("/api/auth", authRoutes);
+app.use("/Students", studentRoutes);
+
+const PORT = 5000;
+app.listen(PORT, () => {
+    console.log('API Gateway running on port', PORT);
 });

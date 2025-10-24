@@ -27,6 +27,7 @@ export function Header({ user }: any) {
                     <button
                         onClick={handleLogout}
                         className="flex items-center gap-1 text-[#FFAC50] hover:text-orange-600 transition"
+                        suppressHydrationWarning={true}
                     >
                         <HiOutlineLogout size={25} />
                         <span className="text-sm font-medium">Logout</span>

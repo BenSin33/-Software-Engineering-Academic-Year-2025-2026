@@ -74,7 +74,6 @@ CREATE TABLE buses (
 
 CREATE TABLE routes (
   RouteID CHAR(36) PRIMARY KEY,
-  StudentID CHAR(36),  -- reference only
   DriverID CHAR(36),
   BusID CHAR(36),
   RouteName VARCHAR(100),
