@@ -9,3 +9,4 @@ studentRouter.post('/add', studentController.addNewStudent);
 studentRouter.post('/edit/:studentID',studentController.updateCurrentStudent)
 studentRouter.post('/delete/:studentID',studentController.deleteStudent)
 module.exports = studentRouter;
+
