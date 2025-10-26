@@ -13,30 +13,39 @@ const queries = require('../db/queries')
 
 async function addNewStudent(req, res) {
   try {
-    console.log('chạy đi')
     const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint } = req.body;
-    await queries.addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint);
 
-    const updatedData = await queries.getStudents();
-    console.log('xin chao: ', updatedData); // sẽ log ra mảng mới
+    // 🧩 Thêm học sinh vào DB
+    const insertId = await queries.addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint);
 
-    // Trả về dữ liệu luôn, không cần if(!updatedData)
-    res.status(201).json(updatedData);
+    // ✅ Trả về thông tin học sinh mới thêm (có thể fetch lại sau nếu cần)
+    res.status(201).json({
+      message: "Thêm học sinh thành công",
+      student: {
+        StudentID: insertId,
+        FullName,
+        ParentID,
+        DateOfBirth,
+        PickUpPoint,
+        DropOffPoint,
+      }
+    });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Error adding student: " + error);
+    console.error("❌ Lỗi khi thêm học sinh:", error);
+    res.status(500).json({
+      error: "Không thể thêm học sinh",
+      details: error.message
+    });
   }
 }
 
 async function updateCurrentStudent(req, res) {
   try {
-    console.log('update chayk')
     const { studentID } = req.params;
     const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint } = req.body;
     await queries.updateCurrentStudent(studentID, FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint)
-    const updatedData = await queries.getStudents();
-    res.status(201).json(updatedData);
+    res.status(201).json({message:'update học sinh thành công',student:{StudentID:studentID,FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint}});
   } catch (error) {
     console.error(error);
     res.status(500).send("error updating student: ", error)
@@ -46,10 +55,8 @@ async function updateCurrentStudent(req, res) {
 async function deleteStudent(req, res) {
   try {
     const { studentID } = req.params;
-    console.log('delete: ', studentID)
     await queries.deleteStudent(studentID);
-    const updatedData = await queries.getStudents();;
-    res.status(201).json(updatedData)
+    res.status(201).json({message:'xóa học sinh thành công'})
   } catch (err) {
     console.error(err);
     res.status(501).send('error: ', err)
