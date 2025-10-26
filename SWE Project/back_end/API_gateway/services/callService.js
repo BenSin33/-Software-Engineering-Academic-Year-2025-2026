@@ -24,6 +24,5 @@ export async function callService(serviceName, path, method = "GET", data = null
   if (!response.ok) {
     throw new Error(`Lỗi khi gọi ${serviceName}: ${response.statusText}`);
   }
-
-  return await response.json();
+  return await response.json()
 }

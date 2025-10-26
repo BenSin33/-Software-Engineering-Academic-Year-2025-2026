@@ -12,7 +12,8 @@ async function addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffP
     VALUES (?, ?, ?, ?, ?)
   `;
 
-  await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint]);
+  const [result] = await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint]);
+  return result.insertId;
 }
 
 async function updateCurrentStudent(StudentID,FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint){
