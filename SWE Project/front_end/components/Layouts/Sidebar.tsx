@@ -1,94 +1,78 @@
-
 'use client'
-import { NavModule } from './NavModule'
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-
-// Kiểu cho từng module (menu item)
+import { NavModule } from './NavModule'
+import Image from 'next/image'
 export interface ModuleItem {
   text: string
   url?: string
-  icon?: React.ComponentType<any> 
-  subModules?: ModuleItem[] 
+  icon?: React.ComponentType<any>
+  subModules?: ModuleItem[]
 }
-
 
 interface SidebarProps {
   list: ModuleItem[]
+  isOpen?: boolean
 }
 
-export function Sidebar({ list = [] }: SidebarProps) {
+export function Sidebar({ list = [], isOpen = false }: SidebarProps) {
   const pathName = usePathname()
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   const handleToggle = (index: number) => {
-    if (activeIndex === index) setActiveIndex(null)
-    else setActiveIndex(index)
-  }
-
-  const showSubModule = (
-    subModules: ModuleItem[],
-    activeIndex: number | null,
-    index: number,
-    pathName: string
-  ) => {
-    return (
-      <div
-        className={`overflow-hidden transition-all duration-500 ease-in-out ${
-          activeIndex === index ? 'max-h-96 opacity-100 mt-3' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <ul className="flex flex-col gap-3">
-          {subModules.map((subModule, subIndex) => (
-            <li key={`${subIndex}-${subModule.text}`}>
-              <NavModule
-                clickedModule={pathName === subModule.url}
-                isSubModule={true}
-                item={subModule}
-              />
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
+    setActiveIndex(activeIndex === index ? null : index)
   }
 
   return (
-    <div style={{ backgroundColor: '#FFFF99' }} className="pt-5 h-full w-full">
-      <ul className="flex flex-col flex-start gap-[1.5rem]">
+    <aside
+      className={`fixed lg:static left-0 top-[50px] h-[calc(100vh-50px)] w-64 bg-yellow-100 shadow-lg z-40 transform transition-transform duration-300 ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+
+
+      {/* Logo Section */}
+      <div className ="flex items-center justify-center py-4">
+        <Image 
+            src = "/favicon.ico" 
+            alt="Logo"  
+            width = {0} 
+            height = {0} 
+            sizes='100vw'
+            className ="w-full max-w-[150px] h-auto mx-auto" />
+      </div>
+
+      <ul className="pt-5 flex flex-col gap-6">
         {list.map((item, index) => (
           <li key={`${index}-${item.text}`}>
             <NavModule
+              item={item}
               isActiveModule={activeIndex === index}
               clickedModule={pathName === item.url}
-              item={item}
               setIndex={() => handleToggle(index)}
             />
-            {item.subModules && showSubModule(item.subModules, activeIndex, index, pathName)}
+            {item.subModules && (
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  activeIndex === index ? 'max-h-96 opacity-100 mt-3' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <ul className="flex flex-col gap-3 pl-4">
+                  {item.subModules.map((sub, subIndex) => (
+                    <li key={`${subIndex}-${sub.text}`}>
+                      <NavModule
+                        item={sub}
+                        isSubModule={true}
+                        clickedModule={pathName === sub.url}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </li>
         ))}
       </ul>
-    </div>
+    </aside>
   )
 }
-
-/*
-
-  return(
-    <>
-      <div style={{backgroundColor:'#FFFF99'}} className="pt-5 h-full w-full">
-
-          <ul className="flex flex-col flex-start gap-[1.5rem]">
-            {list.map((item,index)=>(
-              
-                <li key={`${index}-${item.text}`}>
-                   <NavModule isActiveModule={activeIndex===index} item={item} setIndex={()=>{handleToggle(index)}}/>
-                   {item.subModules && showSubModule(item.subModules,activeIndex,index)}
-                </li>
-            ))}
-          </ul>
-      </div>
-    </>
-  )
-}
-*/
