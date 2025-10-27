@@ -1,175 +1,361 @@
 "use client";
 
-import React from "react";
-import { Bus, Users, UserCircle, Route, AlertTriangle, CheckCircle, Clock, TrendingUp } from "lucide-react";
-import "./DashboardPage.css";
+import React, { useState, useEffect } from "react";
+import { 
+  Bus, 
+  Users, 
+  UserCheck, 
+  Siren, 
+  Bell, 
+  AlertTriangle, 
+  CheckCircle, 
+  ArrowRight,
+  Plus,
+  UserPlus,
+  Route
+} from "lucide-react";
+import "./DashboardPage.css"; 
+interface BusStats {
+  total: number;
+  running: number;
+  waiting: number;
+  maintenance: number;
+  ready: number;
+  totalCapacity: number;
+  registered: number;
+  avgFuelLevel: number;
+  lowFuel: number;
+  highMileage: number;
+}
+interface LocationAlert {
+  id: number;
+  bus_id: string;
+  alert_type: "speeding" | "route_deviation" | "geofence_entry" | "geofence_exit" | "stopped_too_long";
+  severity: "low" | "medium" | "high" | "critical";
+  message: string;
+  created_at: string;
+  is_resolved: boolean;
+}
+
+interface Student {
+  StudentID: number;
+}
+interface Driver {
+  DriverID: number;
+}
+const BUS_SERVICE_URL = "http://localhost:3002/api";
+const LOCATION_SERVICE_URL = "http://localhost:5005";
+const STUDENT_SERVICE_URL = "http://localhost:5000";
+const DRIVER_SERVICE_URL = "http://localhost:5001/api"; 
+
 
 export default function DashboardPage() {
-  const stats = [
-    {
-      title: "Tổng số xe buýt",
-      value: "24",
-      change: "+2 xe mới",
-      icon: Bus,
-      color: "stat-blue",
-      textColor: "text-blue"
-    },
-    {
-      title: "Tài xế hoạt động",
-      value: "18/24",
-      change: "6 đang nghỉ",
-      icon: UserCircle,
-      color: "stat-green",
-      textColor: "text-green"
-    },
-    {
-      title: "Học sinh",
-      value: "456",
-      change: "+12 học sinh mới",
-      icon: Users,
-      color: "stat-purple",
-      textColor: "text-purple"
-    },
-    {
-      title: "Tuyến đường",
-      value: "8",
-      change: "Đang hoạt động",
-      icon: Route,
-      color: "stat-orange",
-      textColor: "text-orange"
-    }
-  ];
+  const [loading, setLoading] = useState(true);
+  const [busStats, setBusStats] = useState<BusStats | null>(null);
+  const [studentCount, setStudentCount] = useState(0);
+  const [driverCount, setDriverCount] = useState(0);
+  const [alerts, setAlerts] = useState<LocationAlert[]>([]);
 
-  const recentActivities = [
-    {
-      id: 1,
-      type: "success",
-      message: "Xe BUS-01 đã hoàn thành lộ trình buổi sáng",
-      time: "8:30 AM",
-      icon: CheckCircle
-    },
-    {
-      id: 2,
-      type: "warning",
-      message: "Xe BUS-05 đang chạy chậm 5 phút so với lịch",
-      time: "8:15 AM",
-      icon: Clock
-    },
-    {
-      id: 3,
-      type: "alert",
-      message: "Tài xế Nguyễn Văn A báo cáo sự cố nhỏ trên tuyến 3",
-      time: "7:45 AM",
-      icon: AlertTriangle
-    },
-    {
-      id: 4,
-      type: "success",
-      message: "15 học sinh mới được thêm vào hệ thống",
-      time: "7:30 AM",
-      icon: Users
-    }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      
+      const results = await Promise.allSettled([
+        fetch(`${BUS_SERVICE_URL}/buses/stats/summary`), // 1. Lấy thống kê xe
+        fetch(`${STUDENT_SERVICE_URL}/Students`),         // 2. Lấy số học sinh
+        fetch(`${LOCATION_SERVICE_URL}/locations/alerts?is_resolved=false&limit=5`), // 3. Lấy cảnh báo
+        fetch(`${DRIVER_SERVICE_URL}/drivers`)          // 4. Lấy số tài xế
+      ]);
 
-  const busStatus = [
-    { status: "Đang chạy", count: 12, color: "status-green" },
-    { status: "Đang chờ", count: 6, color: "status-yellow" },
-    { status: "Bảo trì", count: 4, color: "status-red" },
-    { status: "Sẵn sàng", count: 2, color: "status-blue" }
-  ];
+      // Xử lý kết quả
+      if (results[0].status === 'fulfilled') {
+        const data = await results[0].value.json();
+        if (data.success) {
+          setBusStats(data.data);
+        }
+      } else {
+        console.error("Lỗi tải thống kê xe:", results[0].reason);
+      }
+
+      if (results[1].status === 'fulfilled') {
+        const data = await results[1].value.json();
+        // Giả định API trả về một mảng
+        if (Array.isArray(data)) { 
+          setStudentCount(data.length);
+        } else if (data && typeof data.total === 'number') {
+          // Hoặc nếu API trả về object { total: ... }
+          setStudentCount(data.total);
+        }
+      } else {
+        console.error("Lỗi tải danh sách học sinh:", results[1].reason);
+      }
+
+      if (results[2].status === 'fulfilled') {
+        const data = await results[2].value.json();
+         // Giả định API trả về mảng trong { data: [...] }
+        if (data.success && Array.isArray(data.data)) {
+          setAlerts(data.data);
+        } else if (Array.isArray(data)) {
+           // Hoặc trả về mảng trực tiếp
+          setAlerts(data);
+        }
+      } else {
+        console.error("Lỗi tải cảnh báo:", results[2].reason);
+      }
+
+       if (results[3].status === 'fulfilled') {
+        const data = await results[3].value.json();
+        if (Array.isArray(data)) { 
+          setDriverCount(data.length);
+        }
+      } else {
+        console.error("Lỗi tải danh sách tài xế:", results[3].reason);
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  // --- Hàm tiện ích ---
+
+  // Lấy % cho thanh progress bar
+  const getBusStatusPercentage = (statusCount: number): number => {
+    if (!busStats || busStats.total === 0) return 0;
+    return (statusCount / busStats.total) * 100;
+  };
+
+  // Định dạng thời gian (ví dụ: "10 phút trước")
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " năm trước";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " tháng trước";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " ngày trước";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " giờ trước";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " phút trước";
+    return Math.floor(seconds) + " giây trước";
+  };
+
+  // Lấy icon và class cho cảnh báo
+  const getActivityIcon = (severity: LocationAlert['severity']) => {
+    switch (severity) {
+      case 'critical':
+      case 'high':
+        return { 
+          Icon: Siren, 
+          className: "alert" //
+        };
+      case 'medium':
+        return { 
+          Icon: AlertTriangle, 
+          className: "warning" //
+        };
+      case 'low':
+      default:
+        return { 
+          Icon: CheckCircle, 
+          className: "success" //
+        };
+    }
+  };
+
+  if (loading) {
+    return <div className="dashboard-page">Đang tải dữ liệu...</div>;
+  }
 
   return (
     <div className="dashboard-page">
       {/* Header */}
       <div className="page-header">
-        <div>
-          <h1 className="page-title">Tổng quan hệ thống</h1>
-          <p className="page-subtitle">Chào mừng bạn đến với bảng điều khiển quản lý xe đưa đón học sinh</p>
-        </div>
+        <h1 className="page-title">Chào mừng trở lại, Admin!</h1>
+        <p className="page-subtitle">Đây là tổng quan nhanh về hệ thống của bạn hôm nay.</p>
       </div>
 
       {/* Stats Grid */}
       <div className="stats-grid">
-        {stats.map((stat, index) => (
-          <div key={index} className="stat-card">
-            <div className="stat-header">
-              <div className={`stat-icon-wrapper ${stat.color}`}>
-                <stat.icon className="stat-icon" />
-              </div>
-              <TrendingUp className="trending-icon" />
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-wrapper stat-blue">
+              <Bus className="stat-icon" />
             </div>
-            <h3 className="stat-label">{stat.title}</h3>
-            <p className="stat-value">{stat.value}</p>
-            <p className={`stat-change ${stat.textColor}`}>{stat.change}</p>
+            {/* <TrendingUp className="trending-icon" /> */}
           </div>
-        ))}
+          <p className="stat-label">Tổng số xe</p>
+          <p className="stat-value">{busStats?.total || 0}</p>
+          <p className="stat-change text-blue">
+            {busStats?.running || 0} xe đang chạy
+          </p>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-wrapper stat-green">
+              <Users className="stat-icon" />
+            </div>
+          </div>
+          <p className="stat-label">Tổng số học sinh</p>
+          <p className="stat-value">{studentCount}</p>
+          <p className="stat-change text-green">
+            Đã đăng ký
+          </p>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-wrapper stat-purple">
+              <UserCheck className="stat-icon" />
+            </div>
+          </div>
+          <p className="stat-label">Tổng số tài xế</p>
+          <p className="stat-value">{driverCount}</p>
+           <p className="stat-change text-purple">
+            Sẵn sàng
+          </p>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-header">
+            <div className="stat-icon-wrapper stat-orange">
+              <Siren className="stat-icon" />
+            </div>
+          </div>
+          <p className="stat-label">Cảnh báo (Chưa xử lý)</p>
+          <p className="stat-value">{alerts.length}</p>
+          <p className="stat-change text-orange">
+            Cần chú ý ngay
+          </p>
+        </div>
       </div>
 
-      {/* Two Column Layout */}
+      {/* Content Grid (2 cột) */}
       <div className="content-grid">
-        {/* Recent Activities */}
+        {/* Cột trái: Hoạt động gần đây */}
         <div className="activities-section">
-          <h2 className="section-title">Hoạt động gần đây</h2>
+          <h2 className="section-title">Cảnh báo & Hoạt động gần đây</h2>
           <div className="activities-list">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="activity-item">
-                <div className={`activity-icon-wrapper ${activity.type}`}>
-                  <activity.icon className="activity-icon" />
-                </div>
-                <div className="activity-content">
-                  <p className="activity-message">{activity.message}</p>
-                  <p className="activity-time">{activity.time}</p>
-                </div>
-              </div>
-            ))}
+            {alerts.length > 0 ? (
+              alerts.map((alert) => {
+                const { Icon, className } = getActivityIcon(alert.severity);
+                return (
+                  <div key={alert.id} className="activity-item">
+                    <div className={`activity-icon-wrapper ${className}`}>
+                      <Icon className="activity-icon" />
+                    </div>
+                    <div className="activity-content">
+                      <p className="activity-message">
+                        <strong>[{alert.bus_id}]</strong> {alert.message}
+                      </p>
+                      <p className="activity-time">
+                        {formatTimeAgo(alert.created_at)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="activity-time">Không có cảnh báo nào chưa xử lý.</p>
+            )}
           </div>
         </div>
 
-        {/* Bus Status */}
+        {/* Cột phải: Trạng thái xe */}
         <div className="bus-status-section">
-          <h2 className="section-title">Trạng thái xe buýt</h2>
+          <h2 className="section-title">Trạng thái đội xe</h2>
           <div className="bus-status-list">
-            {busStatus.map((item, index) => (
-              <div key={index} className="bus-status-item">
-                <div className="status-info">
-                  <span className="status-label">{item.status}</span>
-                  <span className="status-count">{item.count}</span>
+            {busStats && (
+              <>
+                <div className="bus-status-item">
+                  <div className="status-info">
+                    <span className="status-label">Đang chạy</span>
+                    <span className="status-count">{busStats.running}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill status-green"
+                      style={{ width: `${getBusStatusPercentage(busStats.running)}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="progress-bar">
-                  <div 
-                    className={`progress-fill ${item.color}`}
-                    style={{ width: `${(item.count / 24) * 100}%` }}
-                  ></div>
+
+                <div className="bus-status-item">
+                  <div className="status-info">
+                    <span className="status-label">Đang chờ</span>
+                    <span className="status-count">{busStats.waiting}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill status-yellow"
+                      style={{ width: `${getBusStatusPercentage(busStats.waiting)}%` }}
+                    ></div>
+                  </div>
                 </div>
-              </div>
-            ))}
-            <div className="bus-total">
-              <p className="total-text">Tổng cộng: <span className="total-count">24 xe</span></p>
-            </div>
+                 
+                 <div className="bus-status-item">
+                  <div className="status-info">
+                    <span className="status-label">Sẵn sàng</span>
+                    <span className="status-count">{busStats.ready}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill status-blue"
+                      style={{ width: `${getBusStatusPercentage(busStats.ready)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="bus-status-item">
+                  <div className="status-info">
+                    <span className="status-label">Bảo trì</span>
+                    <span className="status-count">{busStats.maintenance}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill status-red"
+                      style={{ width: `${getBusStatusPercentage(busStats.maintenance)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="bus-total">
+            <span className="total-text">
+              Tổng cộng: <span className="total-count">{busStats?.total || 0} xe</span>
+            </span>
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div className="quick-actions-section">
-        <h2 className="section-title">Thao tác nhanh</h2>
+         <h2 className="section-title">Truy cập nhanh</h2>
         <div className="actions-grid">
-          <button className="action-card action-blue">
+          <a href="/AdminDashboard/Buses" className="action-card action-blue">
             <Bus className="action-icon" />
-            <span className="action-text">Thêm xe mới</span>
-          </button>
-          <button className="action-card action-green">
-            <UserCircle className="action-icon" />
-            <span className="action-text">Thêm tài xế</span>
-          </button>
-          <button className="action-card action-purple">
-            <Users className="action-icon" />
-            <span className="action-text">Thêm học sinh</span>
-          </button>
-          <button className="action-card action-orange">
+            <span className="action-text">Quản lý Xe</span>
+          </a>
+          <a href="/AdminDashboard/Students" className="action-card action-green">
+            <UserPlus className="action-icon" />
+            <span className="action-text">Thêm Học sinh</span>
+          </a>
+           <a href="/AdminDashboard/Drivers" className="action-card action-purple">
+            <UserCheck className="action-icon" />
+            <span className="action-text">Quản lý Tài xế</span>
+          </a>
+          <a href="/AdminDashboard/Routes" className="action-card action-orange">
             <Route className="action-icon" />
-            <span className="action-text">Tạo tuyến mới</span>
-          </button>
+            <span className="action-text">Quản lý Tuyến</span>
+          </a>
         </div>
       </div>
     </div>
