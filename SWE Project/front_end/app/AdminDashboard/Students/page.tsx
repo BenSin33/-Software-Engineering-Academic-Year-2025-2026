@@ -54,7 +54,7 @@ export default function StudentsPage() {
 
     // Sample data for students
     const [students, setStudents] = useState<Student[]>([]);
-    const [parents,setParents] = useState([])
+    const [parents, setParents] = useState([])
     const [formData, setFormData] = useState<FormData>({
         FullName: "",
         ParentID: "",
@@ -63,34 +63,33 @@ export default function StudentsPage() {
         DropOffPoint: ''
     });
     useEffect(() => {
-      fetch('http://localhost:5000/Students')
-    .then(res => res.json())
-    .then(data => {
-      console.log("📦 Raw data from API:", data);
+        fetch('http://localhost:5000/Students')
+            .then(res => res.json())
+            .then(data => {
 
-      if (Array.isArray(data)) {
-        // ✅ trường hợp trả mảng trực tiếp
-        setStudents(data);
-      } else if (Array.isArray(data.mergedData)) {
-        // ✅ trường hợp backend trả { mergedData: [...] }
-        setStudents(data.mergedData);
-      } else {
-        console.warn("⚠️ Dữ liệu trả về không phải array:", data);
-        setStudents([]); // fallback
-      }
-    })
-    .catch(err => console.error("❌ Lỗi fetch:", err));
+                if (Array.isArray(data)) {
+                    // ✅ trường hợp trả mảng trực tiếp
+                    setStudents(data);
+                } else if (Array.isArray(data.mergedData)) {
+                    // ✅ trường hợp backend trả { mergedData: [...] }
+                    setStudents(data.mergedData);
+                } else {
+                    console.warn("⚠️ Dữ liệu trả về không phải array:", data);
+                    setStudents([]); // fallback
+                }
+            })
+            .catch(err => console.error("❌ Lỗi fetch:", err));
     }
-    , [])
+        , [])
     const itemsPerPage = 6;
 
     // Filter logic for students
     const filteredStudents = students.filter(student => {
         const searchTermLower = searchTerm.toLowerCase();
-        const matchesSearch = student.FullName.toLowerCase().includes(searchTermLower) ||
+        const matchesSearch = String(student.FullName).toLowerCase().includes(searchTermLower) ||
             String(student.StudentID).toLowerCase().includes(searchTermLower)
 
-        const matchesStudentId = advancedFilters.StudentID === "" ||
+        const matchesStudentId = advancedFilters.StudentID === ""
             String(student.StudentID).toLowerCase().includes(advancedFilters.StudentID.toLowerCase());
 
 
@@ -101,9 +100,13 @@ export default function StudentsPage() {
         return matchesSearch && matchesStudentId && matchesParentName;
     });
     const formatDate = (day: any) => {
-        const formattedDate = new Date(day).toISOString().split("T")[0];
-        return formattedDate
-    }
+        if (!day) return ""; // nếu không có dữ liệu thì trả về rỗng tránh crash
+        const date = new Date(day);
+
+        if (isNaN(date.getTime())) return ""; // kiểm tra có phải ngày hợp lệ không
+
+        return date.toISOString().split("T")[0];
+    };
     const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
@@ -132,19 +135,19 @@ export default function StudentsPage() {
             return;
         }
         try {
-            console.log('ta')
+           
             const response = await fetch('http://localhost:5000/Students/add', {
                 method: 'POST',
                 headers: { "content-type": 'application/json' },
                 body: JSON.stringify(formData)
             })
-            console.log('formData: ', formData)
-            console.log(response)
+          
+          
             if (response.ok) {
-                console.log('mani')
+              
                 const data = await response.json();
-                console.log('data log: ', data)
-                if (data) setStudents(data);
+             
+                if (data) setStudents([...students, data.student]);
                 alert('thêm học sinh thành công');
                 setShowAddModal(false);
             } else {
@@ -162,14 +165,22 @@ export default function StudentsPage() {
         if (!formData.DateOfBirth || !formData.FullName || !formData.DropOffPoint || !formData.PickUpPoint)
             alert('nhap day du cac field')
         try {
-            const response = await fetch(`http://localhost:3005/students/edit/${selectedStudent && selectedStudent.StudentID}`, {
+            const response = await fetch(`http://localhost:5000/Students/edit/${selectedStudent && selectedStudent.StudentID}`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify(formData)
             })
             if (response.ok) {
                 const data = await response.json();
-                if (data) setStudents(data)
+                if (data) {
+                    setStudents((prevStudents) =>
+                        prevStudents.map((student) =>
+                            student.StudentID.toString() === data.student.StudentID.toString()
+                                ? data.student 
+                                : student       
+                        )
+                    );
+                }
             }
         } catch (err) {
             console.error(err)
@@ -201,8 +212,8 @@ export default function StudentsPage() {
                 headers: { 'content-type': 'application/json' },
             })
             if (response.ok) {
-                const data = await response.json();
-                if (data?.result) setStudents(data.result);
+               const cloneStudents= students.filter((student)=>student.StudentID !== studentToDelete.StudentID)
+               setStudents(cloneStudents)
             }
         } catch (err) {
             console.error(err)
@@ -304,7 +315,7 @@ export default function StudentsPage() {
                             />
                         </div>
                         <button
-                        suppressHydrationWarning={true}
+                            suppressHydrationWarning={true}
                             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
                             className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${showAdvancedSearch ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                             style={showAdvancedSearch ? { backgroundColor: PRIMARY_COLOR } : {}}
@@ -365,7 +376,7 @@ export default function StudentsPage() {
                             Tất cả
                         </button>
                         <button
-                        suppressHydrationWarning={true}
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('active')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
@@ -373,7 +384,7 @@ export default function StudentsPage() {
                             Đang học
                         </button>
                         <button
-                        suppressHydrationWarning={true}
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('inactive')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'inactive' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
@@ -381,7 +392,7 @@ export default function StudentsPage() {
                             Tạm nghỉ
                         </button>
                         <button
-                        suppressHydrationWarning={true}
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('graduated')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'graduated' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
@@ -417,6 +428,7 @@ export default function StudentsPage() {
                             </tr>
                         </thead>
                         <tbody>
+                
                             {currentStudents.length > 0 ? (
                                 currentStudents.map((student) => (
                                     <tr key={student.StudentID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
@@ -593,21 +605,22 @@ export default function StudentsPage() {
 
                                 </div> */}
                                     <div className="flex flex-col">
-                                        <label className="text-sm text-gray-700 font-medium mb-1.5">Phụ huynh</label>
-                                        <select
+                                        <label
+                                            htmlFor="ParentID"
+                                            className="text-sm text-gray-700 font-medium mb-1.5"
+                                        >
+                                            Phụ huynh (Parent ID)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="ParentID"
                                             name="ParentID"
                                             value={formData.ParentID}
                                             onChange={handleInputChange}
+                                            placeholder="Nhập Parent ID"
                                             className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                                             required
-                                        >
-                                            <option value="">-- Chọn phụ huynh --</option>
-                                            {parents.map((p) => (
-                                                <option key={p.ParentID} value={p.ParentID}>
-                                                    {p.FullName} (ID: {p.ParentID})
-                                                </option>
-                                            ))}
-                                        </select>
+                                        />
                                     </div>
                                     {/* <div className="flex flex-col">
                                     <label className="text-sm text-gray-700 font-medium mb-1.5">Email</label>

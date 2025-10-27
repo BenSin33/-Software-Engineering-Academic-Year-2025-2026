@@ -14,13 +14,10 @@ async function getAllRoutes(req,res){
 }
 async function addNewRoute(req, res) {
   try {
-    console.log('chạy đi')
     const {driverID,busID,routeName,startLocation,endLocation } = req.body;
-    console.log('dc ma: ',driverID)
     await queries.addRoute(driverID,busID,routeName,startLocation,endLocation);
 
     const updatedData = await queries.getRoutes();
-    console.log('xin chao: ', updatedData); // sẽ log ra mảng mới
 
     // Trả về dữ liệu luôn, không cần if(!updatedData)
     res.status(201).json(updatedData);
@@ -33,7 +30,6 @@ async function addNewRoute(req, res) {
 
 async function updateCurrentRoute(req,res){
   try{
-    console.log('update chayk')
     const {routeID}=req.params;
     const {driverID,busID,routeName,startLocation,endLocation } = req.body;
     await queries.updateCurrentRoute(routeID,driverID,busID,routeName,startLocation,endLocation)
@@ -47,7 +43,6 @@ async function updateCurrentRoute(req,res){
 async function deleteRoute(req,res){
   try{
   const {routeID}=req.params;
-  console.log('delete: ',routeID)
   await queries.deleteRoute(routeID);
   const updatedData= await queries.getRoutes();;
   res.status(201).json(updatedData)

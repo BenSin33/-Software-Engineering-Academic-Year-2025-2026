@@ -3,7 +3,6 @@ import { HiArrowRight } from "react-icons/hi";
 
 export function NavModule({ clickedModule,isActiveModule, item, setIndex, isSubModule = false }: any) {
   const Icon = item.icon;
-  console.log('clickedModule: ',clickedModule)
   const RenderModules = () => (
     <div className={` flex items-center gap-5 ${isSubModule ? "ml-3" : ""}`}>
       <Icon
