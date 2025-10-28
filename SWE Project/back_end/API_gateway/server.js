@@ -7,7 +7,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Import routes
-const authRoutes = require('../Services/auth_service/auth.controller');
+const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 
 app.use("/api/auth", authRoutes);

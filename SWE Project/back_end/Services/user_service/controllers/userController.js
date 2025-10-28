@@ -1,7 +1,33 @@
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 const queries = require('../db/userQueries');
 const { success, error } = require('../utils/response');
+
+// Đồng bộ tạo/cập nhật user sang auth_service
+async function syncToAuthService({ userID, username, password, roleID }) {
+  try {
+    await axios.post('http://localhost:3019/api/auth/sync', {
+      userID,
+      username,
+      password,
+      roleID
+    });
+    console.log(`✅ Đồng bộ user ${username} sang auth_service thành công`);
+  } catch (err) {
+    console.error(`❌ Lỗi đồng bộ user ${username}:`, err.message);
+  }
+}
+
+// Đồng bộ xóa user sang auth_service
+async function deleteFromAuthService(userID) {
+  try {
+    await axios.delete(`http://localhost:3019/api/auth/sync/${userID}`);
+    console.log(`🗑️ Đã đồng bộ xóa user ${userID} sang auth_service`);
+  } catch (err) {
+    console.error(`❌ Lỗi xóa user ${userID} ở auth_service:`, err.message);
+  }
+}
 
 const getAllUsers = async (req, res) => {
   try {
@@ -31,20 +57,22 @@ const createUser = async (req, res) => {
   try {
     const { username, password, roleId, fullName, phoneNumber, email } = req.body;
 
-    // Kiểm tra username trùng
     const existing = await queries.getUserByUsername(username);
     if (existing) return error(res, 'Tên đăng nhập đã tồn tại', 400);
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Tạo user
     const userId = await queries.createUser(username, hashedPassword, roleId || null);
 
-    // Tạo profile admin nếu có
     if (fullName || phoneNumber || email) {
       await queries.createAdminProfile(userId, fullName, phoneNumber, email);
     }
+
+    await syncToAuthService({
+      userID: userId,
+      username,
+      password, // gửi mật khẩu gốc để auth_service tự hash nếu cần
+      roleID: roleId || null
+    });
 
     success(res, { UserID: userId, UserName: username }, 'Tạo người dùng thành công', 201);
   } catch (err) {
@@ -70,14 +98,12 @@ const updateUser = async (req, res) => {
       if (existing) return error(res, 'Tên đăng nhập đã tồn tại', 400);
     }
 
-    // Cập nhật user
     await queries.updateUser(
       id,
       username || user.UserName,
       roleId !== undefined ? roleId : user.RoleID
     );
 
-    // Cập nhật admin profile nếu có
     if (fullName || phoneNumber || email || Object.keys(req.body).some(k => ['fullName', 'phoneNumber', 'email'].includes(k))) {
       await queries.updateAdminProfile(
         id,
@@ -86,6 +112,13 @@ const updateUser = async (req, res) => {
         email || user.Email || ''
       );
     }
+
+    await syncToAuthService({
+      userID: id,
+      username: username || user.UserName,
+      password: user.Password, // giữ nguyên mật khẩu đã mã hóa
+      roleID: roleId !== undefined ? roleId : user.RoleID
+    });
 
     success(res, null, 'Cập nhật thành công');
   } catch (err) {
@@ -105,6 +138,8 @@ const deleteUser = async (req, res) => {
     if (!user) return error(res, 'Không tìm thấy người dùng', 404);
 
     await queries.deleteUser(id);
+    await deleteFromAuthService(id);
+
     success(res, null, 'Xóa thành công');
   } catch (err) {
     error(res);
