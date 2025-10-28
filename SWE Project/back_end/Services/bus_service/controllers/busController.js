@@ -1,5 +1,4 @@
-const busQueries = require('../db/busQueries');
-const eventPublisher = require('../events/eventPublisher');
+const busQueries = require('../db/queries/busQueries');
 
 // ===================================
 // BUS CONTROLLERS
@@ -7,13 +6,26 @@ const eventPublisher = require('../events/eventPublisher');
 
 async function getAllBuses(req, res) {
   try {
-    const filters = req.query;
-    const result = await busQueries.getAllBuses(filters);
+    const filters = {
+      status: req.query.status,
+      search: req.query.search,
+      minCapacity: req.query.minCapacity,
+      maxCapacity: req.query.maxCapacity,
+      minFuel: req.query.minFuel,
+      route: req.query.route
+    };
+    
+    const pagination = {
+      limit: req.query.limit || 1000,
+      offset: req.query.offset || 0
+    };
+
+    const result = await busQueries.findAll(filters, pagination);
 
     res.json({
       success: true,
       data: result.buses,
-      pagination: result.pagination
+      total: result.total
     });
   } catch (error) {
     console.error('Error fetching buses:', error);
@@ -28,7 +40,7 @@ async function getAllBuses(req, res) {
 async function getBusById(req, res) {
   try {
     const busId = req.params.id;
-    const bus = await busQueries.getBusById(busId);
+    const bus = await busQueries.findById(busId);
 
     if (!bus) {
       return res.status(404).json({
@@ -51,9 +63,9 @@ async function getBusById(req, res) {
   }
 }
 
-async function getBusStatistics(req, res) {
+async function getBusStats(req, res) {
   try {
-    const stats = await busQueries.getBusStatistics();
+    const stats = await busQueries.getStats();
 
     res.json({
       success: true,
@@ -74,33 +86,20 @@ async function createBus(req, res) {
     const busData = req.body;
 
     // Check if bus ID already exists
-    const existingBus = await busQueries.getBusById(busData.id);
-    if (existingBus) {
+    const exists = await busQueries.exists(busData.BusID, busData.PlateNumber);
+    if (exists) {
       return res.status(409).json({
         success: false,
-        message: 'Bus ID already exists'
+        message: 'Bus ID or Plate Number already exists'
       });
     }
 
-    await busQueries.createBus(busData);
-
-    // Log event
-    await busQueries.logBusEvent(busData.id, 'created', {
-      action: 'Bus created',
-      busData
-    });
-
-    // Publish event to message queue
-    await eventPublisher.publish('bus.created', {
-      busId: busData.id,
-      licensePlate: busData.license_plate,
-      timestamp: new Date().toISOString()
-    });
+    await busQueries.create(busData);
 
     res.status(201).json({
       success: true,
       message: 'Bus created successfully',
-      data: { id: busData.id }
+      data: { BusID: busData.BusID }
     });
   } catch (error) {
     console.error('Error creating bus:', error);
@@ -118,7 +117,7 @@ async function updateBus(req, res) {
     const updateData = req.body;
 
     // Check if bus exists
-    const existingBus = await busQueries.getBusById(busId);
+    const existingBus = await busQueries.findById(busId);
     if (!existingBus) {
       return res.status(404).json({
         success: false,
@@ -126,27 +125,7 @@ async function updateBus(req, res) {
       });
     }
 
-    const result = await busQueries.updateBus(busId, updateData);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bus not found'
-      });
-    }
-
-    // Log event
-    await busQueries.logBusEvent(busId, 'updated', {
-      action: 'Bus updated',
-      changes: updateData
-    });
-
-    // Publish event
-    await eventPublisher.publish('bus.updated', {
-      busId,
-      changes: updateData,
-      timestamp: new Date().toISOString()
-    });
+    await busQueries.update(busId, updateData);
 
     res.json({
       success: true,
@@ -162,28 +141,12 @@ async function updateBus(req, res) {
   }
 }
 
-async function updateBusStatus(req, res) {
+async function deleteBus(req, res) {
   try {
     const busId = req.params.id;
-    const { status } = req.body;
 
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: 'Status is required'
-      });
-    }
-
-    const validStatuses = ['running', 'waiting', 'maintenance', 'ready'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-      });
-    }
-
-    // Get current bus data
-    const existingBus = await busQueries.getBusById(busId);
+    // Check if bus exists
+    const existingBus = await busQueries.findById(busId);
     if (!existingBus) {
       return res.status(404).json({
         success: false,
@@ -191,55 +154,7 @@ async function updateBusStatus(req, res) {
       });
     }
 
-    await busQueries.updateBusStatus(busId, status);
-
-    // Log event
-    await busQueries.logBusEvent(busId, 'status_changed', {
-      action: 'Status changed',
-      oldStatus: existingBus.status,
-      newStatus: status
-    });
-
-    // Publish event
-    await eventPublisher.publish('bus.status_changed', {
-      busId,
-      oldStatus: existingBus.status,
-      newStatus: status,
-      timestamp: new Date().toISOString()
-    });
-
-    res.json({
-      success: true,
-      message: 'Bus status updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating bus status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function deleteBus(req, res) {
-  try {
-    const busId = req.params.id;
-
-    const result = await busQueries.deleteBus(busId);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Bus not found'
-      });
-    }
-
-    // Publish event
-    await eventPublisher.publish('bus.deleted', {
-      busId,
-      timestamp: new Date().toISOString()
-    });
+    await busQueries.delete(busId);
 
     res.json({
       success: true,
@@ -255,96 +170,11 @@ async function deleteBus(req, res) {
   }
 }
 
-async function getBusEvents(req, res) {
-  try {
-    const busId = req.params.id;
-    const limit = parseInt(req.query.limit) || 50;
-
-    const events = await busQueries.getBusEvents(busId, limit);
-
-    res.json({
-      success: true,
-      data: events,
-      count: events.length
-    });
-  } catch (error) {
-    console.error('Error fetching bus events:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function getBusesByRoute(req, res) {
-  try {
-    const routeId = req.params.routeId;
-    const buses = await busQueries.getBusesByRoute(routeId);
-
-    res.json({
-      success: true,
-      data: buses,
-      count: buses.length
-    });
-  } catch (error) {
-    console.error('Error fetching buses by route:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function getBusesNeedingMaintenance(req, res) {
-  try {
-    const buses = await busQueries.getBusesNeedingMaintenance();
-
-    res.json({
-      success: true,
-      data: buses,
-      count: buses.length
-    });
-  } catch (error) {
-    console.error('Error fetching buses needing maintenance:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function getAvailableBuses(req, res) {
-  try {
-    const buses = await busQueries.getAvailableBuses();
-
-    res.json({
-      success: true,
-      data: buses,
-      count: buses.length
-    });
-  } catch (error) {
-    console.error('Error fetching available buses:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
 module.exports = {
   getAllBuses,
   getBusById,
-  getBusStatistics,
+  getBusStats,
   createBus,
   updateBus,
-  updateBusStatus,
-  deleteBus,
-  getBusEvents,
-  getBusesByRoute,
-  getBusesNeedingMaintenance,
-  getAvailableBuses
+  deleteBus
 };
