@@ -13,7 +13,7 @@ const pool = mysql2.createPool({
 
 pool.getConnection()
   .then(conn => {
-    console.log('Connected to auth_db');
+    console.log('Connected to database:', process.env.DB_NAME);
     conn.release();
   })
   .catch(err => {
