@@ -1,22 +1,23 @@
-version: '3.8'
 services:
-  mysql: 
+  mysql:
     image: mysql:8.0
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: MYSQL_ROOT_PASSWORD
-      MYSQL_DATABASE: ssb database 
+      MYSQL_DATABASE: ssb_database
     ports:
       - "3306:3306"
-    voloumes: 
+    volumes:
       - mysql_data:/var/lib/mysql
 
-api_gateway:
-    build: ./APi_gateway
+  api_gateway:
+    build:
+      context: .            # build từ thư mục back_end
+      dockerfile: ./API_gateway/Dockerfile   # chỉ định file Dockerfile nằm trong thư mục con
     ports:
       - "5000:5000"
     depends_on:
-      -mysql
+      - mysql
+
 volumes:
   mysql_data:
-    
