@@ -34,5 +34,9 @@
     "trip": {
       "url": "http://localhost:3018/api/trips/batch",
       "method": "POST"
+    },
+    "user": {
+      "url": "http://localhost:3019/api/users/batch",
+      "method": "POST"
     }
   }
