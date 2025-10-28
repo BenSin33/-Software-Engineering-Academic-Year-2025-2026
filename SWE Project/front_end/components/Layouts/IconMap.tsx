@@ -1,55 +1,34 @@
+// File: components/Layouts/IconMap.tsx
 'use client';
 
-import { 
-    Calendar, Map, CheckSquare, Users, Home, Bus, AlertTriangle, 
-    LayoutDashboard, UserCircle, HeartHandshake, Route 
-} from 'lucide-react';
-import type { JSX, SVGProps } from 'react';
+// lucide-react icons
+import { LayoutDashboard, UserCircle, Users, HeartHandshake, Route, Bus, Calendar, Map, CheckSquare } from 'lucide-react';
 
-// Allowed icon name literals
-type IconName =
-  | 'Calendar'
-  | 'Map'
-  | 'CheckSquare'
-  | 'LayoutDashboard'
-  | 'UserCircle'
-  | 'Users'
-  | 'HeartHandshake'
-  | 'Route'
-  | 'Home'
-  | 'Bus'
-  | 'AlertTriangle';
+// ✅ 1. Import the new icons from react-icons
+import { HiExclamationCircle, HiDocumentReport, HiBell } from 'react-icons/hi';
 
-export function IconMap({ name, ...props }: { name: IconName } & SVGProps<SVGSVGElement>): JSX.Element | null {
+export function IconMap({ name, ...props }) {
+  // name is the string, e.g., 'LayoutDashboard', 'HiBell'
+  // ...props are things like className, size, etc.
+
   switch (name) {
-    // Các icon cho Driver
-    case 'Calendar':
-      return <Calendar {...props} />;
-    case 'Map':
-      return <Map {...props} />;
-    case 'CheckSquare':
-      return <CheckSquare {...props} />;
-    
-    // ✅ Các icon mới cho Admin
+    // --- Icons from lucide-react ---
     case 'LayoutDashboard':
-        return <LayoutDashboard {...props} />;
+      return <LayoutDashboard {...props} />;
     case 'UserCircle':
-        return <UserCircle {...props} />;
-    case 'Users': // Dùng chung cho cả admin và driver
-        return <Users {...props} />;
-    case 'HeartHandshake':
-        return <HeartHandshake {...props} />;
-    case 'Route':
-        return <Route {...props} />;
+      return <UserCircle {...props} />;
+    // ... other lucide-react icons
 
-    // Các icon cũ khác
-    case 'Home':
-      return <Home {...props} />;
-    case 'Bus':
-        return <Bus {...props} />;
-    case 'AlertTriangle':
-        return <AlertTriangle {...props} />;
+    // ✅ 2. Add new cases for the react-icons
+    case 'HiExclamationCircle':
+      return <HiExclamationCircle {...props} />;
+    case 'HiDocumentReport':
+      return <HiDocumentReport {...props} />;
+    case 'HiBell':
+      return <HiBell {...props} />;
+
     default:
+      // Return a default icon or null if no match is found
       return null;
   }
 }
