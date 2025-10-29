@@ -7,12 +7,16 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Import routes
+
 const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
+const routeRoutes = require('./routes/routeRoutes');
+const locationRoutes=require('./routes/locationRoutes.js');
 
 app.use("/api/auth", authRoutes);
 app.use("/Students", studentRoutes);
-
+app.use('/routes',routeRoutes)
+app.use('/location',locationRoutes)
 const PORT = 5000;
 app.listen(PORT, () => {
     console.log('API Gateway running on port', PORT);

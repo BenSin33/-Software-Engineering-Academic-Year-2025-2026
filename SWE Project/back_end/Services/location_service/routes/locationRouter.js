@@ -5,7 +5,8 @@ const locationController = require('../controllers/locationController');
 
 // Thống kê
 router.get('/stats', locationController.getLocationStats);
-
+//đổi địa chỉ sang tọa độ
+router.post('/coordinates',locationController.getCoordinatesArray);
 // Lấy vị trí hiện tại
 router.get('/', locationController.getAllCurrentLocations);
 router.get('/bus/:busId', locationController.getBusLocation);

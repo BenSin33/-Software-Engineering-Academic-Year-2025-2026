@@ -12,7 +12,8 @@ async function addRoute(driverID,busID,routeName,startLocation,endLocation) {
     VALUES (?, ?, ?, ?, ?)
   `;
 
-  await pool.query(sql, [driverID,busID,routeName,startLocation,endLocation]);
+ const [routeID] = await pool.query(sql, [driverID,busID,routeName,startLocation,endLocation]);
+ return routeID.insertId;
 }
 
 async function updateCurrentRoute(routeID,driverID,busID,routeName,startLocation,endLocation){
