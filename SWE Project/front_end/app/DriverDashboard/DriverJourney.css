@@ -156,6 +156,7 @@
     height: 250px; /* Điều chỉnh chiều cao bản đồ */
     border-radius: 8px;
     overflow: hidden;
+    z-index: 1;
 }
 
 .notification-card .card-header {
