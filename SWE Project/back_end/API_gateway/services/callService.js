@@ -1,6 +1,9 @@
 const SERVICE_URLS = {
   student_service: "http://localhost:5001",
   parent_service: "http://localhost:5002", // ✅ thêm dòng này
+  route_service: "http://localhost:5003",
+  driver_service: "http://localhost:5004",
+  location_service: "http://localhost:5010"
 };
 
 export async function callService(serviceName, path, method = "GET", data = null) {
