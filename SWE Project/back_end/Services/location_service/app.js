@@ -1,43 +1,75 @@
-require('dotenv').config();
-const cors = require('cors');
-const express = require('express');
-const app = express();
-const locationRouter = require('./routes/locationRouter');
-const mapRouter = require('./routes/mapRoutes');
 
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config();
+
+// Import routes
+const locationRoutes = require('./routes/locationRouter');
+const mapRoutes = require('./routes/mapRoutes');
+
+const app = express();
+
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
 
-// Mount routers
-app.use('/locations', locationRouter);
-app.use('/maps', mapRouter);
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
-// Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    service: 'Location Service',
+  res.json({
+    status: 'OK',
+    service: 'location_service',
+    version: '1.0.0',
     timestamp: new Date().toISOString(),
-    mapApis: {
-      openrouteservice: !!process.env.ORS_API_KEY,
-      maptiler: !!process.env.MAPTILER_API_KEY
+    apis: {
+      openRouteService: !!process.env.ORS_API_KEY,
+      mapTiler: !!process.env.MAPTILER_API_KEY
     }
   });
 });
 
-const PORT = process.env.PORT || 5005;
-
-app.listen(PORT, () => {
-  console.log(`Location Service running on port ${PORT}`);
-  console.log(`Available endpoints:`);
-  console.log(`  - GET  /locations/bus-locations`);
-  console.log(`  - GET  /locations/routes`);
-  console.log(`  - GET  /locations/pickup-dropoff-points`);
-  console.log(`  - GET  /locations/geofences`);
-  console.log(`  - GET  /locations/alerts`);
-  console.log(`  - GET  /maps/config`);
-  console.log(`  - POST /maps/route`);
-  console.log(`  - POST /maps/route/optimize`);
-  console.log(`  - GET  /maps/geocode`);
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    service: 'location_service',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    apis: {
+      openRouteService: !!process.env.ORS_API_KEY,
+      mapTiler: !!process.env.MAPTILER_API_KEY
+    }
+  });
 });
+
+app.use('/api/locations', locationRoutes);
+app.use('/api/map', mapRoutes);
+
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    path: req.path
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+module.exports = app;

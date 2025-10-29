@@ -1,25 +1,55 @@
-const app = require('./app');
+// bus_service/server.js
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
 
+const app = express();
 const PORT = process.env.PORT || 3002;
 
-app.listen(PORT, () => {
-  console.log('═══════════════════════════════════════════');
-  console.log(`🚌 Bus Service`);
-  console.log(`📡 Running on port ${PORT}`);
-  console.log(`🌐 API: http://localhost:${PORT}/api`);
-  console.log(`❤️  Health: http://localhost:${PORT}/health`);
-  console.log('═══════════════════════════════════════════');
-  console.log('Available endpoints:');
-  console.log('  - GET    /api/buses');
-  console.log('  - POST   /api/buses');
-  console.log('  - GET    /api/buses/:id');
-  console.log('  - PUT    /api/buses/:id');
-  console.log('  - DELETE /api/buses/:id');
-  console.log('  - PATCH  /api/buses/:id/status');
-  console.log('  - GET    /api/buses/stats/summary');
-  console.log('  - GET    /api/maintenance');
-  console.log('  - POST   /api/maintenance/bus/:id');
-  console.log('  - GET    /api/locations/current');
-  console.log('  - POST   /api/locations/bus/:id');
-  console.log('═══════════════════════════════════════════');
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Import database pool để test connection
+const pool = require('./db/pool');
+
+// Routes
+const busRoutes = require('./routes/busRoutes');
+const driverRoutes = require('./routes/driverRoutes');
+
+app.use('/api/buses', busRoutes);
+app.use('/api/drivers', driverRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    service: 'bus_service',
+    timestamp: new Date().toISOString()
+  });
 });
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚌 Bus Service running on port ${PORT}`);
+});
+
+module.exports = { pool };
+
