@@ -1,13 +1,13 @@
 {
-  "name": "student_service",
+  "name": "user_service",
   "version": "1.0.0",
-  "description": "Student Management Service for School Transport System",
+  "description": "User Management Service for School Transport System",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js"
   },
-  "keywords": ["student", "management", "school", "transport"],
+  "keywords": ["user", "management", "school", "transport"],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -20,3 +20,4 @@
     "nodemon": "^3.0.1"
   }
 }
+
