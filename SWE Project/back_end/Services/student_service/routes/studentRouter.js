@@ -1,7 +1,6 @@
-const { Router } = require('express');
-const studentController = require('../controllers/studentController');
+const {Router} = require('express');
+const studentController= require('../controllers/studentController')
 const studentRouter = Router();
-
 
 // Các route khác
 studentRouter.get('/', studentController.getAllStudents);

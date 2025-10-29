@@ -29,52 +29,6 @@ async function checkRoleExists(roleID) {
   });
 }
 
-// Đăng ký
-exports.register = async (req, res) => {
-  const { userID, username, password, roleID } = req.body;
-
-  try {
-    // Kiểm tra RoleID có tồn tại
-    const roleExists = await checkRoleExists(roleID);
-    if (!roleExists) {
-      await sendLog("auth_service", "register", null, roleID, 400, "Invalid RoleID");
-      return res.status(400).json({ error: "Invalid RoleID" });
-    }
-
-    // Kiểm tra username đã tồn tại
-    const checkUserSql = `SELECT UserName FROM users WHERE UserName = ?`;
-    dbUsers.query(checkUserSql, [username], async (err, result) => {
-      if (err) {
-        await sendLog("auth_service", "register", null, roleID, 500, "Database error");
-        return res.status(500).json({ error: "Database error" });
-      }
-      if (result.length > 0) {
-        await sendLog("auth_service", "register", null, roleID, 400, "Username already exists");
-        return res.status(400).json({ error: "Username already exists" });
-      }
-
-      // Băm mật khẩu
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      // Chèn dữ liệu vào bảng users
-      const sql = `INSERT INTO users (UserID, UserName, Password, RoleID) VALUES (?, ?, ?, ?)`;
-      dbUsers.query(sql, [userID, username, hashedPassword, roleID], async (err, result) => {
-        if (err) {
-          await sendLog("auth_service", "register", userID, roleID, 500, "Registration failed");
-          return res.status(500).json({ error: "Registration failed" });
-        }
-
-        await sendLog("auth_service", "register", userID, roleID, 201, "Registration successful");
-        res.status(201).json({ message: "Registration successful", userID });
-      });
-    });
-  } catch (error) {
-    await sendLog("auth_service", "register", null, roleID, 500, "Server error during registration");
-    res.status(500).json({ error: "Server error during registration" });
-  }
-};
-
 // Đăng nhập
 exports.login = async (req, res) => {
   const { username, password } = req.body;

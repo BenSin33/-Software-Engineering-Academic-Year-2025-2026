@@ -1,0 +1,10 @@
+{
+  "name": "shared-libs",
+  "version": "1.0.0",
+  "description": "Shared libraries for the school bus system",
+  "private": true,
+  "main": "index.js",
+  "scripts": {},
+  "license": "ISC"
+}
+

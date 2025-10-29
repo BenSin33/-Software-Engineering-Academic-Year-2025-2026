@@ -1,126 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import "./BusesPage.css";
 import { Filter, Search } from "lucide-react";
 
+// 1. CẬP NHẬT: Interface này đã được cập nhật để khớp với CSDL
 interface Bus {
   id: string;
-  licensePlate: string;
+  license_plate: string;
   model: string;
   year: number;
   status: "running" | "waiting" | "maintenance" | "ready";
   capacity: number;
-  currentLoad: number;
-  fuelLevel: number;
-  driver: string;
-  route: string;
+  current_load: number;
+  fuel_level: number;
+  driver_name: string;
+  route_id: string;
   speed: number;
   distance: number;
   location: string;
-  lastMaintenance: string;
+  last_maintenance: string; // Sẽ có dạng 'YYYY-MM-DD' từ CSDL
 }
 
-export default function BusesPage() {
-  const [buses, setBuses] = useState<Bus[]>([
-    {
-      id: "BUS-01",
-      licensePlate: "51A-12345",
-      model: "Hyundai Universe",
-      year: 2020,
-      status: "running",
-      capacity: 45,
-      currentLoad: 38,
-      fuelLevel: 85,
-      driver: "Lê Văn Cường",
-      route: "Tuyến 1",
-      speed: 42,
-      distance: 156200,
-      location: "Võ Văn Tần, Q.3",
-      lastMaintenance: "10/05/2024",
-    },
-    {
-      id: "BUS-03",
-      licensePlate: "51B-23456",
-      model: "Thaco Universe",
-      year: 2021,
-      status: "running",
-      capacity: 40,
-      currentLoad: 32,
-      fuelLevel: 75,
-      driver: "Nguyễn Thị Mai",
-      route: "Tuyến 2",
-      speed: 38,
-      distance: 142300,
-      location: "Lê Lợi, Q.1",
-      lastMaintenance: "15/04/2024",
-    },
-    {
-      id: "BUS-05",
-      licensePlate: "51C-34567",
-      model: "Hyundai County",
-      year: 2019,
-      status: "running",
-      capacity: 35,
-      currentLoad: 28,
-      fuelLevel: 85,
-      driver: "Lê Văn Cường",
-      route: "Tuyến 3",
-      speed: 42,
-      distance: 156200,
-      location: "Võ Văn Tần, Q.3",
-      lastMaintenance: "10/05/2024",
-    },
-    {
-      id: "BUS-07",
-      licensePlate: "51D-45678",
-      model: "Mercedes-Benz Sprinter",
-      year: 2022,
-      status: "waiting",
-      capacity: 25,
-      currentLoad: 0,
-      fuelLevel: 90,
-      driver: "Phạm Thị Dung",
-      route: "Tuyến 4",
-      speed: 0,
-      distance: 67890,
-      location: "Bãi đỗ trường",
-      lastMaintenance: "25/05/2024",
-    },
-    {
-      id: "BUS-02",
-      licensePlate: "51A-98765",
-      model: "Hyundai County",
-      year: 2021,
-      status: "maintenance",
-      capacity: 35,
-      currentLoad: 0,
-      fuelLevel: 50,
-      driver: "Trần Văn Hùng",
-      route: "Tuyến 5",
-      speed: 0,
-      distance: 98500,
-      location: "Xưởng bảo trì",
-      lastMaintenance: "01/06/2024",
-    },
-    {
-      id: "BUS-04",
-      licensePlate: "51B-11223",
-      model: "Thaco Town",
-      year: 2020,
-      status: "ready",
-      capacity: 30,
-      currentLoad: 0,
-      fuelLevel: 100,
-      driver: "Võ Minh Tuấn",
-      route: "Tuyến 6",
-      speed: 0,
-      distance: 125600,
-      location: "Bãi đỗ trường",
-      lastMaintenance: "20/05/2024",
-    },
-  ]);
+// 2. THÊM MỚI: Hàm tiện ích để format ngày tháng
+// Chuyển 'YYYY-MM-DD' thành 'DD/MM/YYYY'
+const formatDisplayDate = (dateString: string) => {
+  if (!dateString) return "N/A";
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "N/A";
+    return date.toLocaleDateString("vi-VN");
+  } catch (error) {
+    return "N/A";
+  }
+};
 
+// Chuyển 'DD/MM/YYYY' thành 'YYYY-MM-DD' để gửi cho API
+const formatApiDate = (dateString: string) => {
+  if (!dateString || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+    return new Date().toISOString().split("T")[0]; // Mặc định là hôm nay
+  }
+  try {
+    const parts = dateString.split("/");
+    const date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    return date.toISOString().split("T")[0];
+  } catch (error) {
+    return new Date().toISOString().split("T")[0];
+  }
+};
+
+export default function BusesPage() {
+  // 3. CẬP NHẬT: Khởi tạo mảng rỗng, dữ liệu sẽ được fetch từ API
+  const [buses, setBuses] = useState<Bus[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,25 +64,26 @@ export default function BusesPage() {
   const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  // Form state for add/edit
-  const [formData, setFormData] = useState<Partial<Bus>>({
+  // 4. CẬP NHẬT: Đổi tên trường để khớp với CSDL
+  const initialFormData: Partial<Bus> = {
     id: "",
-    licensePlate: "",
+    license_plate: "",
     model: "",
     year: new Date().getFullYear(),
     status: "ready",
     capacity: 0,
-    currentLoad: 0,
-    fuelLevel: 100,
-    driver: "",
-    route: "",
+    current_load: 0,
+    fuel_level: 100,
+    driver_name: "",
+    route_id: "",
     speed: 0,
     distance: 0,
     location: "",
-    lastMaintenance: new Date().toLocaleDateString("vi-VN"),
-  });
+    last_maintenance: new Date().toISOString().split("T")[0],
+  };
 
-  // Advanced filter state
+  const [formData, setFormData] = useState<Partial<Bus>>(initialFormData);
+
   const [advancedFilters, setAdvancedFilters] = useState({
     minCapacity: "",
     maxCapacity: "",
@@ -160,18 +93,56 @@ export default function BusesPage() {
   });
 
   const itemsPerPage = 4;
+  const API_URL = "http://localhost:3002/api"; // URL của bus_service
 
-  // Calculate stats
-  const stats = {
-    total: buses.length,
-    running: buses.filter((b) => b.status === "running").length,
-    waiting: buses.filter((b) => b.status === "waiting").length,
-    maintenance: buses.filter((b) => b.status === "maintenance").length,
-    ready: buses.filter((b) => b.status === "ready").length,
-    totalCapacity: buses.reduce((sum, b) => sum + b.capacity, 0),
-    registered: buses.reduce((sum, b) => sum + b.currentLoad, 0),
-    needMaintenance: buses.filter((b) => b.fuelLevel < 30 || b.distance > 150000).length,
+  // 5. THÊM MỚI: Hàm fetch dữ liệu
+  const fetchBuses = async () => {
+    setLoading(true);
+    try {
+      // Ví dụ: gọi API với phân trang và bộ lọc (nếu backend hỗ trợ)
+      // Hiện tại, chúng ta fetch tất cả
+      const response = await fetch(`${API_URL}/buses?limit=1000`);
+      if (!response.ok) {
+        throw new Error("Không thể tải danh sách xe");
+      }
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        setBuses(result.data);
+      } else {
+        setBuses([]);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Lỗi khi tải dữ liệu xe buýt.");
+      setBuses([]); // Xóa dữ liệu cũ nếu lỗi
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // 6. THÊM MỚI: Gọi fetchBuses khi component được tải
+  useEffect(() => {
+    fetchBuses();
+  }, []);
+
+  // 7. CẬP NHẬT: Tối ưu hóa tính toán bằng useMemo
+  const stats = useMemo(() => {
+    return {
+      total: buses.length,
+      running: buses.filter((b) => b.status === "running").length,
+      waiting: buses.filter((b) => b.status === "waiting").length,
+      maintenance: buses.filter((b) => b.status === "maintenance").length,
+      ready: buses.filter((b) => b.status === "ready").length,
+      totalCapacity: buses.reduce((sum, b) => sum + b.capacity, 0),
+      registered: buses.reduce((sum, b) => sum + b.current_load, 0),
+      needMaintenance: buses.filter(
+        (b) =>
+          b.fuel_level < 30 ||
+          b.distance > 150000 ||
+          (new Date().getTime() - new Date(b.last_maintenance).getTime()) / (1000 * 3600 * 24) > 90
+      ).length,
+    };
+  }, [buses]);
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -183,120 +154,189 @@ export default function BusesPage() {
     return badges[status as keyof typeof badges] || badges.ready;
   };
 
-  // Filter and sort buses
-  const filteredBuses = buses
-    .filter((bus) => {
-      const matchesSearch =
-        bus.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bus.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bus.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bus.driver.toLowerCase().includes(searchTerm.toLowerCase());
+  // 8. CẬP NHẬT: Tối ưu hóa filter/sort bằng useMemo
+  const filteredBuses = useMemo(() => {
+    return buses
+      .filter((bus) => {
+        const matchesSearch =
+          bus.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bus.license_plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bus.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bus.driver_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesFilter = filterStatus === "all" || bus.status === filterStatus;
+        const matchesFilter = filterStatus === "all" || bus.status === filterStatus;
 
-      const matchesAdvanced =
-        (!advancedFilters.minCapacity || bus.capacity >= parseInt(advancedFilters.minCapacity)) &&
-        (!advancedFilters.maxCapacity || bus.capacity <= parseInt(advancedFilters.maxCapacity)) &&
-        (!advancedFilters.minFuel || bus.fuelLevel >= parseInt(advancedFilters.minFuel)) &&
-        (!advancedFilters.year || bus.year === parseInt(advancedFilters.year)) &&
-        (!advancedFilters.route || bus.route.toLowerCase().includes(advancedFilters.route.toLowerCase()));
+        const matchesAdvanced =
+          (!advancedFilters.minCapacity || bus.capacity >= parseInt(advancedFilters.minCapacity)) &&
+          (!advancedFilters.maxCapacity || bus.capacity <= parseInt(advancedFilters.maxCapacity)) &&
+          (!advancedFilters.minFuel || bus.fuel_level >= parseInt(advancedFilters.minFuel)) &&
+          (!advancedFilters.year || bus.year === parseInt(advancedFilters.year)) &&
+          (!advancedFilters.route || bus.route_id.toLowerCase().includes(advancedFilters.route.toLowerCase()));
 
-      return matchesSearch && matchesFilter && matchesAdvanced;
-    })
-    .sort((a, b) => {
-      let aVal: any = a[sortBy as keyof Bus];
-      let bVal: any = b[sortBy as keyof Bus];
-      
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-      
-      if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
+        return matchesSearch && matchesFilter && matchesAdvanced;
+      })
+      .sort((a, b) => {
+        type FieldValue = string | number | undefined;
 
-  // Pagination
+        const aRaw = a[sortBy as keyof Bus];
+        const bRaw = b[sortBy as keyof Bus];
+
+        const aVal: FieldValue = typeof aRaw === "number" ? aRaw : aRaw !== undefined && aRaw !== null ? String(aRaw).toLowerCase() : undefined;
+        const bVal: FieldValue = typeof bRaw === "number" ? bRaw : bRaw !== undefined && bRaw !== null ? String(bRaw).toLowerCase() : undefined;
+
+        if (aVal === undefined && bVal === undefined) return 0;
+        if (aVal === undefined) return sortOrder === "asc" ? 1 : -1;
+        if (bVal === undefined) return sortOrder === "asc" ? -1 : 1;
+
+        if (typeof aVal === "string" && typeof bVal === "string") {
+          if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+          if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+          return 0;
+        }
+
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+          if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+          return 0;
+        }
+
+        // Fallback: compare string representations
+        const aStr = String(aVal);
+        const bStr = String(bVal);
+        if (aStr < bStr) return sortOrder === "asc" ? -1 : 1;
+        if (aStr > bStr) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [buses, searchTerm, filterStatus, advancedFilters, sortBy, sortOrder]);
+
+  // 9. CẬP NHẬT: Tối ưu hóa phân trang bằng useMemo
+  const paginatedBuses = useMemo(() => {
+    const totalPages = Math.ceil(filteredBuses.length / itemsPerPage);
+    const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
+    if (currentPage !== validCurrentPage && totalPages > 0) {
+      setCurrentPage(validCurrentPage);
+    }
+
+    const startIndex = (validCurrentPage - 1) * itemsPerPage;
+    return filteredBuses.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBuses, currentPage, itemsPerPage]);
+
   const totalPages = Math.ceil(filteredBuses.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedBuses = filteredBuses.slice(startIndex, startIndex + itemsPerPage);
 
-  // Add bus
-  const handleAddBus = () => {
-    if (!formData.id || !formData.licensePlate || !formData.model) {
-      alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+  // 10. CẬP NHẬT: Viết lại hàm Add để gọi API
+  const handleAddBus = async () => {
+    // Client-side validation
+    if (!formData.id || !formData.license_plate || !formData.model || !formData.capacity) {
+      alert("Vui lòng điền đầy đủ thông tin bắt buộc (Mã xe, Biển số, Hãng xe, Sức chứa)!");
       return;
     }
 
-    const newBus: Bus = {
-      id: formData.id!,
-      licensePlate: formData.licensePlate!,
-      model: formData.model!,
-      year: formData.year || new Date().getFullYear(),
-      status: formData.status as Bus["status"] || "ready",
-      capacity: formData.capacity || 0,
-      currentLoad: formData.currentLoad || 0,
-      fuelLevel: formData.fuelLevel || 100,
-      driver: formData.driver || "",
-      route: formData.route || "",
-      speed: formData.speed || 0,
-      distance: formData.distance || 0,
-      location: formData.location || "",
-      lastMaintenance: formData.lastMaintenance || new Date().toLocaleDateString("vi-VN"),
+    const newBusData = {
+      ...initialFormData, // Đảm bảo có đủ các trường
+      ...formData,
+      capacity: Number(formData.capacity) || 0,
+      year: Number(formData.year) || new Date().getFullYear(),
+      fuel_level: Number(formData.fuel_level) || 100,
+      last_maintenance: formData.last_maintenance ? formatApiDate(formData.last_maintenance) : new Date().toISOString().split("T")[0],
     };
 
-    setBuses([...buses, newBus]);
-    setShowAddModal(false);
-    resetForm();
-    alert("Thêm xe thành công!");
+    try {
+      const response = await fetch(`${API_URL}/buses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newBusData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Lỗi khi thêm xe");
+      }
+
+      alert("Thêm xe thành công!");
+      setShowAddModal(false);
+      resetForm();
+      fetchBuses(); // Tải lại danh sách
+    } catch (error: any) {
+      console.error(error);
+      alert(`Lỗi: ${error.message}`);
+    }
   };
 
-  // Edit bus
-  const handleEditBus = () => {
+  // 11. CẬP NHẬT: Viết lại hàm Edit để gọi API
+  const handleEditBus = async () => {
     if (!selectedBus) return;
 
-    const updatedBuses = buses.map((bus) =>
-      bus.id === selectedBus.id ? { ...bus, ...formData } : bus
-    );
+    // Chỉ gửi các trường đã thay đổi (hoặc toàn bộ form)
+    const updatedData = {
+      ...formData,
+      capacity: Number(formData.capacity) || 0,
+      year: Number(formData.year) || new Date().getFullYear(),
+      fuel_level: Number(formData.fuel_level) || 100,
+      current_load: Number(formData.current_load) || 0,
+      speed: Number(formData.speed) || 0,
+      distance: Number(formData.distance) || 0,
+      last_maintenance: formData.last_maintenance ? formatApiDate(formData.last_maintenance) : new Date().toISOString().split("T")[0],
+    };
 
-    setBuses(updatedBuses);
-    setShowEditModal(false);
-    setSelectedBus(null);
-    resetForm();
-    alert("Cập nhật xe thành công!");
+    try {
+      const response = await fetch(`${API_URL}/buses/${selectedBus.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Lỗi khi cập nhật xe");
+      }
+
+      alert("Cập nhật xe thành công!");
+      setShowEditModal(false);
+      resetForm();
+      fetchBuses(); // Tải lại danh sách
+    } catch (error: any) {
+      console.error(error);
+      alert(`Lỗi: ${error.message}`);
+    }
   };
 
-  // Delete bus
-  const handleDeleteBus = (busId: string) => {
+  // 12. CẬP NHẬT: Viết lại hàm Delete để gọi API
+  const handleDeleteBus = async (busId: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa xe này?")) {
-      setBuses(buses.filter((bus) => bus.id !== busId));
-      alert("Xóa xe thành công!");
+      try {
+        const response = await fetch(`${API_URL}/buses/${busId}`, {
+          method: "DELETE",
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Lỗi khi xóa xe");
+        }
+
+        alert("Xóa xe thành công!");
+        fetchBuses(); // Tải lại danh sách
+      } catch (error: any) {
+        console.error(error);
+        alert(`Lỗi: ${error.message}`);
+      }
     }
   };
 
   // Reset form
   const resetForm = () => {
-    setFormData({
-      id: "",
-      licensePlate: "",
-      model: "",
-      year: new Date().getFullYear(),
-      status: "ready",
-      capacity: 0,
-      currentLoad: 0,
-      fuelLevel: 100,
-      driver: "",
-      route: "",
-      speed: 0,
-      distance: 0,
-      location: "",
-      lastMaintenance: new Date().toLocaleDateString("vi-VN"),
-    });
+    setFormData(initialFormData);
+    setSelectedBus(null);
   };
 
   // Open edit modal
   const openEditModal = (bus: Bus) => {
     setSelectedBus(bus);
-    setFormData(bus);
+    // Chuyển ngày YYYY-MM-DD sang DD/MM/YYYY để hiển thị
+    setFormData({ ...bus, last_maintenance: formatDisplayDate(bus.last_maintenance) });
     setShowEditModal(true);
   };
 
@@ -305,6 +345,25 @@ export default function BusesPage() {
     setSelectedBus(bus);
     setShowDetailModal(true);
   };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    resetForm();
+  };
+
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    resetForm();
+  };
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedBus(null);
+  };
+
+  if (loading) {
+    return <div style={{ padding: "40px", textAlign: "center", fontSize: "18px" }}>Đang tải dữ liệu...</div>;
+  }
 
   return (
     <div className="buses-page">
@@ -329,7 +388,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.total}</div>
           </div>
         </div>
-
         <div className="stat-card stat-green">
           <div className="stat-icon">📡</div>
           <div className="stat-content">
@@ -337,7 +395,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.running}</div>
           </div>
         </div>
-
         <div className="stat-card stat-orange">
           <div className="stat-icon">🕐</div>
           <div className="stat-content">
@@ -345,7 +402,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.waiting}</div>
           </div>
         </div>
-
         <div className="stat-card stat-red">
           <div className="stat-icon">🔧</div>
           <div className="stat-content">
@@ -353,7 +409,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.maintenance}</div>
           </div>
         </div>
-
         <div className="stat-card stat-light-blue">
           <div className="stat-icon">✓</div>
           <div className="stat-content">
@@ -361,7 +416,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.ready}</div>
           </div>
         </div>
-
         <div className="stat-card stat-purple">
           <div className="stat-icon">👥</div>
           <div className="stat-content">
@@ -369,7 +423,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.totalCapacity}</div>
           </div>
         </div>
-
         <div className="stat-card stat-dark-orange">
           <div className="stat-icon">👤</div>
           <div className="stat-content">
@@ -377,7 +430,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.registered}</div>
           </div>
         </div>
-
         <div className="stat-card stat-pink">
           <div className="stat-icon">⚠</div>
           <div className="stat-content">
@@ -390,39 +442,44 @@ export default function BusesPage() {
       {/* Search and Filter */}
       <div className="search-filter-section">
         <div className="search-bar">
-           <Search className="searchIcon w-5 h-5" />
-            
+          <Search className="search-icon" size={18} />
           <input
             type="text"
             placeholder="Tìm kiếm theo mã xe, biển số, hãng xe, tài xế..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+            }}
             className="search-input"
           />
         </div>
-
         <button
           className="btn-advanced-filter"
           onClick={() => setShowAdvancedFilter(!showAdvancedFilter)}
         >
-          <Filter className="w-4 h-4" />
+          <Filter size={16} />
           Tìm kiếm nâng cao
         </button>
       </div>
 
       {/* Advanced Filter Panel */}
       {showAdvancedFilter && (
-        <div style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          marginBottom: "24px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-        }}>
+        <div
+          style={{
+            background: "white",
+            padding: "20px",
+            borderRadius: "12px",
+            marginBottom: "24px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
           <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "16px", fontWeight: 600 }}>
             Bộ lọc nâng cao
           </h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}
+          >
             <div>
               <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280" }}>
                 Sức chứa tối thiểu
@@ -430,13 +487,16 @@ export default function BusesPage() {
               <input
                 type="number"
                 value={advancedFilters.minCapacity}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, minCapacity: e.target.value })}
+                onChange={(e) => {
+                  setAdvancedFilters({ ...advancedFilters, minCapacity: e.target.value });
+                  setCurrentPage(1);
+                }}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e5e7eb",
                   borderRadius: "8px",
-                  fontSize: "14px"
+                  fontSize: "14px",
                 }}
               />
             </div>
@@ -447,13 +507,16 @@ export default function BusesPage() {
               <input
                 type="number"
                 value={advancedFilters.maxCapacity}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, maxCapacity: e.target.value })}
+                onChange={(e) => {
+                  setAdvancedFilters({ ...advancedFilters, maxCapacity: e.target.value });
+                  setCurrentPage(1);
+                }}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e5e7eb",
                   borderRadius: "8px",
-                  fontSize: "14px"
+                  fontSize: "14px",
                 }}
               />
             </div>
@@ -464,13 +527,16 @@ export default function BusesPage() {
               <input
                 type="number"
                 value={advancedFilters.minFuel}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, minFuel: e.target.value })}
+                onChange={(e) => {
+                  setAdvancedFilters({ ...advancedFilters, minFuel: e.target.value });
+                  setCurrentPage(1);
+                }}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e5e7eb",
                   borderRadius: "8px",
-                  fontSize: "14px"
+                  fontSize: "14px",
                 }}
               />
             </div>
@@ -481,13 +547,16 @@ export default function BusesPage() {
               <input
                 type="number"
                 value={advancedFilters.year}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, year: e.target.value })}
+                onChange={(e) => {
+                  setAdvancedFilters({ ...advancedFilters, year: e.target.value });
+                  setCurrentPage(1);
+                }}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e5e7eb",
                   borderRadius: "8px",
-                  fontSize: "14px"
+                  fontSize: "14px",
                 }}
               />
             </div>
@@ -498,19 +567,25 @@ export default function BusesPage() {
               <input
                 type="text"
                 value={advancedFilters.route}
-                onChange={(e) => setAdvancedFilters({ ...advancedFilters, route: e.target.value })}
+                onChange={(e) => {
+                  setAdvancedFilters({ ...advancedFilters, route: e.target.value });
+                  setCurrentPage(1);
+                }}
                 style={{
                   width: "100%",
                   padding: "10px",
                   border: "2px solid #e5e7eb",
                   borderRadius: "8px",
-                  fontSize: "14px"
+                  fontSize: "14px",
                 }}
               />
             </div>
           </div>
           <button
-            onClick={() => setAdvancedFilters({ minCapacity: "", maxCapacity: "", minFuel: "", year: "", route: "" })}
+            onClick={() => {
+              setAdvancedFilters({ minCapacity: "", maxCapacity: "", minFuel: "", year: "", route: "" });
+              setCurrentPage(1);
+            }}
             style={{
               marginTop: "16px",
               padding: "8px 16px",
@@ -518,7 +593,7 @@ export default function BusesPage() {
               border: "none",
               borderRadius: "8px",
               fontSize: "13px",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Xóa bộ lọc
@@ -528,36 +603,20 @@ export default function BusesPage() {
 
       {/* Filter Tabs */}
       <div className="filter-tabs">
-        <button
-          className={`filter-tab ${filterStatus === "all" ? "active" : ""}`}
-          onClick={() => setFilterStatus("all")}
-        >
-          Tất cả
-        </button>
-        <button
-          className={`filter-tab ${filterStatus === "running" ? "active" : ""}`}
-          onClick={() => setFilterStatus("running")}
-        >
-          Đang chạy
-        </button>
-        <button
-          className={`filter-tab ${filterStatus === "waiting" ? "active" : ""}`}
-          onClick={() => setFilterStatus("waiting")}
-        >
-          Đang chờ
-        </button>
-        <button
-          className={`filter-tab ${filterStatus === "maintenance" ? "active" : ""}`}
-          onClick={() => setFilterStatus("maintenance")}
-        >
-          Bảo trì
-        </button>
-        <button
-          className={`filter-tab ${filterStatus === "ready" ? "active" : ""}`}
-          onClick={() => setFilterStatus("ready")}
-        >
-          Sẵn sàng
-        </button>
+        {(["all", "running", "waiting", "maintenance", "ready"] as const).map((status) => (
+          <button
+            key={status}
+            className={`filter-tab ${filterStatus === status ? "active" : ""}`}
+            onClick={() => {
+              setFilterStatus(status);
+              setCurrentPage(1); // Reset về trang 1
+            }}
+          >
+            {status === "all"
+              ? "Tất cả"
+              : status.charAt(0).toUpperCase() + status.slice(1)}
+          </button>
+        ))}
       </div>
 
       {/* Bus Cards Grid */}
@@ -574,7 +633,7 @@ export default function BusesPage() {
                     {statusBadge.text}
                   </span>
                 </div>
-                <div className="bus-card-license">{bus.licensePlate}</div>
+                <div className="bus-card-license">{bus.license_plate}</div>
               </div>
 
               <div className="bus-model">
@@ -586,14 +645,14 @@ export default function BusesPage() {
                   <div className="progress-label">
                     <span>Sức chứa</span>
                     <span className="progress-value">
-                      {bus.currentLoad}/{bus.capacity}
+                      {bus.current_load}/{bus.capacity}
                     </span>
                   </div>
                   <div className="progress-bar">
                     <div
                       className="progress-fill progress-fill-blue"
                       style={{
-                        width: `${(bus.currentLoad / bus.capacity) * 100}%`,
+                        width: `${bus.capacity > 0 ? (bus.current_load / bus.capacity) * 100 : 0}%`,
                       }}
                     ></div>
                   </div>
@@ -602,12 +661,12 @@ export default function BusesPage() {
                 <div className="progress-item">
                   <div className="progress-label">
                     <span>Nhiên liệu</span>
-                    <span className="progress-value">{bus.fuelLevel}%</span>
+                    <span className="progress-value">{bus.fuel_level}%</span>
                   </div>
                   <div className="progress-bar">
                     <div
                       className="progress-fill progress-fill-green"
-                      style={{ width: `${bus.fuelLevel}%` }}
+                      style={{ width: `${bus.fuel_level}%` }}
                     ></div>
                   </div>
                 </div>
@@ -616,11 +675,11 @@ export default function BusesPage() {
               <div className="bus-info-grid">
                 <div className="bus-info-item">
                   <div className="info-label">TÀI XẾ</div>
-                  <div className="info-value">{bus.driver}</div>
+                  <div className="info-value">{bus.driver_name || "N/A"}</div>
                 </div>
                 <div className="bus-info-item">
                   <div className="info-label">TUYẾN ĐƯỜNG</div>
-                  <div className="info-value">{bus.route}</div>
+                  <div className="info-value">{bus.route_id || "N/A"}</div>
                 </div>
                 <div className="bus-info-item">
                   <div className="info-label">TỐC ĐỘ</div>
@@ -636,14 +695,14 @@ export default function BusesPage() {
                 <span className="location-icon">📍</span>
                 <div>
                   <div className="location-label">VỊ TRÍ HIỆN TẠI</div>
-                  <div className="location-value">{bus.location}</div>
+                  <div className="location-value">{bus.location || "N/A"}</div>
                 </div>
               </div>
 
               <div className="bus-maintenance">
                 <span className="maintenance-icon">🔧</span>
                 <span className="maintenance-text">
-                  Bảo trì tiếp: {bus.lastMaintenance}
+                  Bảo trì lần cuối: {formatDisplayDate(bus.last_maintenance)}
                 </span>
               </div>
 
@@ -679,7 +738,7 @@ export default function BusesPage() {
       )}
 
       {/* Pagination */}
-      {filteredBuses.length > 0 && (
+      {filteredBuses.length > 0 && totalPages > 1 && (
         <div className="pagination">
           <span className="pagination-info">
             Hiển thị {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredBuses.length)} trong tổng số{" "}
@@ -693,6 +752,7 @@ export default function BusesPage() {
             >
               ‹ Trước
             </button>
+            {/* Chỉ hiển thị một vài trang nếu có quá nhiều */}
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
@@ -728,7 +788,8 @@ export default function BusesPage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={() => setShowAddModal(false)}
+          // 13. SỬA LỖI: Gọi handleCloseAddModal khi nhấn nền mờ
+          onClick={handleCloseAddModal}
         >
           <div
             style={{
@@ -745,7 +806,7 @@ export default function BusesPage() {
             <h2 style={{ marginTop: 0, marginBottom: "24px", fontSize: "24px", fontWeight: 700 }}>
               Thêm xe mới
             </h2>
-
+            {/* Form (sử dụng các trường đã đổi tên) */}
             <div style={{ display: "grid", gap: "16px" }}>
               <div>
                 <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
@@ -754,7 +815,7 @@ export default function BusesPage() {
                 <input
                   type="text"
                   value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, id: e.target.value.toUpperCase() })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -772,8 +833,8 @@ export default function BusesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.licensePlate}
-                  onChange={(e) => setFormData({ ...formData, licensePlate: e.target.value })}
+                  value={formData.license_plate}
+                  onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -807,7 +868,7 @@ export default function BusesPage() {
 
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Năm SX
+                    Năm SX *
                   </label>
                   <input
                     type="number"
@@ -827,7 +888,7 @@ export default function BusesPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Sức chứa
+                    Sức chứa *
                   </label>
                   <input
                     type="number"
@@ -872,8 +933,8 @@ export default function BusesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.driver}
-                  onChange={(e) => setFormData({ ...formData, driver: e.target.value })}
+                  value={formData.driver_name}
+                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -891,8 +952,8 @@ export default function BusesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.route}
-                  onChange={(e) => setFormData({ ...formData, route: e.target.value })}
+                  value={formData.route_id}
+                  onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -900,7 +961,7 @@ export default function BusesPage() {
                     borderRadius: "8px",
                     fontSize: "14px",
                   }}
-                  placeholder="VD: Tuyến 1"
+                  placeholder="VD: ROUTE-01"
                 />
               </div>
 
@@ -922,6 +983,25 @@ export default function BusesPage() {
                   placeholder="VD: Bãi đỗ trường"
                 />
               </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                  Bảo trì lần cuối
+                </label>
+                <input
+                  type="text"
+                  value={formData.last_maintenance}
+                  onChange={(e) => setFormData({ ...formData, last_maintenance: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                  }}
+                  placeholder="DD/MM/YYYY"
+                />
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
@@ -930,7 +1010,7 @@ export default function BusesPage() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#3b82f6",
+                  background: "#FFAC50", // Đổi màu
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -942,10 +1022,7 @@ export default function BusesPage() {
                 Thêm xe
               </button>
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
+                onClick={handleCloseAddModal}
                 style={{
                   flex: 1,
                   padding: "12px",
@@ -980,7 +1057,8 @@ export default function BusesPage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={() => setShowEditModal(false)}
+          // 14. SỬA LỖI: Gọi handleCloseEditModal khi nhấn nền mờ
+          onClick={handleCloseEditModal}
         >
           <div
             style={{
@@ -1001,12 +1079,12 @@ export default function BusesPage() {
             <div style={{ display: "grid", gap: "16px" }}>
               <div>
                 <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Biển số
+                  Biển số *
                 </label>
                 <input
                   type="text"
-                  value={formData.licensePlate}
-                  onChange={(e) => setFormData({ ...formData, licensePlate: e.target.value })}
+                  value={formData.license_plate}
+                  onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -1020,7 +1098,7 @@ export default function BusesPage() {
               <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Hãng xe
+                    Hãng xe *
                   </label>
                   <input
                     type="text"
@@ -1038,7 +1116,7 @@ export default function BusesPage() {
 
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Năm SX
+                    Năm SX *
                   </label>
                   <input
                     type="number"
@@ -1058,7 +1136,7 @@ export default function BusesPage() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Sức chứa
+                    Sức chứa *
                   </label>
                   <input
                     type="number"
@@ -1080,8 +1158,8 @@ export default function BusesPage() {
                   </label>
                   <input
                     type="number"
-                    value={formData.currentLoad}
-                    onChange={(e) => setFormData({ ...formData, currentLoad: parseInt(e.target.value) })}
+                    value={formData.current_load}
+                    onChange={(e) => setFormData({ ...formData, current_load: parseInt(e.target.value) })}
                     style={{
                       width: "100%",
                       padding: "12px",
@@ -1098,8 +1176,8 @@ export default function BusesPage() {
                   </label>
                   <input
                     type="number"
-                    value={formData.fuelLevel}
-                    onChange={(e) => setFormData({ ...formData, fuelLevel: parseInt(e.target.value) })}
+                    value={formData.fuel_level}
+                    onChange={(e) => setFormData({ ...formData, fuel_level: parseInt(e.target.value) })}
                     style={{
                       width: "100%",
                       padding: "12px",
@@ -1139,8 +1217,8 @@ export default function BusesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.driver}
-                  onChange={(e) => setFormData({ ...formData, driver: e.target.value })}
+                  value={formData.driver_name}
+                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -1158,8 +1236,8 @@ export default function BusesPage() {
                   </label>
                   <input
                     type="text"
-                    value={formData.route}
-                    onChange={(e) => setFormData({ ...formData, route: e.target.value })}
+                    value={formData.route_id}
+                    onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
                     style={{
                       width: "100%",
                       padding: "12px",
@@ -1231,8 +1309,8 @@ export default function BusesPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.lastMaintenance}
-                  onChange={(e) => setFormData({ ...formData, lastMaintenance: e.target.value })}
+                  value={formData.last_maintenance}
+                  onChange={(e) => setFormData({ ...formData, last_maintenance: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -1251,7 +1329,7 @@ export default function BusesPage() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#3b82f6",
+                  background: "#FFAC50", // Đổi màu
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -1263,11 +1341,7 @@ export default function BusesPage() {
                 Cập nhật
               </button>
               <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setSelectedBus(null);
-                  resetForm();
-                }}
+                onClick={handleCloseEditModal}
                 style={{
                   flex: 1,
                   padding: "12px",
@@ -1302,7 +1376,8 @@ export default function BusesPage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={() => setShowDetailModal(false)}
+          // 15. SỬA LỖI: Gọi handleCloseDetailModal khi nhấn nền mờ
+          onClick={handleCloseDetailModal}
         >
           <div
             style={{
@@ -1316,7 +1391,14 @@ export default function BusesPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "24px",
+              }}
+            >
               <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>
                 Chi tiết xe {selectedBus.id}
               </h2>
@@ -1329,20 +1411,36 @@ export default function BusesPage() {
             <div style={{ display: "grid", gap: "24px" }}>
               {/* Basic Info */}
               <div>
-                <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}>
+                <h3
+                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                >
                   Thông tin cơ bản
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       BIỂN SỐ
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.licensePlate}
+                      {selectedBus.license_plate}
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       HÃNG XE
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
@@ -1350,7 +1448,14 @@ export default function BusesPage() {
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       NĂM SẢN XUẤT
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
@@ -1358,7 +1463,14 @@ export default function BusesPage() {
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       SỨC CHỨA
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
@@ -1370,19 +1482,35 @@ export default function BusesPage() {
 
               {/* Current Status */}
               <div>
-                <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}>
+                <h3
+                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                >
                   Trạng thái hiện tại
                 </h3>
                 <div style={{ display: "grid", gap: "12px" }}>
                   <div style={{ padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "8px", fontWeight: 600 }}>
-                      Số hành khách: {selectedBus.currentLoad}/{selectedBus.capacity}
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#6b7280",
+                        marginBottom: "8px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Số hành khách: {selectedBus.current_load}/{selectedBus.capacity}
                     </div>
-                    <div style={{ height: "8px", background: "#e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "8px",
+                        background: "#e5e7eb",
+                        borderRadius: "10px",
+                        overflow: "hidden",
+                      }}
+                    >
                       <div
                         style={{
                           height: "100%",
-                          width: `${(selectedBus.currentLoad / selectedBus.capacity) * 100}%`,
+                          width: `${selectedBus.capacity > 0 ? (selectedBus.current_load / selectedBus.capacity) * 100 : 0}%`,
                           background: "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)",
                           borderRadius: "10px",
                         }}
@@ -1391,14 +1519,28 @@ export default function BusesPage() {
                   </div>
 
                   <div style={{ padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "8px", fontWeight: 600 }}>
-                      Nhiên liệu: {selectedBus.fuelLevel}%
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#6b7280",
+                        marginBottom: "8px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Nhiên liệu: {selectedBus.fuel_level}%
                     </div>
-                    <div style={{ height: "8px", background: "#e5e7eb", borderRadius: "10px", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "8px",
+                        background: "#e5e7eb",
+                        borderRadius: "10px",
+                        overflow: "hidden",
+                      }}
+                    >
                       <div
                         style={{
                           height: "100%",
-                          width: `${selectedBus.fuelLevel}%`,
+                          width: `${selectedBus.fuel_level}%`,
                           background: "linear-gradient(90deg, #10b981 0%, #059669 100%)",
                           borderRadius: "10px",
                         }}
@@ -1410,28 +1552,51 @@ export default function BusesPage() {
 
               {/* Operation Info */}
               <div>
-                <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}>
+                <h3
+                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                >
                   Thông tin vận hành
                 </h3>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       TÀI XẾ
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.driver}
+                      {selectedBus.driver_name || "N/A"}
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       TUYẾN ĐƯỜNG
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.route}
+                      {selectedBus.route_id || "N/A"}
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       TỐC ĐỘ
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
@@ -1439,7 +1604,14 @@ export default function BusesPage() {
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       QUÃNG ĐƯỜNG ĐÃ ĐI
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
@@ -1451,25 +1623,53 @@ export default function BusesPage() {
 
               {/* Location & Maintenance */}
               <div>
-                <h3 style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}>
+                <h3
+                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                >
                   Vị trí & Bảo trì
                 </h3>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "16px", background: "#f9fafb", borderRadius: "8px", marginBottom: "12px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "12px",
+                    padding: "16px",
+                    background: "#f9fafb",
+                    borderRadius: "8px",
+                    marginBottom: "12px",
+                  }}
+                >
                   <span style={{ fontSize: "20px" }}>📍</span>
                   <div>
-                    <div style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", marginBottom: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#9ca3af",
+                        marginBottom: "4px",
+                      }}
+                    >
                       VỊ TRÍ HIỆN TẠI
                     </div>
                     <div style={{ fontSize: "14px", fontWeight: 600, color: "#111827" }}>
-                      {selectedBus.location}
+                      {selectedBus.location || "N/A"}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "12px",
+                    background: "#f9fafb",
+                    borderRadius: "8px",
+                  }}
+                >
                   <span style={{ fontSize: "16px" }}>🔧</span>
                   <span style={{ fontSize: "13px", color: "#6b7280", fontWeight: 500 }}>
-                    Bảo trì lần cuối: {selectedBus.lastMaintenance}
+                    Bảo trì lần cuối: {formatDisplayDate(selectedBus.last_maintenance)}
                   </span>
                 </div>
               </div>
@@ -1484,7 +1684,7 @@ export default function BusesPage() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#3b82f6",
+                  background: "#FFAC50", // Đổi màu
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -1496,10 +1696,7 @@ export default function BusesPage() {
                 Chỉnh sửa
               </button>
               <button
-                onClick={() => {
-                  setShowDetailModal(false);
-                  setSelectedBus(null);
-                }}
+                onClick={handleCloseDetailModal}
                 style={{
                   flex: 1,
                   padding: "12px",
