@@ -1,211 +1,69 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
-  UserCircle, Phone, Mail, Calendar, MapPin, AlertTriangle, 
-  CheckCircle, Clock, Search, Plus, Edit, Trash2, Eye, 
-  Filter, ChevronLeft, ChevronRight, X 
+  UserCircle, Phone, Mail, CheckCircle, Clock, Search, 
+  Plus, Edit, Trash2, Eye, Filter, ChevronLeft, ChevronRight, 
+  X, AlertTriangle
 } from "lucide-react";
 import "./DriversPage.css";
+import { fetchAllBuses } from "@/app/API/busService";
+import { fetchRouteService } from "@/app/API/routeService";
 
+// NOTE: Removed example imports and top-level await calls that referenced '@/API/driverService' because that path could not be resolved.
+// This component uses direct fetch(...) calls to API_URL inside fetchData; if you have a driverService module, import it with the correct relative path
+// (for example: import { fetchAllDrivers } from '../../../API/driverService';) and remove the example top-level awaits below.
+// Interface đã được đơn giản hóa (loại bỏ các trường mock)
 interface Driver {
   id: number;
+  userId: number; 
   name: string;
   phone: string;
   email: string;
-  license: string;
   bus: string;
   route: string;
   status: "active" | "rest";
-  experience: string;
-  trips: number;
-  rating: number;
   avatar: string;
 }
 
+// FormData đã được đơn giản hóa
 interface FormData {
+  userId: string;
   name: string;
   phone: string;
   email: string;
-  license: string;
-  bus: string;
-  route: string;
-  experience: string;
-  rating: number;
+  status: "active" | "rest"; // Thêm status vào form
+  bus: string; // Thêm bus vào form
+  route: string; // Thêm route vào form
+}
+
+// Định nghĩa kiểu dữ liệu cho API
+interface ApiDriver {
+  DriverID: number;
+  UserID: number;
+  Fullname: string;
+  PhoneNumber: string;
+  Email: string;
+  Status: "active" | "rest";
+}
+
+interface ApiBus {
+  BusID: string;
+  RouteID: string | null;
+  DriverID: number | null;
+}
+
+interface ApiDriverStats {
+  total: number;
+  active: number;
+  rest: number;
 }
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState<Driver[]>([
-    {
-      id: 1,
-      name: "Nguyễn Văn An",
-      phone: "0901234567",
-      email: "nva@school.edu.vn",
-      license: "B2-123456",
-      bus: "BUS-01",
-      route: "Tuyến 1",
-      status: "active",
-      experience: "5 năm",
-      trips: 1250,
-      rating: 4.8,
-      avatar: "A"
-    },
-    {
-      id: 2,
-      name: "Trần Thị Bình",
-      phone: "0912345678",
-      email: "ttb@school.edu.vn",
-      license: "B2-234567",
-      bus: "BUS-03",
-      route: "Tuyến 2",
-      status: "active",
-      experience: "3 năm",
-      trips: 890,
-      rating: 4.9,
-      avatar: "B"
-    },
-    {
-      id: 3,
-      name: "Lê Văn Cường",
-      phone: "0923456789",
-      email: "lvc@school.edu.vn",
-      license: "B2-345678",
-      bus: "BUS-05",
-      route: "Tuyến 3",
-      status: "rest",
-      experience: "7 năm",
-      trips: 1560,
-      rating: 4.7,
-      avatar: "C"
-    },
-    {
-      id: 4,
-      name: "Phạm Thị Dung",
-      phone: "0934567890",
-      email: "ptd@school.edu.vn",
-      license: "B2-456789",
-      bus: "BUS-07",
-      route: "Tuyến 4",
-      status: "active",
-      experience: "4 năm",
-      trips: 1100,
-      rating: 4.6,
-      avatar: "D"
-    },
-    {
-      id: 5,
-      name: "Hoàng Văn Em",
-      phone: "0945678901",
-      email: "hve@school.edu.vn",
-      license: "B2-567890",
-      bus: "-",
-      route: "-",
-      status: "rest",
-      experience: "2 năm",
-      trips: 520,
-      rating: 4.5,
-      avatar: "E"
-    },
-    {
-      id: 6,
-      name: "Đỗ Thị Phương",
-      phone: "0956789012",
-      email: "dtp@school.edu.vn",
-      license: "B2-678901",
-      bus: "BUS-12",
-      route: "Tuyến 5",
-      status: "active",
-      experience: "6 năm",
-      trips: 1420,
-      rating: 4.9,
-      avatar: "P"
-    },
-    {
-      id: 7,
-      name: "Vũ Văn Giang",
-      phone: "0967890123",
-      email: "vvg@school.edu.vn",
-      license: "B2-789012",
-      bus: "BUS-02",
-      route: "Tuyến 1",
-      status: "active",
-      experience: "8 năm",
-      trips: 1680,
-      rating: 4.8,
-      avatar: "G"
-    },
-    {
-      id: 8,
-      name: "Bùi Thị Hoa",
-      phone: "0978901234",
-      email: "bth@school.edu.vn",
-      license: "B2-890123",
-      bus: "BUS-04",
-      route: "Tuyến 2",
-      status: "active",
-      experience: "3 năm",
-      trips: 920,
-      rating: 4.7,
-      avatar: "H"
-    },
-    {
-      id: 9,
-      name: "Đặng Văn Inh",
-      phone: "0989012345",
-      email: "dvi@school.edu.vn",
-      license: "B2-901234",
-      bus: "BUS-06",
-      route: "Tuyến 3",
-      status: "rest",
-      experience: "5 năm",
-      trips: 1340,
-      rating: 4.6,
-      avatar: "I"
-    },
-    {
-      id: 10,
-      name: "Ngô Thị Kiều",
-      phone: "0990123456",
-      email: "ntk@school.edu.vn",
-      license: "B2-012345",
-      bus: "BUS-08",
-      route: "Tuyến 4",
-      status: "active",
-      experience: "4 năm",
-      trips: 1050,
-      rating: 4.8,
-      avatar: "K"
-    },
-    {
-      id: 11,
-      name: "Lương Văn Long",
-      phone: "0901234568",
-      email: "lvl@school.edu.vn",
-      license: "B2-123457",
-      bus: "BUS-09",
-      route: "Tuyến 5",
-      status: "active",
-      experience: "6 năm",
-      trips: 1480,
-      rating: 4.9,
-      avatar: "L"
-    },
-    {
-      id: 12,
-      name: "Cao Thị Mai",
-      phone: "0912345679",
-      email: "ctm@school.edu.vn",
-      license: "B2-234568",
-      bus: "BUS-10",
-      route: "Tuyến 1",
-      status: "rest",
-      experience: "2 năm",
-      trips: 650,
-      rating: 4.5,
-      avatar: "M"
-    }
-  ]);
-
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "rest">("all");
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
@@ -217,75 +75,138 @@ export default function DriversPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingDriverId, setDeletingDriverId] = useState<number | null>(null);
   
-  const [formData, setFormData] = useState<FormData>({
+  const [driverStats, setDriverStats] = useState<ApiDriverStats>({ total: 0, active: 0, rest: 0 });
+  const [busList, setBusList] = useState<any[]>([]);
+  const [routeList, setRouteList] = useState<any[]>([]);
+
+  // initialFormData đã được đơn giản hóa
+  const initialFormData: FormData = {
+    userId: "",
     name: "",
     phone: "",
     email: "",
-    license: "",
+    status: "active",
     bus: "",
     route: "",
-    experience: "",
-    rating: 5
-  });
+  };
+  const [formData, setFormData] = useState<FormData>(initialFormData);
 
+  // advancedFilters đã được đơn giản hóa
   const [advancedFilters, setAdvancedFilters] = useState({
     name: "",
     phone: "",
     email: "",
-    license: "",
     bus: "",
     route: "",
-    minRating: "",
-    maxRating: "",
-    minExperience: "",
-    maxExperience: ""
   });
 
   const itemsPerPage = 5;
+  const API_URL = "http://localhost:3002/api";
 
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statsRes, driversRes, busesRes] = await Promise.all([
+        fetch(`${API_URL}/drivers/stats`),
+        fetch(`${API_URL}/drivers?limit=1000`),
+        fetch(`${API_URL}/buses?limit=1000`)
+      ]);
+
+      if (!statsRes.ok) throw new Error("Không thể tải thống kê tài xế");
+      if (!driversRes.ok) throw new Error("Không thể tải danh sách tài xế");
+      if (!busesRes.ok) throw new Error("Không thể tải danh sách xe");
+
+      const statsData = await statsRes.json();
+      const driversData = await driversRes.json();
+      const busesData = await busesRes.json();
+
+      if (statsData.success) {
+        setDriverStats(statsData.data);
+      }
+
+      if (driversData.success && busesData.success) {
+        const busMap = new Map<number, { busId: string; routeId: string }>();
+        if (Array.isArray(busesData.data)) {
+          busesData.data.forEach((bus: ApiBus) => {
+            if (bus.DriverID) {
+              busMap.set(bus.DriverID, {
+                busId: bus.BusID,
+                routeId: bus.RouteID || "N/A"
+              });
+            }
+          });
+        }
+
+        // Ánh xạ dữ liệu - đã loại bỏ mock
+        const mappedDrivers = driversData.data.map((driver: ApiDriver): Driver => {
+          const assignedBus = busMap.get(driver.DriverID);
+          
+          return {
+            id: driver.DriverID,
+            userId: driver.UserID,
+            name: driver.Fullname,
+            phone: driver.PhoneNumber,
+            email: driver.Email,
+            status: driver.Status,
+            bus: assignedBus ? assignedBus.busId : "-",
+            route: assignedBus ? assignedBus.routeId : "-",
+            avatar: driver.Fullname.charAt(0).toUpperCase()
+          };
+        });
+
+        setDrivers(mappedDrivers);
+      } else {
+        throw new Error(driversData.message || busesData.message || "Lỗi tải dữ liệu");
+      }
+    } catch (err: any) {
+      setError(err.message);
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const busData = await fetchAllBuses();
+        setBusList(busData);
+        const routes = await fetchRouteService();
+        setRouteList(routes?.routes || []);
+      } catch (error) {
+        console.error("Lỗi tải bus hoặc route:", error);
+      }
+    })();
+  }, []);
+
+  // Lọc - đã đơn giản hóa
   const filteredDrivers = useMemo(() => {
     return drivers.filter(driver => {
       const matchesBasicSearch = 
         driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         driver.phone.includes(searchTerm) ||
-        driver.license.toLowerCase().includes(searchTerm.toLowerCase()) ||
         driver.email.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = filterStatus === "all" || driver.status === filterStatus;
       
       const matchesName = !advancedFilters.name || 
         driver.name.toLowerCase().includes(advancedFilters.name.toLowerCase());
-      
       const matchesPhone = !advancedFilters.phone || 
         driver.phone.includes(advancedFilters.phone);
-      
       const matchesEmail = !advancedFilters.email || 
         driver.email.toLowerCase().includes(advancedFilters.email.toLowerCase());
-      
-      const matchesLicense = !advancedFilters.license || 
-        driver.license.toLowerCase().includes(advancedFilters.license.toLowerCase());
-      
       const matchesBus = !advancedFilters.bus || 
         driver.bus.toLowerCase().includes(advancedFilters.bus.toLowerCase());
-      
       const matchesRoute = !advancedFilters.route || 
         driver.route.toLowerCase().includes(advancedFilters.route.toLowerCase());
-      
-      const experienceYears = parseInt(driver.experience);
-      const matchesMinExp = !advancedFilters.minExperience || 
-        experienceYears >= parseInt(advancedFilters.minExperience);
-      const matchesMaxExp = !advancedFilters.maxExperience || 
-        experienceYears <= parseInt(advancedFilters.maxExperience);
-      
-      const matchesMinRating = !advancedFilters.minRating || 
-        driver.rating >= parseFloat(advancedFilters.minRating);
-      const matchesMaxRating = !advancedFilters.maxRating || 
-        driver.rating <= parseFloat(advancedFilters.maxRating);
 
       return matchesBasicSearch && matchesStatus && matchesName && 
-             matchesPhone && matchesEmail && matchesLicense && 
-             matchesBus && matchesRoute && matchesMinExp && 
-             matchesMaxExp && matchesMinRating && matchesMaxRating;
+             matchesPhone && matchesEmail && matchesBus && matchesRoute;
     });
   }, [searchTerm, filterStatus, advancedFilters, drivers]);
 
@@ -298,21 +219,14 @@ export default function DriversPage() {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, advancedFilters]);
 
+  // Thống kê - đã đơn giản hóa
   const stats = useMemo(() => {
-    const totalDrivers = drivers.length;
-    const activeDrivers = drivers.filter(d => d.status === "active").length;
-    const restDrivers = drivers.filter(d => d.status === "rest").length;
-    const avgRating = totalDrivers > 0 
-      ? (drivers.reduce((sum, d) => sum + d.rating, 0) / totalDrivers).toFixed(1) 
-      : "0";
-
     return [
-      { label: "Tổng số tài xế", value: totalDrivers.toString(), color: "bg-blue-500", icon: UserCircle },
-      { label: "Đang hoạt động", value: activeDrivers.toString(), color: "bg-green-500", icon: CheckCircle },
-      { label: "Đang nghỉ", value: restDrivers.toString(), color: "bg-yellow-500", icon: Clock },
-      { label: "Đánh giá trung bình", value: `${avgRating}⭐`, color: "bg-purple-500", icon: AlertTriangle }
+      { label: "Tổng số tài xế", value: driverStats.total.toString(), color: "bg-blue-500", icon: UserCircle },
+      { label: "Đang hoạt động", value: driverStats.active.toString(), color: "bg-green-500", icon: CheckCircle },
+      { label: "Đang nghỉ", value: driverStats.rest.toString(), color: "bg-yellow-500", icon: Clock },
     ];
-  }, [drivers]);
+  }, [driverStats]);
 
   const handleAdvancedSearch = () => {
     setCurrentPage(1);
@@ -323,103 +237,118 @@ export default function DriversPage() {
       name: "",
       phone: "",
       email: "",
-      license: "",
       bus: "",
       route: "",
-      minRating: "",
-      maxRating: "",
-      minExperience: "",
-      maxExperience: ""
     });
     setCurrentPage(1);
   };
 
   const resetForm = () => {
-    setFormData({
-      name: "",
-      phone: "",
-      email: "",
-      license: "",
-      bus: "",
-      route: "",
-      experience: "",
-      rating: 5
-    });
+    setFormData(initialFormData);
   };
 
-  const handleAddDriver = () => {
-    if (!formData.name || !formData.phone || !formData.email || !formData.license) {
-      alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+  // Thêm tài xế
+  const handleAddDriver = async () => {
+    if (!formData.name || !formData.phone || !formData.email || !formData.userId || !formData.bus || !formData.route) {
+      alert("Vui lòng điền đủ các trường bắt buộc, bao gồm xe bus & tuyến đường!");
       return;
     }
 
-    const newDriver: Driver = {
-      id: Math.max(...drivers.map(d => d.id), 0) + 1,
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      license: formData.license,
-      bus: formData.bus || "-",
-      route: formData.route || "-",
-      status: "active",
-      experience: formData.experience || "0 năm",
-      trips: 0,
-      rating: formData.rating,
-      avatar: formData.name.charAt(0).toUpperCase()
+    const newDriverData = {
+      UserID: parseInt(formData.userId),
+      Fullname: formData.name,
+      PhoneNumber: formData.phone,
+      Email: formData.email,
+      Status: formData.status,
+      BusID: formData.bus, // Thêm BusID
+      RouteID: formData.route, // Thêm RouteID
     };
 
-    setDrivers([...drivers, newDriver]);
-    setShowAddModal(false);
-    resetForm();
-    alert("Thêm tài xế thành công!");
+    try {
+      const response = await fetch(`${API_URL}/drivers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newDriverData),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Lỗi khi thêm tài xế");
+      }
+
+      alert("Thêm tài xế thành công!");
+      setShowAddModal(false);
+      resetForm();
+      fetchData();
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`);
+      console.error(err);
+    }
   };
 
+  // Mở modal sửa
   const handleEditClick = (driver: Driver) => {
     setEditingDriver(driver);
     setFormData({
+      userId: driver.userId.toString(),
       name: driver.name,
       phone: driver.phone,
       email: driver.email,
-      license: driver.license,
-      bus: driver.bus === "-" ? "" : driver.bus,
-      route: driver.route === "-" ? "" : driver.route,
-      experience: driver.experience,
-      rating: driver.rating
+      status: driver.status,
+      bus: driver.bus, // Không cần thiết trong form sửa
+      route: driver.route,
     });
     setShowEditModal(true);
   };
 
-  const handleUpdateDriver = () => {
-    if (!formData.name || !formData.phone || !formData.email || !formData.license) {
-      alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+  // Cập nhật tài xế
+  const handleUpdateDriver = async () => {
+    if (!formData.name || !formData.phone || !formData.email) {
+      alert("Vui lòng điền đầy đủ thông tin bắt buộc (Tên, SĐT, Email)!");
       return;
     }
-
     if (!editingDriver) return;
 
-    const updatedDrivers = drivers.map(driver => {
-      if (driver.id === editingDriver.id) {
-        return {
-          ...driver,
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          license: formData.license,
-          bus: formData.bus || "-",
-          route: formData.route || "-",
-          experience: formData.experience,
-          rating: formData.rating,
-          avatar: formData.name.charAt(0).toUpperCase()
-        };
-      }
-      return driver;
-    });
+    // Gửi các trường có trong DB
+    const updatedData = {
+      Fullname: formData.name,
+      PhoneNumber: formData.phone,
+      Email: formData.email,
+      Status: formData.status,
+      BusID: formData.bus, // Thêm BusID
+      RouteID: formData.route, // Thêm RouteID
+    };
 
-    setDrivers(updatedDrivers);
-    setShowEditModal(false);
-    setEditingDriver(null);
-    resetForm();
-    alert("Cập nhật thông tin tài xế thành công!");
+    try {
+      const response = await fetch(`${API_URL}/drivers/${editingDriver.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Lỗi khi cập nhật");
+      }
+
+      // Cập nhật trạng thái riêng nếu cần (backend có endpoint riêng)
+      if (editingDriver.status !== formData.status) {
+        await fetch(`${API_URL}/drivers/${editingDriver.id}/status`, {
+           method: "PUT",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ status: formData.status }),
+        });
+      }
+
+      alert("Cập nhật thông tin tài xế thành công!");
+      setShowEditModal(false);
+      setEditingDriver(null);
+      resetForm();
+      fetchData();
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`);
+      console.error(err);
+    }
   };
 
   const handleDeleteClick = (id: number) => {
@@ -427,12 +356,30 @@ export default function DriversPage() {
     setShowDeleteConfirm(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deletingDriverId !== null) {
-      setDrivers(drivers.filter(driver => driver.id !== deletingDriverId));
-      setShowDeleteConfirm(false);
-      setDeletingDriverId(null);
-      alert("Xóa tài xế thành công!");
+      try {
+        const response = await fetch(`${API_URL}/drivers/${deletingDriverId}`, {
+          method: "DELETE",
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          if (response.status === 400 && result.message) {
+            throw new Error(result.message);
+          }
+          throw new Error(result.message || "Lỗi khi xóa tài xế");
+        }
+
+        alert("Xóa tài xế thành công!");
+        setShowDeleteConfirm(false);
+        setDeletingDriverId(null);
+        fetchData();
+      } catch (err: any) {
+        alert(`Lỗi: ${err.message}`);
+        console.error(err);
+      }
     }
   };
 
@@ -448,6 +395,7 @@ export default function DriversPage() {
     );
   };
 
+  // Giao diện
   return (
     <div className="driversContainer">
       {/* Header */}
@@ -456,19 +404,34 @@ export default function DriversPage() {
           <h1>Quản lý Tài xế</h1>
           <p>Quản lý thông tin và lịch làm việc của tài xế</p>
         </div>
-        <button className="addButton" onClick={() => setShowAddModal(true)}>
+        <button className="addButton" onClick={() => {
+          resetForm();
+          setShowAddModal(true);
+        }}>
           <Plus className="w-5 h-5" />
           Thêm tài xế mới
         </button>
       </div>
+      
+      {error && (
+        <div style={{
+          backgroundColor: "#fee2e2",
+          color: "#b91c1c",
+          padding: "1rem",
+          borderRadius: "0.5rem",
+          marginBottom: "1.5rem"
+        }}>
+          <strong>Lỗi tải dữ liệu:</strong> {error}. Hãy đảm bảo backend (cổng 3002) đang chạy.
+        </div>
+      )}
 
-      {/* Stats */}
+      {/* Stats (Đã xóa Đánh giá) */}
       <div className="statsGrid">
         {stats.map((stat, index) => (
           <div key={index} className="statCard">
             <div className="statContent">
               <p>{stat.label}</p>
-              <p>{stat.value}</p>
+              <p>{loading ? "..." : stat.value}</p>
             </div>
             <div className={`statIcon ${stat.color}`}>
               <stat.icon className="w-6 h-6 text-white" />
@@ -527,6 +490,7 @@ export default function DriversPage() {
           </button>
         </div>
 
+        {/* Advanced Search (Đã xóa các trường mock) */}
         {showAdvancedSearch && (
           <div className="advancedSearchPanel">
             <div className="advancedSearchGrid">
@@ -558,15 +522,6 @@ export default function DriversPage() {
                 />
               </div>
               <div className="formGroup">
-                <label>Giấy phép lái xe</label>
-                <input
-                  type="text"
-                  placeholder="Nhập số giấy phép..."
-                  value={advancedFilters.license}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, license: e.target.value})}
-                />
-              </div>
-              <div className="formGroup">
                 <label>Xe buýt</label>
                 <input
                   type="text"
@@ -579,53 +534,9 @@ export default function DriversPage() {
                 <label>Tuyến đường</label>
                 <input
                   type="text"
-                  placeholder="VD: Tuyến 1"
+                  placeholder="VD: ROUTE-01"
                   value={advancedFilters.route}
                   onChange={(e) => setAdvancedFilters({...advancedFilters, route: e.target.value})}
-                />
-              </div>
-              <div className="formGroup">
-                <label>Kinh nghiệm tối thiểu (năm)</label>
-                <input
-                  type="number"
-                  placeholder="VD: 2"
-                  min="0"
-                  value={advancedFilters.minExperience}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, minExperience: e.target.value})}
-                />
-              </div>
-              <div className="formGroup">
-                <label>Kinh nghiệm tối đa (năm)</label>
-                <input
-                  type="number"
-                  placeholder="VD: 10"
-                  min="0"
-                  value={advancedFilters.maxExperience}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, maxExperience: e.target.value})}
-                />
-              </div>
-              <div className="formGroup">
-                <label>Đánh giá tối thiểu</label>
-                <input
-                  type="number"
-                  placeholder="VD: 4.0"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={advancedFilters.minRating}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, minRating: e.target.value})}
-                />
-              </div>
-              <div className="formGroup">
-                <label>Đánh giá tối đa</label>
-                <input
-                  type="number"
-                  placeholder="VD: 5.0"
-                  min="0"
-                  max="5"
-                  step="0.1"
-                  value={advancedFilters.maxRating}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, maxRating: e.target.value})}
                 />
               </div>
             </div>
@@ -647,20 +558,19 @@ export default function DriversPage() {
         )}
       </div>
 
-      {/* Drivers Table */}
+      {/* Drivers Table (Đã xóa các trường mock) */}
       <div className="tableContainer">
         <div style={{ overflowX: 'auto' }}>
-          {currentDrivers.length > 0 ? (
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center' }}>Đang tải dữ liệu tài xế...</div>
+          ) : currentDrivers.length > 0 ? (
             <table className="table">
               <thead className="tableHeader">
                 <tr>
-                  <th>Tài xế</th>
+                  <th>Tài xế (ID/UserID)</th>
                   <th>Liên hệ</th>
-                  <th>Giấy phép</th>
                   <th>Xe/Tuyến</th>
-                  <th>Kinh nghiệm</th>
                   <th>Trạng thái</th>
-                  <th>Đánh giá</th>
                   <th style={{ textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
@@ -672,7 +582,7 @@ export default function DriversPage() {
                         <div className="avatar">{driver.avatar}</div>
                         <div>
                           <div className="driverName">{driver.name}</div>
-                          <div className="driverTrips">{driver.trips} chuyến</div>
+                          <div className="driverTrips">ID: {driver.id} / UserID: {driver.userId}</div>
                         </div>
                       </div>
                     </td>
@@ -689,28 +599,12 @@ export default function DriversPage() {
                       </div>
                     </td>
                     <td>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>
-                        {driver.license}
-                      </span>
-                    </td>
-                    <td>
                       <div style={{ fontSize: '0.875rem' }}>
                         <div style={{ fontWeight: '500', color: '#1f2937' }}>{driver.bus}</div>
                         <div style={{ color: '#6b7280' }}>{driver.route}</div>
                       </div>
                     </td>
-                    <td>
-                      <span style={{ fontSize: '0.875rem' }}>{driver.experience}</span>
-                    </td>
                     <td>{getStatusBadge(driver.status)}</td>
-                    <td>
-                      <div className="rating">
-                        <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>
-                          {driver.rating}
-                        </span>
-                        <span style={{ color: '#eab308' }}>⭐</span>
-                      </div>
-                    </td>
                     <td>
                       <div className="actionButtons">
                         <button 
@@ -746,7 +640,7 @@ export default function DriversPage() {
               <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>
                 Không tìm thấy kết quả
               </h3>
-              <p>Vui lòng thử lại với từ khóa khác</p>
+              <p>Vui lòng thử lại với từ khóa khác hoặc tải lại trang</p>
             </div>
           )}
         </div>
@@ -769,9 +663,9 @@ export default function DriversPage() {
             
             {[...Array(totalPages)].map((_, index) => {
               const pageNum = index + 1;
+              // Logic hiển thị phân trang
               if (
-                pageNum === 1 ||
-                pageNum === totalPages ||
+                pageNum === 1 || pageNum === totalPages ||
                 (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
               ) {
                 return (
@@ -783,10 +677,7 @@ export default function DriversPage() {
                     {pageNum}
                   </button>
                 );
-              } else if (
-                pageNum === currentPage - 2 ||
-                pageNum === currentPage + 2
-              ) {
+              } else if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
                 return <span key={pageNum} style={{ padding: '0.5rem' }}>...</span>;
               }
               return null;
@@ -803,7 +694,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Driver Detail Modal */}
+      {/* Driver Detail Modal (Đã đơn giản hóa) */}
       {selectedDriver && (
         <div className="modal" onClick={() => setSelectedDriver(null)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -812,7 +703,7 @@ export default function DriversPage() {
                 <div className="modalAvatar">{selectedDriver.avatar}</div>
                 <div>
                   <h2 className="modalTitle">{selectedDriver.name}</h2>
-                  <p className="modalSubtitle">{selectedDriver.license}</p>
+                  <p className="modalSubtitle">UserID: {selectedDriver.userId}</p>
                 </div>
               </div>
               <button 
@@ -842,18 +733,6 @@ export default function DriversPage() {
                   <div className="value">{selectedDriver.route}</div>
                 </div>
                 <div className="detailItem">
-                  <label>Kinh nghiệm</label>
-                  <div className="value">{selectedDriver.experience}</div>
-                </div>
-                <div className="detailItem">
-                  <label>Tổng số chuyến</label>
-                  <div className="value">{selectedDriver.trips} chuyến</div>
-                </div>
-                <div className="detailItem">
-                  <label>Đánh giá</label>
-                  <div className="value">{selectedDriver.rating} ⭐</div>
-                </div>
-                <div className="detailItem">
                   <label>Trạng thái</label>
                   <div className="value">{getStatusBadge(selectedDriver.status)}</div>
                 </div>
@@ -872,7 +751,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Add Driver Modal */}
+      {/* Add Driver Modal (Đã đơn giản hóa) */}
       {showAddModal && (
         <div className="modal" onClick={() => setShowAddModal(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -900,6 +779,15 @@ export default function DriversPage() {
             <div className="modalBody">
               <div className="detailsGrid">
                 <div className="formGroup">
+                  <label>UserID (Từ Service Người dùng) *</label>
+                  <input
+                    type="number"
+                    placeholder="VD: 101"
+                    value={formData.userId}
+                    onChange={(e) => setFormData({...formData, userId: e.target.value})}
+                  />
+                </div>
+                <div className="formGroup">
                   <label>Tên tài xế *</label>
                   <input
                     type="text"
@@ -927,51 +815,38 @@ export default function DriversPage() {
                   />
                 </div>
                 <div className="formGroup">
-                  <label>Giấy phép lái xe *</label>
-                  <input
-                    type="text"
-                    placeholder="VD: B2-123456"
-                    value={formData.license}
-                    onChange={(e) => setFormData({...formData, license: e.target.value})}
-                  />
+                  <label>Xe Buýt *</label>
+                  <select
+                    value={formData.bus || ''}
+                    onChange={e => setFormData({ ...formData, bus: e.target.value })}
+                  >
+                    <option value="">-- Chọn bus --</option>
+                    {busList.filter(b => !b.driver_name || b.driver_name === formData.name).map(bus => (
+                      <option value={bus.id} key={bus.id}>{bus.license_plate} ({bus.id})</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="formGroup">
-                  <label>Xe buýt</label>
-                  <input
-                    type="text"
-                    placeholder="VD: BUS-01"
-                    value={formData.bus}
-                    onChange={(e) => setFormData({...formData, bus: e.target.value})}
-                  />
+                  <label>Tuyến đường *</label>
+                  <select
+                    value={formData.route || ''}
+                    onChange={e => setFormData({ ...formData, route: e.target.value })}
+                  >
+                    <option value="">-- Chọn tuyến đường --</option>
+                    {routeList.map(r => (
+                      <option value={r.RouteID} key={r.RouteID}>{r.RouteName}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="formGroup">
-                  <label>Tuyến đường</label>
-                  <input
-                    type="text"
-                    placeholder="VD: Tuyến 1"
-                    value={formData.route}
-                    onChange={(e) => setFormData({...formData, route: e.target.value})}
-                  />
-                </div>
-                <div className="formGroup">
-                  <label>Kinh nghiệm</label>
-                  <input
-                    type="text"
-                    placeholder="VD: 5 năm"
-                    value={formData.experience}
-                    onChange={(e) => setFormData({...formData, experience: e.target.value})}
-                  />
-                </div>
-                <div className="formGroup">
-                  <label>Đánh giá ban đầu</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={formData.rating}
-                    onChange={(e) => setFormData({...formData, rating: parseFloat(e.target.value)})}
-                  />
+                  <label>Trạng thái</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "rest" })}
+                  >
+                    <option value="active">Đang hoạt động</option>
+                    <option value="rest">Đang nghỉ</option>
+                  </select>
                 </div>
               </div>
 
@@ -987,7 +862,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Edit Driver Modal */}
+      {/* Edit Driver Modal (Đã đơn giản hóa) */}
       {showEditModal && editingDriver && (
         <div className="modal" onClick={() => setShowEditModal(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -1013,6 +888,16 @@ export default function DriversPage() {
             
             <div className="modalBody">
               <div className="detailsGrid">
+                 <div className="formGroup">
+                  <label>UserID (Không thể thay đổi)</label>
+                  <input
+                    type="number"
+                    value={formData.userId}
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: "#f3f4f6" }}
+                  />
+                </div>
                 <div className="formGroup">
                   <label>Tên tài xế *</label>
                   <input
@@ -1040,52 +925,39 @@ export default function DriversPage() {
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                   />
                 </div>
-                <div className="formGroup">
-                  <label>Giấy phép lái xe *</label>
-                  <input
-                    type="text"
-                    placeholder="VD: B2-123456"
-                    value={formData.license}
-                    onChange={(e) => setFormData({...formData, license: e.target.value})}
-                  />
+                 <div className="formGroup">
+                  <label>Xe Buýt *</label>
+                  <select
+                    value={formData.bus || ''}
+                    onChange={e => setFormData({ ...formData, bus: e.target.value })}
+                  >
+                    <option value="">-- Chọn bus --</option>
+                    {busList.filter(b => !b.driver_name || b.driver_name === formData.name).map(bus => (
+                      <option value={bus.id} key={bus.id}>{bus.license_plate} ({bus.id})</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="formGroup">
-                  <label>Xe buýt</label>
-                  <input
-                    type="text"
-                    placeholder="VD: BUS-01"
-                    value={formData.bus}
-                    onChange={(e) => setFormData({...formData, bus: e.target.value})}
-                  />
+                  <label>Tuyến đường *</label>
+                  <select
+                    value={formData.route || ''}
+                    onChange={e => setFormData({ ...formData, route: e.target.value })}
+                  >
+                    <option value="">-- Chọn tuyến đường --</option>
+                    {routeList.map(r => (
+                      <option value={r.RouteID} key={r.RouteID}>{r.RouteName}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="formGroup">
-                  <label>Tuyến đường</label>
-                  <input
-                    type="text"
-                    placeholder="VD: Tuyến 1"
-                    value={formData.route}
-                    onChange={(e) => setFormData({...formData, route: e.target.value})}
-                  />
-                </div>
-                <div className="formGroup">
-                  <label>Kinh nghiệm</label>
-                  <input
-                    type="text"
-                    placeholder="VD: 5 năm"
-                    value={formData.experience}
-                    onChange={(e) => setFormData({...formData, experience: e.target.value})}
-                  />
-                </div>
-                <div className="formGroup">
-                  <label>Đánh giá</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={formData.rating}
-                    onChange={(e) => setFormData({...formData, rating: parseFloat(e.target.value)})}
-                  />
+                 <div className="formGroup">
+                  <label>Trạng thái</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "rest" })}
+                  >
+                    <option value="active">Đang hoạt động</option>
+                    <option value="rest">Đang nghỉ</option>
+                  </select>
                 </div>
               </div>
 
@@ -1129,7 +1001,7 @@ export default function DriversPage() {
             
             <div className="modalBody">
               <p style={{ marginBottom: '1.5rem', color: '#6b7280' }}>
-                Hành động này không thể hoàn tác. Tất cả thông tin của tài xế sẽ bị xóa vĩnh viễn.
+                Hành động này không thể hoàn tác. Tất cả thông tin của tài xế sẽ bị xóa.
               </p>
 
               <div className="modalActions">

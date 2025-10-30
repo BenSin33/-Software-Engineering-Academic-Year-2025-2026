@@ -61,10 +61,11 @@ export default function DashboardPage() {
       setLoading(true);
       
       const results = await Promise.allSettled([
-        fetch(`${BUS_SERVICE_URL}/buses/stats/summary`), // 1. Lấy thống kê xe
+        fetch(`${BUS_SERVICE_URL}/buses/stats`), // sửa lại endpoint
         fetch(`${STUDENT_SERVICE_URL}/Students`),         // 2. Lấy số học sinh
         fetch(`${LOCATION_SERVICE_URL}/locations/alerts?is_resolved=false&limit=5`), // 3. Lấy cảnh báo
-        fetch(`${DRIVER_SERVICE_URL}/drivers`)          // 4. Lấy số tài xế
+        fetch(`${BUS_SERVICE_URL}/drivers`), // sửa lại endpoint lấy tài xế
+        fetch(`${BUS_SERVICE_URL}/drivers/stats`) // thêm: lấy stats tài xế (opt)
       ]);
 
       // Xử lý kết quả
@@ -103,14 +104,23 @@ export default function DashboardPage() {
         console.error("Lỗi tải cảnh báo:", results[2].reason);
       }
 
-       if (results[3].status === 'fulfilled') {
-        const data = await results[3].value.json();
-        if (Array.isArray(data)) { 
-          setDriverCount(data.length);
-        }
-      } else {
-        console.error("Lỗi tải danh sách tài xế:", results[3].reason);
+       // Bổ sung lấy số tài xế chính xác
+    if (results[3].status === "fulfilled") {
+      const data = await results[3].value.json();
+      if (data.success && Array.isArray(data.data)) {
+        setDriverCount(data.data.length);
+      } else if (Array.isArray(data)) {
+        setDriverCount(data.length);
       }
+    } else if (results[4].status === "fulfilled") {
+      // Nếu muốn đồng bộ với stats
+      const statsData = await results[4].value.json();
+      if (statsData.success && typeof statsData.data.total === "number") {
+        setDriverCount(statsData.data.total);
+      }
+    } else {
+      setDriverCount(0);
+    }
 
       setLoading(false);
     };
