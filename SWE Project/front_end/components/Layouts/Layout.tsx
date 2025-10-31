@@ -8,14 +8,14 @@ export function Layout({ list, children, user }: any) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   return (
-    <div className="grid grid-rows-[50px_1fr_50px] h-screen w-full overflow-hidden">
+    <div className="grid grid-rows-[50px_1fr_50px] h-screen w-full ">
       {/* Header */}
       <div className="row-start-1 row-end-2 col-span-2">
         <Header user={user} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       </div>
 
       {/* Main content area */}
-      <div className="row-start-2 row-end-3 col-span-2 flex h-full">
+      <div className="row-start-2 row-end-3 col-span-2 flex h-full overflow-y-auto">
         {/* Sidebar as flex item */}
         <div
           className={`transition-all duration-300 ${

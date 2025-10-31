@@ -5,32 +5,38 @@ async function getStudents() {
   return rows;
 }
 
-async function addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint) {
+async function getStudentsByRouteID(id){
+  const [rows]=await pool.query('select pickUpPoint from students where routeID = ?',[id]);
+  return rows;
+}
+
+async function addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID) {
   const sql = `
     INSERT INTO students
-      (FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint)
-    VALUES (?, ?, ?, ?, ?)
+      (FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID)
+    VALUES (?, ?, ?, ?, ?,?)
   `;
 
-  const [result] = await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint]);
+  const [result] = await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID]);
   return result.insertId;
 }
 
-async function updateCurrentStudent(StudentID,FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint){
+async function updateCurrentStudent(StudentID,FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID){
   const sql =`
-  update students set FullName=?,ParentID=?,DateOfBirth=?,PickUpPoint=?,DropOffPoint=? where 
+  update students set FullName=?,ParentID=?,DateOfBirth=?,PickUpPoint=?,DropOffPoint=?,routeID=? where 
   StudentID=?;
   `
-  await pool.query(sql,[FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,StudentID])
+  await pool.query(sql,[FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID,StudentID])
 }
 
 async function deleteStudent(StudentID){
   const sql=`delete from students where StudentID= ?`
   await pool.query(sql,[StudentID])
 }
+
 module.exports = {
   getStudents,
   addStudent,
   updateCurrentStudent,
-  deleteStudent
+  deleteStudent,getStudentsByRouteID
 };

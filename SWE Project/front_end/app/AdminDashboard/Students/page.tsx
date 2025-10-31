@@ -13,7 +13,8 @@ interface Student {
     FullName: string,
     DateOfBirth: String,
     PickUpPoint: string,
-    DropOffPoint: string
+    DropOffPoint: string,
+    routeID: string
 }
 
 // Interface for the form data (Add/Edit)
@@ -23,6 +24,7 @@ interface FormData {
     DateOfBirth: String;
     PickUpPoint: string;
     DropOffPoint: string;
+    routeID:string;
 }
 
 // Interface for advanced filters
@@ -60,7 +62,8 @@ export default function StudentsPage() {
         ParentID: "",
         DateOfBirth: '',
         PickUpPoint: '',
-        DropOffPoint: ''
+        DropOffPoint: '',
+        routeID:'',
     });
     useEffect(() => {
         fetch('http://localhost:5000/Students')
@@ -156,7 +159,7 @@ export default function StudentsPage() {
         } catch (err) {
             console.error(err)
         }
-        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' });
+        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' });
 
     };
 
@@ -200,7 +203,7 @@ export default function StudentsPage() {
         // setStudents(updatedStudents);
         setShowEditModal(false)
         setSelectedStudent(null);
-        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' });
+        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' });
         alert("Cập nhật thông tin học sinh thành công!");
     };
 
@@ -228,7 +231,7 @@ export default function StudentsPage() {
         setSelectedStudent(student);
         setFormData({
             FullName: student.FullName,
-
+            routeID: student.routeID,
             ParentID: student.ParentID,
             DateOfBirth: student.DateOfBirth,
 
@@ -267,7 +270,7 @@ export default function StudentsPage() {
                     onClick={() => {
                         setShowAddModal(true);
                         // Clear form data when opening add modal
-                        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' });
+                        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' });
                     }}
                     suppressHydrationWarning={true}
                     className="flex items-center gap-2 text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium transition duration-200 shadow-md hover:bg-orange-600 active:bg-orange-700"
@@ -424,6 +427,7 @@ export default function StudentsPage() {
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày sinh</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm đón</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm Trả</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã tuyến</th>
                                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
                             </tr>
                         </thead>
@@ -488,6 +492,17 @@ export default function StudentsPage() {
                                                     <UserCheck className="w-4 h-4 text-gray-400" />
                                                     <div>
                                                         <p className="font-medium text-sm text-gray-900 mb-0.5">{student.DropOffPoint}</p>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5 text-sm">
+                                                    <UserCheck className="w-4 h-4 text-gray-400" />
+                                                    <div>
+                                                        <p className="font-medium text-sm text-gray-900 mb-0.5">{student.routeID}</p>
                                                     </div>
                                                 </div>
 
@@ -585,7 +600,7 @@ export default function StudentsPage() {
                         <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
                             <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                                 <h2 className="text-2xl font-bold text-gray-900">{showAddModal ? "Thêm Học sinh mới" : "Chỉnh sửa Học sinh"}</h2>
-                                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' }); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
+                                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' }); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
                             </div>
                             <div className="p-6">
                                 <div className="grid grid-cols-1 gap-4">
@@ -636,7 +651,10 @@ export default function StudentsPage() {
                                     <input type="date" name="registeredDate" placeholder="VD: 2007-12-07" value={formData.registeredDate} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                 </div> */}
                                     </div>
-
+                                       <div className="flex flex-col">
+                                        <label className="text-sm text-gray-700 font-medium mb-1.5">Mã tuyến: </label>
+                                        <input type="text" name="routeID" placeholder="VD: 1" value={formData.routeID} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
+                                    </div>
                                     <div className="flex flex-col">
                                         <label className="text-sm text-gray-700 font-medium mb-1.5">Pick up point: </label>
                                         <input type="text" name="PickUpPoint" placeholder="VD: 22/1 Đồng Đen,Phường 5, Quận Tân Bình, TPHCM" value={formData.PickUpPoint} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
@@ -645,9 +663,10 @@ export default function StudentsPage() {
                                         <label className="text-sm text-gray-700 font-medium mb-1.5">drop off point: </label>
                                         <input type="text" name="DropOffPoint" placeholder="VD: 22/1 Đồng Đen,Phường 5, Quận Tân Bình, TPHCM" value={formData.DropOffPoint} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                     </div>
+                                    
                                 </div>
                                 <div className="flex gap-4 mt-6">
-                                    <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '' }); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
+                                    <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' }); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
                                     <button
                                         type="submit"
                                         onClick={showAddModal ? handleAddStudent : handleEditStudent}

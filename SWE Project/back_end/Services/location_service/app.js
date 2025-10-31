@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -71,5 +70,5 @@ app.use((err, req, res, next) => {
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
+app.listen(5010, () => console.log('Server running on port 5010'));
 
-module.exports = app;
