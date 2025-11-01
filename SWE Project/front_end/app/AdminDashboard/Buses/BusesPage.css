@@ -1,9 +1,10 @@
 /* Main Container */
 .buses-page {
   background-color: #f9fafb;
-  min-height: 100vh;
+  min-height: 100vh; /* ✅ min-height thay vì height */
   padding: 32px;
   max-width: 100%;
+  overflow-y: auto; /* ✅ CHO PHÉP CUỘN */
   overflow-x: hidden;
 }
 
