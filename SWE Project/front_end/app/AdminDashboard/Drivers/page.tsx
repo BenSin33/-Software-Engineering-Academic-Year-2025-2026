@@ -4,16 +4,14 @@ import { useState, useMemo, useEffect } from "react";
 import { 
   UserCircle, Phone, Mail, CheckCircle, Clock, Search, 
   Plus, Edit, Trash2, Eye, Filter, ChevronLeft, ChevronRight, 
-  X, AlertTriangle
+  X, AlertTriangle, MessageSquare
 } from "lucide-react";
 import "./DriversPage.css";
+import MessagePanel from "@/components/Driver/MessagePanel";
 import { fetchAllBuses } from "@/app/API/busService";
 import { fetchRouteService } from "@/app/API/routeService";
+import MessagePanelToDriver from "@/components/Admin/MessagePanelToDriver";
 
-// NOTE: Removed example imports and top-level await calls that referenced '@/API/driverService' because that path could not be resolved.
-// This component uses direct fetch(...) calls to API_URL inside fetchData; if you have a driverService module, import it with the correct relative path
-// (for example: import { fetchAllDrivers } from '../../../API/driverService';) and remove the example top-level awaits below.
-// Interface đã được đơn giản hóa (loại bỏ các trường mock)
 interface Driver {
   id: number;
   userId: number; 
@@ -26,18 +24,16 @@ interface Driver {
   avatar: string;
 }
 
-// FormData đã được đơn giản hóa
 interface FormData {
   userId: string;
   name: string;
   phone: string;
   email: string;
-  status: "active" | "rest"; // Thêm status vào form
-  bus: string; // Thêm bus vào form
-  route: string; // Thêm route vào form
+  status: "active" | "rest";
+  bus: string;
+  route: string;
 }
 
-// Định nghĩa kiểu dữ liệu cho API
 interface ApiDriver {
   DriverID: number;
   UserID: number;
@@ -75,11 +71,14 @@ export default function DriversPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingDriverId, setDeletingDriverId] = useState<number | null>(null);
   
+  // 🔧 State cho MessagePanel
+  const [showMessagePanel, setShowMessagePanel] = useState(false);
+  const [messageDriver, setMessageDriver] = useState<Driver | null>(null);
+  
   const [driverStats, setDriverStats] = useState<ApiDriverStats>({ total: 0, active: 0, rest: 0 });
   const [busList, setBusList] = useState<any[]>([]);
   const [routeList, setRouteList] = useState<any[]>([]);
 
-  // initialFormData đã được đơn giản hóa
   const initialFormData: FormData = {
     userId: "",
     name: "",
@@ -91,7 +90,6 @@ export default function DriversPage() {
   };
   const [formData, setFormData] = useState<FormData>(initialFormData);
 
-  // advancedFilters đã được đơn giản hóa
   const [advancedFilters, setAdvancedFilters] = useState({
     name: "",
     phone: "",
@@ -138,7 +136,6 @@ export default function DriversPage() {
           });
         }
 
-        // Ánh xạ dữ liệu - đã loại bỏ mock
         const mappedDrivers = driversData.data.map((driver: ApiDriver): Driver => {
           const assignedBus = busMap.get(driver.DriverID);
           
@@ -184,7 +181,6 @@ export default function DriversPage() {
     })();
   }, []);
 
-  // Lọc - đã đơn giản hóa
   const filteredDrivers = useMemo(() => {
     return drivers.filter(driver => {
       const matchesBasicSearch = 
@@ -219,7 +215,6 @@ export default function DriversPage() {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, advancedFilters]);
 
-  // Thống kê - đã đơn giản hóa
   const stats = useMemo(() => {
     return [
       { label: "Tổng số tài xế", value: driverStats.total.toString(), color: "bg-blue-500", icon: UserCircle },
@@ -247,10 +242,9 @@ export default function DriversPage() {
     setFormData(initialFormData);
   };
 
-  // Thêm tài xế
   const handleAddDriver = async () => {
     if (!formData.name || !formData.phone || !formData.email || !formData.userId || !formData.bus || !formData.route) {
-      alert("Vui lòng điền đủ các trường bắt buộc, bao gồm xe bus & tuyến đường!");
+      alert("Vui lòng điền đủ các trường bắt buộc!");
       return;
     }
 
@@ -260,8 +254,8 @@ export default function DriversPage() {
       PhoneNumber: formData.phone,
       Email: formData.email,
       Status: formData.status,
-      BusID: formData.bus, // Thêm BusID
-      RouteID: formData.route, // Thêm RouteID
+      BusID: formData.bus,
+      RouteID: formData.route,
     };
 
     try {
@@ -286,7 +280,6 @@ export default function DriversPage() {
     }
   };
 
-  // Mở modal sửa
   const handleEditClick = (driver: Driver) => {
     setEditingDriver(driver);
     setFormData({
@@ -295,28 +288,32 @@ export default function DriversPage() {
       phone: driver.phone,
       email: driver.email,
       status: driver.status,
-      bus: driver.bus, // Không cần thiết trong form sửa
+      bus: driver.bus,
       route: driver.route,
     });
     setShowEditModal(true);
   };
 
-  // Cập nhật tài xế
+  // 🔧 Mở MessagePanel thay vì modal cũ
+  const handleOpenMessagePanel = (driver: Driver) => {
+    setMessageDriver(driver);
+    setShowMessagePanel(true);
+  };
+
   const handleUpdateDriver = async () => {
     if (!formData.name || !formData.phone || !formData.email) {
-      alert("Vui lòng điền đầy đủ thông tin bắt buộc (Tên, SĐT, Email)!");
+      alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
       return;
     }
     if (!editingDriver) return;
 
-    // Gửi các trường có trong DB
     const updatedData = {
       Fullname: formData.name,
       PhoneNumber: formData.phone,
       Email: formData.email,
       Status: formData.status,
-      BusID: formData.bus, // Thêm BusID
-      RouteID: formData.route, // Thêm RouteID
+      BusID: formData.bus,
+      RouteID: formData.route,
     };
 
     try {
@@ -331,7 +328,6 @@ export default function DriversPage() {
         throw new Error(result.message || "Lỗi khi cập nhật");
       }
 
-      // Cập nhật trạng thái riêng nếu cần (backend có endpoint riêng)
       if (editingDriver.status !== formData.status) {
         await fetch(`${API_URL}/drivers/${editingDriver.id}/status`, {
            method: "PUT",
@@ -395,7 +391,6 @@ export default function DriversPage() {
     );
   };
 
-  // Giao diện
   return (
     <div className="driversContainer">
       {/* Header */}
@@ -421,11 +416,11 @@ export default function DriversPage() {
           borderRadius: "0.5rem",
           marginBottom: "1.5rem"
         }}>
-          <strong>Lỗi tải dữ liệu:</strong> {error}. Hãy đảm bảo backend (cổng 3002) đang chạy.
+          <strong>Lỗi tải dữ liệu:</strong> {error}
         </div>
       )}
 
-      {/* Stats (Đã xóa Đánh giá) */}
+      {/* Stats */}
       <div className="statsGrid">
         {stats.map((stat, index) => (
           <div key={index} className="statCard">
@@ -490,7 +485,6 @@ export default function DriversPage() {
           </button>
         </div>
 
-        {/* Advanced Search (Đã xóa các trường mock) */}
         {showAdvancedSearch && (
           <div className="advancedSearchPanel">
             <div className="advancedSearchGrid">
@@ -558,7 +552,7 @@ export default function DriversPage() {
         )}
       </div>
 
-      {/* Drivers Table (Đã xóa các trường mock) */}
+      {/* Drivers Table */}
       <div className="tableContainer">
         <div style={{ overflowX: 'auto' }}>
           {loading ? (
@@ -615,6 +609,13 @@ export default function DriversPage() {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
+                          onClick={() => handleOpenMessagePanel(driver)}
+                          className="actionButton messageButton"
+                          title="Gửi tin nhắn"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
+                        <button 
                           onClick={() => handleEditClick(driver)}
                           className="actionButton editButton"
                           title="Chỉnh sửa"
@@ -637,10 +638,8 @@ export default function DriversPage() {
           ) : (
             <div className="noResults">
               <Search className="w-16 h-16" />
-              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>
-                Không tìm thấy kết quả
-              </h3>
-              <p>Vui lòng thử lại với từ khóa khác hoặc tải lại trang</p>
+              <h3>Không tìm thấy kết quả</h3>
+              <p>Vui lòng thử lại với từ khóa khác</p>
             </div>
           )}
         </div>
@@ -663,7 +662,6 @@ export default function DriversPage() {
             
             {[...Array(totalPages)].map((_, index) => {
               const pageNum = index + 1;
-              // Logic hiển thị phân trang
               if (
                 pageNum === 1 || pageNum === totalPages ||
                 (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
@@ -694,7 +692,51 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Driver Detail Modal (Đã đơn giản hóa) */}
+  {/* 🔧 MessagePanel Modal - SỬ DỤNG COMPONENT MỚI */}
+{showMessagePanel && messageDriver && (
+  <div 
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    }}
+    onClick={() => setShowMessagePanel(false)}
+  >
+    <div 
+      style={{
+        background: 'transparent',
+        borderRadius: '12px',
+        width: '100%',
+        maxWidth: '600px',
+        height: '600px',
+        maxHeight: '90vh',
+        minHeight: '500px',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'visible',
+        position: 'relative'
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <MessagePanelToDriver
+        adminId={1}
+        driverUserId={messageDriver.userId}
+        driverName={messageDriver.name}
+        onClose={() => setShowMessagePanel(false)}
+      />
+    </div>
+  </div>
+)}
+
+      {/* View Modal - giữ nguyên */}
       {selectedDriver && (
         <div className="modal" onClick={() => setSelectedDriver(null)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -706,12 +748,7 @@ export default function DriversPage() {
                   <p className="modalSubtitle">UserID: {selectedDriver.userId}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setSelectedDriver(null)}
-                className="closeButton"
-              >
-                ×
-              </button>
+              <button onClick={() => setSelectedDriver(null)} className="closeButton">×</button>
             </div>
             
             <div className="modalBody">
@@ -739,8 +776,10 @@ export default function DriversPage() {
               </div>
 
               <div className="modalActions">
-                <button>Xem lịch làm việc</button>
-                <button>Gửi tin nhắn</button>
+                <button onClick={() => {
+                  setSelectedDriver(null);
+                  handleOpenMessagePanel(selectedDriver);
+                }}>Gửi tin nhắn</button>
                 <button onClick={() => {
                   setSelectedDriver(null);
                   handleEditClick(selectedDriver);
@@ -751,7 +790,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Add Driver Modal (Đã đơn giản hóa) */}
+      {/* Add Modal - giữ nguyên các modal khác */}
       {showAddModal && (
         <div className="modal" onClick={() => setShowAddModal(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -765,21 +804,13 @@ export default function DriversPage() {
                   <p className="modalSubtitle">Nhập thông tin tài xế</p>
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="closeButton"
-              >
-                ×
-              </button>
+              <button onClick={() => { setShowAddModal(false); resetForm(); }} className="closeButton">×</button>
             </div>
             
             <div className="modalBody">
               <div className="detailsGrid">
                 <div className="formGroup">
-                  <label>UserID (Từ Service Người dùng) *</label>
+                  <label>UserID *</label>
                   <input
                     type="number"
                     placeholder="VD: 101"
@@ -852,17 +883,14 @@ export default function DriversPage() {
 
               <div className="modalActions">
                 <button onClick={handleAddDriver}>Thêm tài xế</button>
-                <button onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}>Hủy</button>
+                <button onClick={() => { setShowAddModal(false); resetForm(); }}>Hủy</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Driver Modal (Đã đơn giản hóa) */}
+      {/* Edit Modal */}
       {showEditModal && editingDriver && (
         <div className="modal" onClick={() => setShowEditModal(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -874,21 +902,12 @@ export default function DriversPage() {
                   <p className="modalSubtitle">{editingDriver.name}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingDriver(null);
-                  resetForm();
-                }}
-                className="closeButton"
-              >
-                ×
-              </button>
+              <button onClick={() => { setShowEditModal(false); setEditingDriver(null); resetForm(); }} className="closeButton">×</button>
             </div>
             
             <div className="modalBody">
               <div className="detailsGrid">
-                 <div className="formGroup">
+                <div className="formGroup">
                   <label>UserID (Không thể thay đổi)</label>
                   <input
                     type="number"
@@ -925,7 +944,7 @@ export default function DriversPage() {
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                   />
                 </div>
-                 <div className="formGroup">
+                <div className="formGroup">
                   <label>Xe Buýt *</label>
                   <select
                     value={formData.bus || ''}
@@ -949,7 +968,7 @@ export default function DriversPage() {
                     ))}
                   </select>
                 </div>
-                 <div className="formGroup">
+                <div className="formGroup">
                   <label>Trạng thái</label>
                   <select
                     value={formData.status}
@@ -963,11 +982,7 @@ export default function DriversPage() {
 
               <div className="modalActions">
                 <button onClick={handleUpdateDriver}>Cập nhật</button>
-                <button onClick={() => {
-                  setShowEditModal(false);
-                  setEditingDriver(null);
-                  resetForm();
-                }}>Hủy</button>
+                <button onClick={() => { setShowEditModal(false); setEditingDriver(null); resetForm(); }}>Hủy</button>
               </div>
             </div>
           </div>
@@ -988,15 +1003,7 @@ export default function DriversPage() {
                   <p className="modalSubtitle">Bạn có chắc chắn muốn xóa tài xế này?</p>
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeletingDriverId(null);
-                }}
-                className="closeButton"
-              >
-                ×
-              </button>
+              <button onClick={() => { setShowDeleteConfirm(false); setDeletingDriverId(null); }} className="closeButton">×</button>
             </div>
             
             <div className="modalBody">
@@ -1005,16 +1012,10 @@ export default function DriversPage() {
               </p>
 
               <div className="modalActions">
-                <button 
-                  onClick={handleConfirmDelete}
-                  style={{ backgroundColor: '#dc2626' }}
-                >
+                <button onClick={handleConfirmDelete} style={{ backgroundColor: '#dc2626' }}>
                   Xóa tài xế
                 </button>
-                <button onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setDeletingDriverId(null);
-                }}>Hủy</button>
+                <button onClick={() => { setShowDeleteConfirm(false); setDeletingDriverId(null); }}>Hủy</button>
               </div>
             </div>
           </div>

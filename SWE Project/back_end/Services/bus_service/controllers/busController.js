@@ -1,4 +1,5 @@
 const busQueries = require('../db/queries/busQueries');
+const eventPublisher = require('../events/eventPublisher');
 
 // ===================================
 // BUS CONTROLLERS
@@ -6,26 +7,30 @@ const busQueries = require('../db/queries/busQueries');
 
 async function getAllBuses(req, res) {
   try {
-    const filters = {
-      status: req.query.status,
-      search: req.query.search,
-      minCapacity: req.query.minCapacity,
-      maxCapacity: req.query.maxCapacity,
-      minFuel: req.query.minFuel,
-      route: req.query.route
-    };
-    
-    const pagination = {
-      limit: req.query.limit || 1000,
-      offset: req.query.offset || 0
-    };
+    const {
+      status,
+      search,
+      minCapacity,
+      maxCapacity,
+      minFuel,
+      route,
+      limit = 100,
+      offset = 0
+    } = req.query;
+
+    const filters = { status, search, minCapacity, maxCapacity, minFuel, route };
+    const pagination = { limit: parseInt(limit), offset: parseInt(offset) };
 
     const result = await busQueries.findAll(filters, pagination);
 
     res.json({
       success: true,
       data: result.buses,
-      total: result.total
+      pagination: {
+        total: result.total,
+        limit: pagination.limit,
+        offset: pagination.offset
+      }
     });
   } catch (error) {
     console.error('Error fetching buses:', error);
@@ -63,7 +68,7 @@ async function getBusById(req, res) {
   }
 }
 
-async function getBusStats(req, res) {
+async function getBusStatistics(req, res) {
   try {
     const stats = await busQueries.getStats();
 
@@ -85,21 +90,33 @@ async function createBus(req, res) {
   try {
     const busData = req.body;
 
-    // Check if bus ID already exists
+    if (!busData || !busData.BusID || !busData.PlateNumber || !busData.Capacity) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: BusID, PlateNumber, Capacity'
+      });
+    }
+
     const exists = await busQueries.exists(busData.BusID, busData.PlateNumber);
     if (exists) {
       return res.status(409).json({
         success: false,
-        message: 'Bus ID or Plate Number already exists'
+        message: 'Bus already exists (by BusID or PlateNumber)'
       });
     }
 
     await busQueries.create(busData);
 
+    await eventPublisher.publish('bus.created', {
+      busId: busData.BusID,
+      licensePlate: busData.PlateNumber,
+      timestamp: new Date().toISOString()
+    });
+
     res.status(201).json({
       success: true,
       message: 'Bus created successfully',
-      data: { BusID: busData.BusID }
+      data: { id: busData.BusID }
     });
   } catch (error) {
     console.error('Error creating bus:', error);
@@ -125,7 +142,21 @@ async function updateBus(req, res) {
       });
     }
 
-    await busQueries.update(busId, updateData);
+    const result = await busQueries.update(busId, updateData);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bus not found'
+      });
+    }
+
+    // Publish event
+    await eventPublisher.publish('bus.updated', {
+      busId,
+      changes: updateData,
+      timestamp: new Date().toISOString()
+    });
 
     res.json({
       success: true,
@@ -141,11 +172,27 @@ async function updateBus(req, res) {
   }
 }
 
-async function deleteBus(req, res) {
+async function updateBusStatus(req, res) {
   try {
     const busId = req.params.id;
+    const { status } = req.body;
 
-    // Check if bus exists
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+
+    const validStatuses = ['running', 'waiting', 'maintenance', 'ready'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Get current bus data
     const existingBus = await busQueries.findById(busId);
     if (!existingBus) {
       return res.status(404).json({
@@ -154,7 +201,47 @@ async function deleteBus(req, res) {
       });
     }
 
-    await busQueries.delete(busId);
+    await busQueries.updateStatus(busId, status);
+
+    // Publish event
+    await eventPublisher.publish('bus.status_changed', {
+      busId,
+      oldStatus: existingBus.Status,
+      newStatus: status,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: 'Bus status updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating bus status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
+async function deleteBus(req, res) {
+  try {
+    const busId = req.params.id;
+
+    const result = await busQueries.delete(busId);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bus not found'
+      });
+    }
+
+    await eventPublisher.publish('bus.deleted', {
+      busId,
+      timestamp: new Date().toISOString()
+    });
 
     res.json({
       success: true,
@@ -170,11 +257,88 @@ async function deleteBus(req, res) {
   }
 }
 
+async function getBusEvents(req, res) {
+  try {
+    // Events store is not implemented in current queries layer
+    res.json({ success: true, data: [], count: 0 });
+  } catch (error) {
+    console.error('Error fetching bus events:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
+async function getBusesByRoute(req, res) {
+  try {
+    const routeId = req.params.routeId;
+    const buses = await busQueries.findByRoute(routeId);
+
+    res.json({
+      success: true,
+      data: buses,
+      count: buses.length
+    });
+  } catch (error) {
+    console.error('Error fetching buses by route:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
+async function getBusesNeedingMaintenance(req, res) {
+  try {
+    const buses = await busQueries.findByStatus('maintenance');
+
+    res.json({
+      success: true,
+      data: buses,
+      count: buses.length
+    });
+  } catch (error) {
+    console.error('Error fetching buses needing maintenance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
+async function getAvailableBuses(req, res) {
+  try {
+    const buses = await busQueries.findAvailable();
+
+    res.json({
+      success: true,
+      data: buses,
+      count: buses.length
+    });
+  } catch (error) {
+    console.error('Error fetching available buses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
 module.exports = {
   getAllBuses,
   getBusById,
-  getBusStats,
+  getBusStatistics,
   createBus,
   updateBus,
-  deleteBus
+  updateBusStatus,
+  deleteBus,
+  getBusEvents,
+  getBusesByRoute,
+  getBusesNeedingMaintenance,
+  getAvailableBuses
 };

@@ -4,7 +4,7 @@ const router = express.Router();
 const busController = require('../controllers/busController');
 
 // Lấy thống kê xe buýt
-router.get('/stats', busController.getBusStats);
+router.get('/stats', busController.getBusStatistics);
 
 // CRUD operations
 router.get('/', busController.getAllBuses);

@@ -21,13 +21,13 @@ type Coordinate = {
   lng: number;
 };
 
-export default function MapView({ coordinates }: { coordinates: Coordinate[] }) {
+export default function MapView({ coordinates = [] }: { coordinates?: Coordinate[] }) {
   const [route, setRoute] = useState<L.LatLngExpression[]>([]);
 
   const orsApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxZTJkMDY4NjI0ODQ1NjZiNTdkNTU5ZmQ0OGRlMWY2IiwiaCI6Im11cm11cjY0In0='; // ✅ OpenRouteService key
 
   useEffect(() => {
-    if (coordinates.length < 2) return;
+    if (!coordinates || coordinates.length < 2) return;
 
     async function fetchRoute() {
       try {
@@ -54,7 +54,9 @@ export default function MapView({ coordinates }: { coordinates: Coordinate[] }) 
     fetchRoute();
   }, [coordinates]);
 
-  const center = coordinates.length > 0 ? [coordinates[0].lat, coordinates[0].lng] : [10.77653, 106.700981];
+  const center = (coordinates && coordinates.length > 0)
+    ? [coordinates[0].lat, coordinates[0].lng]
+    : [10.77653, 106.700981];
 
   return (
     <MapContainer center={center as L.LatLngExpression} zoom={10} style={{ height: '100%',zIndex:'0', width: '100%', borderRadius: '12px' }}>
@@ -64,7 +66,7 @@ export default function MapView({ coordinates }: { coordinates: Coordinate[] }) 
       />
 
       {/* Marker cho từng tọa độ */}
-      {coordinates.map((pos, idx) => (
+      {(coordinates || []).map((pos, idx) => (
         <Marker key={idx} position={[pos.lat, pos.lng]}>
           <Popup>Điểm {idx + 1}</Popup>
         </Marker>
