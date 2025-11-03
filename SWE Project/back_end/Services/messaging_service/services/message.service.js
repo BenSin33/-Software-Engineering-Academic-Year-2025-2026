@@ -1,26 +1,56 @@
 // services/message.service.js
-const db = require('../db/queries'); // kết nối mysql
-const Message = require('../models/message.model'); // cái này sẽ chữa các định nghĩa bảng csdl thường dùng với prisma ORM
+const pool = require('../db/pool');
 
 const MessageService = {
   async getMessages(senderId, receiverId) {
-    const [rows] = await db.query(
-      `SELECT * FROM messages
-       WHERE (senderId = ? AND receiverId = ?)
-       OR (senderId = ? AND receiverId = ?)
-       ORDER BY createdAt ASC`,
-      [senderId, receiverId, receiverId, senderId]
-    );
-    return rows;
+    const connection = await pool.getConnection();
+    try {
+      const [rows] = await connection.execute(
+        `SELECT * FROM messages
+         WHERE (senderId = ? AND receiverId = ?)
+         OR (senderId = ? AND receiverId = ?)
+         ORDER BY createdAt ASC`,
+        [senderId, receiverId, receiverId, senderId]
+      );
+      return rows;
+    } finally {
+      connection.release();
+    }
   },
 
   async saveMessage(data) {
-    const [result] = await db.query(
-      `INSERT INTO messages (senderId, receiverId, content, createdAt)
-       VALUES (?, ?, ?, NOW())`,
-      [data.senderId, data.receiverId, data.content]
-    );
-    return { id: result.insertId, ...data };
+    const connection = await pool.getConnection();
+    try {
+      // Execute insert query
+      const [result] = await connection.execute(
+        `INSERT INTO messages (senderId, receiverId, content, createdAt)
+         VALUES (?, ?, ?, NOW())`,
+        [data.senderId, data.receiverId, data.content]
+      );
+      
+      // Get the inserted ID
+      const insertId = result.insertId;
+      
+      // Fetch the complete message with timestamp
+      const [rows] = await connection.execute(
+        `SELECT * FROM messages WHERE id = ?`,
+        [insertId]
+      );
+      
+      // Return the saved message
+      return rows[0] || { 
+        id: insertId, 
+        senderId: data.senderId, 
+        receiverId: data.receiverId, 
+        content: data.content,
+        createdAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error in saveMessage:', error);
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
 };
 

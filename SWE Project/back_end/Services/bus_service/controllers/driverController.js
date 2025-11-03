@@ -1,33 +1,24 @@
+const locationQueries = require('../db/locationQueries');
+const eventPublisher = require('../events/eventPublisher');
 const driverQueries = require('../db/queries/driverQueries');
 
 // ===================================
-// DRIVER CONTROLLERS
+// LOCATION TRACKING CONTROLLERS
 // ===================================
 
-async function getAllDrivers(req, res) {
+async function getLocationTracking(req, res) {
   try {
-    const filters = {
-      status: req.query.status,
-      search: req.query.search,
-      Fullname: req.query.Fullname,
-      PhoneNumber: req.query.PhoneNumber,
-      Email: req.query.Email
-    };
-    
-    const pagination = {
-      limit: req.query.limit || 100,
-      offset: req.query.offset || 0
-    };
+    const busId = req.params.id;
+    const limit = parseInt(req.query.limit) || 50;
 
-    const result = await driverQueries.findAll(filters, pagination);
+    const locations = await locationQueries.getLocationTracking(busId, limit);
 
     res.json({
       success: true,
-      data: result.drivers,
-      total: result.total
+      data: locations
     });
   } catch (error) {
-    console.error('Error fetching drivers:', error);
+    console.error('Error fetching location tracking:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -36,24 +27,62 @@ async function getAllDrivers(req, res) {
   }
 }
 
-async function getDriverById(req, res) {
+async function getLocationHistory(req, res) {
   try {
-    const driverId = parseInt(req.params.id);
-    const driver = await driverQueries.findById(driverId);
+    const busId = req.params.id;
+    const { startDate, endDate } = req.query;
 
-    if (!driver) {
-      return res.status(404).json({
+    const locations = await locationQueries.getLocationHistory(busId, startDate, endDate);
+
+    res.json({
+      success: true,
+      data: locations,
+      count: locations.length
+    });
+  } catch (error) {
+    console.error('Error fetching location history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
+async function addLocationTracking(req, res) {
+  try {
+    const busId = req.params.id;
+    const locationData = {
+      bus_id: busId,
+      ...req.body
+    };
+
+    // Validation
+    if (!locationData.latitude || !locationData.longitude) {
+      return res.status(400).json({
         success: false,
-        message: 'Driver not found'
+        message: 'Missing required fields: latitude, longitude'
       });
     }
 
-    res.json({
+    await locationQueries.addLocationTracking(locationData);
+
+    // Publish event (for real-time tracking)
+    await eventPublisher.publish('bus.location_updated', {
+      busId,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude,
+      locationName: locationData.location_name,
+      speed: locationData.speed,
+      timestamp: new Date().toISOString()
+    });
+
+    res.status(201).json({
       success: true,
-      data: driver
+      message: 'Location recorded successfully'
     });
   } catch (error) {
-    console.error('Error fetching driver:', error);
+    console.error('Error recording location:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -62,24 +91,17 @@ async function getDriverById(req, res) {
   }
 }
 
-async function getDriverByUserId(req, res) {
+async function getCurrentLocations(req, res) {
   try {
-    const userId = parseInt(req.params.userId);
-    const driver = await driverQueries.findByUserId(userId);
-
-    if (!driver) {
-      return res.status(404).json({
-        success: false,
-        message: 'Driver not found'
-      });
-    }
+    const locations = await locationQueries.getCurrentLocations();
 
     res.json({
       success: true,
-      data: driver
+      data: locations,
+      count: locations.length
     });
   } catch (error) {
-    console.error('Error fetching driver by user ID:', error);
+    console.error('Error fetching current locations:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -88,158 +110,37 @@ async function getDriverByUserId(req, res) {
   }
 }
 
-async function getDriverStats(req, res) {
+async function getBusRoute(req, res) {
   try {
-    const stats = await driverQueries.getStats();
+    const busId = req.params.id;
+    const route = await locationQueries.getBusRoute(busId);
+
+    res.json({
+      success: true,
+      data: route,
+      count: route.length
+    });
+  } catch (error) {
+    console.error('Error fetching bus route:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
+
+async function getLocationStatistics(req, res) {
+  try {
+    const busId = req.params.id;
+    const stats = await locationQueries.getLocationStatistics(busId);
 
     res.json({
       success: true,
       data: stats
     });
   } catch (error) {
-    console.error('Error fetching driver statistics:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function createDriver(req, res) {
-  try {
-    const driverData = req.body;
-
-    // Check if user ID already exists
-    const exists = await driverQueries.existsByUserId(driverData.UserID);
-    if (exists) {
-      return res.status(409).json({
-        success: false,
-        message: 'Driver with this UserID already exists'
-      });
-    }
-
-    await driverQueries.create(driverData);
-
-    res.status(201).json({
-      success: true,
-      message: 'Driver created successfully'
-    });
-  } catch (error) {
-    console.error('Error creating driver:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function updateDriver(req, res) {
-  try {
-    const driverId = parseInt(req.params.id);
-    const updateData = req.body;
-
-    // Check if driver exists
-    const existingDriver = await driverQueries.findById(driverId);
-    if (!existingDriver) {
-      return res.status(404).json({
-        success: false,
-        message: 'Driver not found'
-      });
-    }
-
-    await driverQueries.update(driverId, updateData);
-
-    res.json({
-      success: true,
-      message: 'Driver updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating driver:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function updateDriverStatus(req, res) {
-  try {
-    const driverId = parseInt(req.params.id);
-    const { status } = req.body;
-
-    if (!status) {
-      return res.status(400).json({
-        success: false,
-        message: 'Status is required'
-      });
-    }
-
-    const validStatuses = ['active', 'rest'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-      });
-    }
-
-    // Check if driver exists
-    const existingDriver = await driverQueries.findById(driverId);
-    if (!existingDriver) {
-      return res.status(404).json({
-        success: false,
-        message: 'Driver not found'
-      });
-    }
-
-    await driverQueries.updateStatus(driverId, status);
-
-    res.json({
-      success: true,
-      message: 'Driver status updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating driver status:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-}
-
-async function deleteDriver(req, res) {
-  try {
-    const driverId = parseInt(req.params.id);
-
-    // Check if driver exists
-    const existingDriver = await driverQueries.findById(driverId);
-    if (!existingDriver) {
-      return res.status(404).json({
-        success: false,
-        message: 'Driver not found'
-      });
-    }
-
-    // Check if driver is assigned to a bus
-    const isAssigned = await driverQueries.isAssignedToBus(driverId);
-    if (isAssigned) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete driver. Driver is currently assigned to a bus.'
-      });
-    }
-
-    await driverQueries.delete(driverId);
-
-    res.json({
-      success: true,
-      message: 'Driver deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting driver:', error);
+    console.error('Error fetching location statistics:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -249,12 +150,123 @@ async function deleteDriver(req, res) {
 }
 
 module.exports = {
-  getAllDrivers,
-  getDriverById,
-  getDriverByUserId,
-  getDriverStats,
-  createDriver,
-  updateDriver,
-  updateDriverStatus,
-  deleteDriver
+  // Driver CRUD + stats
+  async getAllDrivers(req, res) {
+    try {
+      const { status, search, Fullname, PhoneNumber, Email, limit = 100, offset = 0 } = req.query;
+      const filters = { status, search, Fullname, PhoneNumber, Email };
+      const pagination = { limit: parseInt(limit), offset: parseInt(offset) };
+      const result = await driverQueries.findAll(filters, pagination);
+      res.json({
+        success: true,
+        data: result.drivers,
+        pagination: { total: result.total, limit: pagination.limit, offset: pagination.offset }
+      });
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async getDriverById(req, res) {
+    try {
+      const driverId = req.params.id;
+      const driver = await driverQueries.findById(driverId);
+      if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
+      res.json({ success: true, data: driver });
+    } catch (error) {
+      console.error('Error fetching driver:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async getDriverByUserId(req, res) {
+    try {
+      const userId = req.params.userId;
+      const driver = await driverQueries.findByUserId(userId);
+      if (!driver) return res.status(404).json({ success: false, message: 'Driver not found' });
+      res.json({ success: true, data: driver });
+    } catch (error) {
+      console.error('Error fetching driver by userId:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async createDriver(req, res) {
+    try {
+      const { UserID, Fullname, PhoneNumber, Email, Status = 'active' } = req.body || {};
+      if (!UserID || !Fullname || !PhoneNumber || !Email) {
+        return res.status(400).json({ success: false, message: 'Missing required fields: UserID, Fullname, PhoneNumber, Email' });
+      }
+      const exists = await driverQueries.existsByUserId(UserID);
+      if (exists) {
+        return res.status(409).json({ success: false, message: 'Driver already exists for this UserID' });
+      }
+      await driverQueries.create({ UserID, Fullname, PhoneNumber, Email, Status });
+      res.status(201).json({ success: true, message: 'Driver created successfully' });
+    } catch (error) {
+      console.error('Error creating driver:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async updateDriver(req, res) {
+    try {
+      const driverId = req.params.id;
+      const updates = req.body || {};
+      const existing = await driverQueries.findById(driverId);
+      if (!existing) return res.status(404).json({ success: false, message: 'Driver not found' });
+      const result = await driverQueries.update(driverId, updates);
+      if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Driver not found' });
+      res.json({ success: true, message: 'Driver updated successfully' });
+    } catch (error) {
+      console.error('Error updating driver:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async updateDriverStatus(req, res) {
+    try {
+      const driverId = req.params.id;
+      const { status } = req.body || {};
+      if (!status) return res.status(400).json({ success: false, message: 'Status is required' });
+      const existing = await driverQueries.findById(driverId);
+      if (!existing) return res.status(404).json({ success: false, message: 'Driver not found' });
+      await driverQueries.updateStatus(driverId, status);
+      res.json({ success: true, message: 'Driver status updated successfully' });
+    } catch (error) {
+      console.error('Error updating driver status:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async deleteDriver(req, res) {
+    try {
+      const driverId = req.params.id;
+      const result = await driverQueries.delete(driverId);
+      if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Driver not found' });
+      res.json({ success: true, message: 'Driver deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting driver:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  async getDriverStats(req, res) {
+    try {
+      const stats = await driverQueries.getStats();
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      console.error('Error fetching driver stats:', error);
+      res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+    }
+  },
+
+  // Location endpoints
+  getLocationTracking,
+  getLocationHistory,
+  addLocationTracking,
+  getCurrentLocations,
+  getBusRoute,
+  getLocationStatistics
 };
