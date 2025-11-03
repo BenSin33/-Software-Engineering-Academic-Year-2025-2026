@@ -4,7 +4,7 @@ const axios = require('axios');
 
 router.post('/login', async (req, res) => {
   try {
-    const response = await axios.post('http://localhost:3019/api/auth/login', req.body);
+    const response = await axios.post('http://auth_service:5010/api/auth/login', req.body);
     res.json(response.data);
   } catch (err) {
     const status = err.response?.status || 500;

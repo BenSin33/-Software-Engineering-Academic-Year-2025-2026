@@ -27,8 +27,8 @@ export default function ParentDashboardLayout({ children }: { children: React.Re
       ],
     },
     {
-      text: 'Tracking',
-      url: '/ParentDashboard/Tracking',
+      text: 'Messages',
+      url: '/ParentDashboard/Message',
       icon: HiChat, // Icon tin nhắn
     },
     {
@@ -36,6 +36,12 @@ export default function ParentDashboardLayout({ children }: { children: React.Re
       url: '/ParentDashboard/Notifications',
       icon: HiBell,
     },
+
+    {
+      text: 'Bus Location',
+      url: '/ParentDashboard/BusLocation',
+      icon: HiLocationMarker,
+    }
   ];
 
   return (

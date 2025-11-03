@@ -40,12 +40,12 @@ export async function fetchMessages(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Error response:', errorText);
+      console.error(' Error response:', errorText);
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('✅ Messages loaded:', result);
+    console.log(' Messages loaded:', result);
 
     // Xử lý cả trường hợp có result.data và không có
     if (result.success && result.data) {
@@ -56,7 +56,7 @@ export async function fetchMessages(
       return [];
     }
   } catch (error: any) {
-    console.error('❌ Fetch messages error:', error);
+    console.error(' Fetch messages error:', error);
     
     // Chi tiết hóa lỗi
     if (error.message?.includes('fetch failed') || error.message?.includes('ECONNREFUSED')) {
@@ -86,7 +86,7 @@ export async function sendMessage(data: SendMessageData): Promise<Message> {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      console.error('❌ Send error:', errorData);
+      console.error(' Send error:', errorData);
       
       // Xử lý các loại lỗi cụ thể
       if (response.status === 503) {
@@ -101,7 +101,7 @@ export async function sendMessage(data: SendMessageData): Promise<Message> {
     }
 
     const result = await response.json();
-    console.log('✅ Message sent:', result);
+    console.log(' Message sent:', result);
 
     if (result.success && result.data) {
       return result.data;
@@ -111,7 +111,7 @@ export async function sendMessage(data: SendMessageData): Promise<Message> {
       throw new Error('Invalid response format');
     }
   } catch (error: any) {
-    console.error('❌ Send message error:', error);
+    console.error(' Send message error:', error);
     
     // Chi tiết hóa lỗi
     if (error.message?.includes('fetch failed') || error.message?.includes('ECONNREFUSED')) {

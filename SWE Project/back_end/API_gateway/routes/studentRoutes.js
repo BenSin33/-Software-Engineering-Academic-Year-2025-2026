@@ -26,7 +26,7 @@ router.get("/", async (req, res) => {
     res.json(mergedData);
 
   } catch (error) {
-    console.error("❌ Lỗi khi gọi service:", error.message);
+    console.error(" Lỗi khi gọi service:", error.message);
     res.status(500).json({ error: "Không thể lấy danh sách sinh viên" });
   }
 });
@@ -58,7 +58,7 @@ router.post("/add", async (req, res) => {
       return res.status(201).json(addedStudent);
     }
   } catch (error) {
-    console.error("❌ Lỗi khi xử lý /students/add:", error.message);
+    console.error(" Lỗi khi xử lý /students/add:", error.message);
     return res.status(500).json({
       error: "Không thể tải dữ liệu để thêm học sinh",
     });
@@ -71,7 +71,7 @@ router.post("/delete/:id", async (req, res) => {
     const result = await callService("student_service", `/students/delete/${req.params.id}`, "POST");
     res.json({ message: "Xóa học sinh thành công" });
   } catch (error) {
-    console.error("❌ Lỗi khi xóa học sinh:", error.message);
+    console.error(" Lỗi khi xóa học sinh:", error.message);
     res.status(500).json({ error: "Không thể xóa học sinh" });
   }
 });
@@ -94,7 +94,7 @@ router.post("/edit/:id", async (req, res) => {
         result.student.ParentName = parent.FullName;
       }
 
-      // ✅ Trả về dữ liệu hợp nhất
+      //  Trả về dữ liệu hợp nhất
       return res.status(200).json(result);
 
     } catch (err) {
@@ -105,7 +105,7 @@ router.post("/edit/:id", async (req, res) => {
     }
 
   } catch (error) {
-    console.error("❌ Lỗi khi update học sinh:", error.message);
+    console.error(" Lỗi khi update học sinh:", error.message);
     return res.status(500).json({ error: "Không thể update học sinh" });
   }
 });

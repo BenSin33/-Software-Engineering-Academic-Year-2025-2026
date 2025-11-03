@@ -59,9 +59,9 @@ exports.login = async (req, res) => {
         const updateSql = `UPDATE users SET Password = ? WHERE UserID = ?`;
         dbUsers.query(updateSql, [hashed, user.UserID], (updateErr) => {
           if (updateErr) {
-            console.error(`❌ Không thể cập nhật mật khẩu cho ${user.UserID}:`, updateErr);
+            console.error(` Không thể cập nhật mật khẩu cho ${user.UserID}:`, updateErr);
           } else {
-            console.log(`✅ Đã mã hóa mật khẩu cho ${user.UserID}`);
+            console.log(` Đã mã hóa mật khẩu cho ${user.UserID}`);
           }
         });
         storedPassword = hashed;
@@ -78,7 +78,7 @@ exports.login = async (req, res) => {
       return res.json({ userID: user.UserID, roleID: user.RoleID, roleName: user.RoleName });
 
     } catch (error) {
-      console.error("❌ Lỗi xử lý đăng nhập:", error);
+      console.error(" Lỗi xử lý đăng nhập:", error);
       await sendLog("auth_service", "login", user.UserID, user.RoleID, 500, "Login error");
       return res.status(500).json({ error: "Login error" });
     }

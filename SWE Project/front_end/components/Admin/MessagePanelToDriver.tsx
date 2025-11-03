@@ -57,10 +57,10 @@ const MessagePanelToDriver: React.FC<MessagePanelProps> = ({
       
       const data = await fetchMessages(adminId, driverUserId);
       
-      console.log('✅ Messages loaded:', data);
+      console.log(' Messages loaded:', data);
       setMessages(data);
     } catch (err: any) {
-      console.error('❌ Lỗi khi tải tin nhắn:', err);
+      console.error(' Lỗi khi tải tin nhắn:', err);
       setError(err.message || 'Không thể tải tin nhắn');
     } finally {
       setLoading(false);
@@ -88,9 +88,9 @@ const MessagePanelToDriver: React.FC<MessagePanelProps> = ({
       setNewMessage('');
       await loadMessages();
       
-      console.log('✅ Message sent successfully');
+      console.log(' Message sent successfully');
     } catch (err: any) {
-      console.error('❌ Lỗi khi gửi tin nhắn:', err);
+      console.error(' Lỗi khi gửi tin nhắn:', err);
       setError(err.message || 'Không thể gửi tin nhắn');
     } finally {
       setSending(false);

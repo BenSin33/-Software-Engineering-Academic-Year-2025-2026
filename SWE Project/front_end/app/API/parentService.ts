@@ -51,7 +51,7 @@ export async function getAllParents(): Promise<Parent[]> {
     const result = await response.json();
     return result.data || [];
   } catch (error: any) {
-    console.error('❌ Error fetching parents:', error);
+    console.error(' Error fetching parents:', error);
     throw new Error(error.message || 'Lỗi khi lấy danh sách phụ huynh');
   }
 }
@@ -76,7 +76,7 @@ export async function getParentById(parentId: string): Promise<Parent> {
     const result = await response.json();
     return result.data;
   } catch (error: any) {
-    console.error('❌ Error fetching parent:', error);
+    console.error(' Error fetching parent:', error);
     throw new Error(error.message || 'Lỗi khi lấy thông tin phụ huynh');
   }
 }
@@ -101,7 +101,7 @@ export async function getParentByUserId(userId: string): Promise<Parent> {
     const result = await response.json();
     return result.data;
   } catch (error: any) {
-    console.error('❌ Error fetching parent by userId:', error);
+    console.error(' Error fetching parent by userId:', error);
     throw new Error(error.message || 'Lỗi khi lấy thông tin phụ huynh');
   }
 }
@@ -127,7 +127,7 @@ export async function createParent(data: CreateParentDto): Promise<{ parentId: s
     const result = await response.json();
     return result.data;
   } catch (error: any) {
-    console.error('❌ Error creating parent:', error);
+    console.error(' Error creating parent:', error);
     throw new Error(error.message || 'Lỗi khi tạo phụ huynh');
   }
 }
@@ -150,7 +150,7 @@ export async function updateParent(parentId: string, data: UpdateParentDto): Pro
       throw new Error(errorData.message || 'Không thể cập nhật phụ huynh');
     }
   } catch (error: any) {
-    console.error('❌ Error updating parent:', error);
+    console.error(' Error updating parent:', error);
     throw new Error(error.message || 'Lỗi khi cập nhật phụ huynh');
   }
 }
@@ -172,7 +172,7 @@ export async function deleteParent(parentId: string): Promise<void> {
       throw new Error(errorData.message || 'Không thể xóa phụ huynh');
     }
   } catch (error: any) {
-    console.error('❌ Error deleting parent:', error);
+    console.error(' Error deleting parent:', error);
     throw new Error(error.message || 'Lỗi khi xóa phụ huynh');
   }
 }

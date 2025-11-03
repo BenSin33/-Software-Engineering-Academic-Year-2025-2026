@@ -47,9 +47,9 @@ export default function ParentOverviewPage() {
         address: data.Address || ''
       });
       
-      console.log('✅ Parent data loaded:', data);
+      console.log(' Parent data loaded:', data);
     } catch (err: any) {
-      console.error('❌ Error loading parent:', err);
+      console.error(' Error loading parent:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -91,7 +91,7 @@ export default function ParentOverviewPage() {
         address: formData.address
       });
       
-      console.log('✅ Parent updated successfully');
+      console.log(' Parent updated successfully');
       
       // Reload data
       await loadParentData();
@@ -101,7 +101,7 @@ export default function ParentOverviewPage() {
       // Auto hide success message after 3 seconds
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      console.error('❌ Error saving parent:', err);
+      console.error(' Error saving parent:', err);
       setError(err.message);
     } finally {
       setSaving(false);

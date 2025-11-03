@@ -21,14 +21,14 @@ router.get("/:senderID/:receiverID", async (req, res) => {
       "GET"
     );
     
-    console.log(`✅ [API Gateway] Messages retrieved:`, messages);
+    console.log(` [API Gateway] Messages retrieved:`, messages);
     
     return res.status(200).json({
       success: true,
       data: messages,
     });
   } catch (err) {
-    console.error("❌ [API Gateway] Lỗi khi lấy lịch sử tin nhắn:", err);
+    console.error(" [API Gateway] Lỗi khi lấy lịch sử tin nhắn:", err);
     
     // Xử lý lỗi chi tiết
     let statusCode = 500;
@@ -62,7 +62,7 @@ router.post("/", async (req, res) => {
 
     // Validate input
     if (!senderId || !receiverId || !content) {
-      console.error("❌ [API Gateway] Thiếu thông tin");
+      console.error(" [API Gateway] Thiếu thông tin");
       return res.status(400).json({
         success: false,
         message: "Thiếu thông tin senderId, receiverId hoặc content",
@@ -78,14 +78,14 @@ router.post("/", async (req, res) => {
       messageData
     );
 
-    console.log(`✅ [API Gateway] Message sent:`, result);
+    console.log(` [API Gateway] Message sent:`, result);
 
     return res.status(201).json({
       success: true,
       data: result.data || result,
     });
   } catch (err) {
-    console.error("❌ [API Gateway] Lỗi khi gửi tin nhắn:", err);
+    console.error(" [API Gateway] Lỗi khi gửi tin nhắn:", err);
     
     // Kiểm tra nếu là lỗi connection (service chưa chạy)
     let errorMessage = err.message || "Lỗi server khi gửi tin nhắn";

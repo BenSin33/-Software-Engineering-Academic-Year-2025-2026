@@ -1,23 +1,79 @@
-services:
-  mysql:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: MYSQL_ROOT_PASSWORD
-      MYSQL_DATABASE: ssb_database
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
+version: '3.9'
 
+services:
+  # 🌐 API Gateway (dùng server.js)
   api_gateway:
-    build:
-      context: .            # build từ thư mục back_end
-      dockerfile: ./API_gateway/Dockerfile   # chỉ định file Dockerfile nằm trong thư mục con
+    build: .
+    container_name: api_gateway
     ports:
       - "5000:5000"
+    command: ["node", "API_gateway/server.js"]
+    volumes:
+      - .:/app
+    networks:
+      - app-net
     depends_on:
-      - mysql
+      - auth_service
+      - bus_service
+      - route_service
+      - student_service
 
-volumes:
-  mysql_data:
+  # 🔐 Auth Service (dùng app.js)
+  auth_service:
+    build: .
+    container_name: auth_service
+    ports:
+      - "5010:5010"
+    command: ["node", "Services/auth_service/app.js"]
+    environment:
+      - PORT=5010
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 🚌 Bus Service (dùng app.js)
+  bus_service:
+    build: .
+    container_name: bus_service
+    ports:
+      - "5011:5011"
+    command: ["node", "Services/bus_service/app.js"]
+    environment:
+      - PORT=5002
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 🗺️ Route Service (dùng app.js)
+  route_service:
+    build: .
+    container_name: route_service
+    ports:
+      - "5003:5003"
+    command: ["node", "Services/route_service/app.js"]
+    environment:
+      - PORT=5003
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 🎓 Student Service (dùng app.js)
+  student_service:
+    build: .
+    container_name: student_service
+    ports:
+      - "5004:5004"
+    command: ["node", "Services/student_service/app.js"]
+    environment:
+      - PORT=5004
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge

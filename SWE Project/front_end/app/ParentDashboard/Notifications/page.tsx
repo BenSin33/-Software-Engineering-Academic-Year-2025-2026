@@ -10,7 +10,7 @@ export default function NotificationsPage() {
       "Bus #12A is approaching your home 🚍",
       "Bus delayed by 5 minutes ⏱️",
       "Bus has arrived at school 🏫",
-      "Minor incident reported, all safe ✅",
+      "Minor incident reported, all safe ",
     ];
 
     let index = 0;

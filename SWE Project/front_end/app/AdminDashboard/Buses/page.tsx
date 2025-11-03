@@ -61,7 +61,7 @@ export default function BusesPage() {
   const itemsPerPage = 4;
   const LOCATION_SERVICE_URL = "http://localhost:5010/api";
 
-  // ✅ Sử dụng API service để fetch buses
+  //  Sử dụng API service để fetch buses
   const loadBuses = async () => {
     setLoading(true);
     try {
@@ -214,7 +214,7 @@ export default function BusesPage() {
     );
   }, [drivers, buses, formData.id]);
 
-  // ✅ Sử dụng API service để thêm bus
+  //  Sử dụng API service để thêm bus
   const handleAddBus = async () => {
     if (!formData.id || !formData.license_plate || !formData.capacity || !formData.driver_id || !formData.route_id) {
       alert("Vui lòng điền đủ thông tin bắt buộc (bao gồm tài xế và tuyến)!");
@@ -245,7 +245,7 @@ export default function BusesPage() {
     }
   };
 
-  // ✅ Sử dụng API service để cập nhật bus
+  //  Sử dụng API service để cập nhật bus
   const handleEditBus = async () => {
     if (!selectedBus) return;
 
@@ -272,7 +272,7 @@ export default function BusesPage() {
     }
   };
 
-  // ✅ Sử dụng API service để xóa bus
+  //  Sử dụng API service để xóa bus
   const handleDeleteBus = async (busId: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa xe này?")) {
       try {

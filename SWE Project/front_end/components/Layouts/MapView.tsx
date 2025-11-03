@@ -24,7 +24,7 @@ type Coordinate = {
 export default function MapView({ coordinates = [] }: { coordinates?: Coordinate[] }) {
   const [route, setRoute] = useState<L.LatLngExpression[]>([]);
 
-  const orsApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxZTJkMDY4NjI0ODQ1NjZiNTdkNTU5ZmQ0OGRlMWY2IiwiaCI6Im11cm11cjY0In0='; // ✅ OpenRouteService key
+  const orsApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxZTJkMDY4NjI0ODQ1NjZiNTdkNTU5ZmQ0OGRlMWY2IiwiaCI6Im11cm11cjY0In0='; //  OpenRouteService key
 
   useEffect(() => {
     if (!coordinates || coordinates.length < 2) return;

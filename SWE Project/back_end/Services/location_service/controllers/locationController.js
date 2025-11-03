@@ -24,10 +24,10 @@ exports.getCoordinatesArray=async (req, res)=> {
       const coordinate = await geoCoding.getCoordinatesOSM(address);
 
       if (coordinate) {
-        console.log(`✅ Thành công: ${address} →`, coordinate);
+        console.log(` Thành công: ${address} →`, coordinate);
         coordinates.push(coordinate);
       } else {
-        console.log(`❌ Không tìm thấy tọa độ cho: ${address}`);
+        console.log(` Không tìm thấy tọa độ cho: ${address}`);
       }
 
       // Bắt buộc delay để tránh vượt giới hạn rate limit của OpenCage

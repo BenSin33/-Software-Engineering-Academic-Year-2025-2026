@@ -13,9 +13,9 @@ async function syncToAuthService({ userID, username, password, roleID }) {
       password,
       roleID
     });
-    console.log(`✅ Đồng bộ user ${username} sang auth_service thành công`);
+    console.log(` Đồng bộ user ${username} sang auth_service thành công`);
   } catch (err) {
-    console.error(`❌ Lỗi đồng bộ user ${username}:`, err.message);
+    console.error(` Lỗi đồng bộ user ${username}:`, err.message);
   }
 }
 
@@ -25,7 +25,7 @@ async function deleteFromAuthService(userID) {
     await axios.delete(`http://localhost:3019/api/auth/sync/${userID}`);
     console.log(`🗑️ Đã đồng bộ xóa user ${userID} sang auth_service`);
   } catch (err) {
-    console.error(`❌ Lỗi xóa user ${userID} ở auth_service:`, err.message);
+    console.error(` Lỗi xóa user ${userID} ở auth_service:`, err.message);
   }
 }
 

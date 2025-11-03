@@ -96,7 +96,7 @@ export default function ParentsPage() {
       console.log('📥 Loading parents from API...');
       const apiParents = await getAllParents();
       
-      console.log('✅ Parents loaded:', apiParents);
+      console.log(' Parents loaded:', apiParents);
       
       // Convert API data sang format của component
       const formattedParents: Parent[] = apiParents.map((p: APIParent) => ({
@@ -117,7 +117,7 @@ export default function ParentsPage() {
       
       setParents(formattedParents);
     } catch (err: any) {
-      console.error('❌ Error loading parents:', err);
+      console.error(' Error loading parents:', err);
       setError(err.message || 'Không thể tải danh sách phụ huynh');
     } finally {
       setLoading(false);
@@ -198,7 +198,7 @@ export default function ParentsPage() {
       setParentToDelete(null);
       alert("Xóa phụ huynh thành công!");
     } catch (err: any) {
-      console.error('❌ Error deleting parent:', err);
+      console.error(' Error deleting parent:', err);
       alert(`Lỗi khi xóa: ${err.message}`);
     } finally {
       setDeleteLoading(false);
@@ -240,7 +240,7 @@ export default function ParentsPage() {
         address: formData.address || ''
       });
 
-      console.log('✅ Parent created with UserID:', newUserId);
+      console.log(' Parent created with UserID:', newUserId);
 
       // Reload data từ database
       await loadParents();
@@ -249,7 +249,7 @@ export default function ParentsPage() {
       setFormData({ name: "", phone: "", email: "", address: "", notification: true });
       alert("Thêm phụ huynh thành công!");
     } catch (err: any) {
-      console.error('❌ Error adding parent:', err);
+      console.error(' Error adding parent:', err);
       alert(`Lỗi khi thêm: ${err.message}`);
     } finally {
       setSaveLoading(false);
@@ -276,7 +276,7 @@ export default function ParentsPage() {
         address: formData.address
       });
 
-      console.log('✅ Parent updated successfully');
+      console.log(' Parent updated successfully');
 
       // Reload data từ database
       await loadParents();
@@ -286,7 +286,7 @@ export default function ParentsPage() {
       setFormData({ name: "", phone: "", email: "", address: "", notification: true });
       alert("Cập nhật thông tin thành công!");
     } catch (err: any) {
-      console.error('❌ Error updating parent:', err);
+      console.error(' Error updating parent:', err);
       alert(`Lỗi khi cập nhật: ${err.message}`);
     } finally {
       setSaveLoading(false);
