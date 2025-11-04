@@ -1,7 +1,7 @@
 'use client';
 
 import { Layout } from '../../components/Layouts/Layout';
-import { HiUserCircle, HiBell, HiChat, HiExclamationCircle, HiDocument, HiDocumentReport } from 'react-icons/hi';
+import { HiUserCircle, HiBell, HiChat, HiExclamationCircle, HiDocument, HiDocumentReport, HiMap, HiBookmark } from 'react-icons/hi';
 
 export default function ParentDashboardLayout({ children }: { children: React.ReactNode }) {
   const user = {
@@ -10,18 +10,28 @@ export default function ParentDashboardLayout({ children }: { children: React.Re
 
   const navItems = [
     {
-      text: 'Alert',
-      url: '/DriverDashboard/Alert',
-      icon: HiExclamationCircle,
+      text: 'Overview',
+      url: '/DriverDashboard/Overview',
+      icon: HiDocument,
     },
     {
-      text: 'Pickup reports',
-      url: '/DriverDashboard/Tracking',
+      text: 'Schedule',
+      url: '/DriverDashboard/Schedule',
       icon: HiDocumentReport,
     },
     {
+      text: 'My Students',
+      url: '/DriverDashboard/MyStudents',
+      icon: HiUserCircle,
+    },
+    {
+      text: 'Tracking',
+      url: '/DriverDashboard/Tracking',
+      icon: HiMap,
+    },
+    {
       text: 'Notifications',
-      url: '/DriverDashboard/Schedule',
+      url: '/DriverDashboard/Notifications',
       icon: HiBell,
     },
   ];
