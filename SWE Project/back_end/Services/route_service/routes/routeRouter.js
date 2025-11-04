@@ -8,4 +8,5 @@ routeRouter.get('/', routeController.getAllRoutes);
 routeRouter.post('/add', routeController.addNewRoute);
 routeRouter.post('/edit/:routeID',routeController.updateCurrentRoute)
 routeRouter.post('/delete/:routeID',routeController.deleteRoute)
+routeRouter.get('/:RouteID',routeController.getRoute)
 module.exports = routeRouter;

@@ -33,6 +33,7 @@ export function Header({ user, toggleSidebar }: HeaderProps) {
         <div className="flex items-center">
             {/* Nút 3 gạch */}
             <button
+            suppressHydrationWarning={true}
                 onClick={toggleSidebar}
                 className="p-2 rounded-md bg-yellow-400 text-white mr-4"
             >
@@ -68,6 +69,7 @@ export function Header({ user, toggleSidebar }: HeaderProps) {
             <HiUserCircle className="text-[#FFAC50]" size={40} />
             <p>{user.name}</p>
             <button
+            suppressHydrationWarning={true}
               onClick={handleLogout}
               className="flex items-center gap-1 text-[#FFAC50] hover:text-orange-600 transition"
             >

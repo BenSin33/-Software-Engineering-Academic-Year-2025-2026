@@ -280,6 +280,7 @@ exports.getMapTileUrl = async (req, res) => {
         maxZoom: 19
       }
     });
+    
   } catch (error) {
     console.error('Error getting tile URL:', error);
     res.status(500).json({

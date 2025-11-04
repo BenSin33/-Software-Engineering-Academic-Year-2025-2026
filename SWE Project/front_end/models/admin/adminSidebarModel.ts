@@ -40,6 +40,11 @@ export const adminSidebarModel = [
                 icon: ImRoad
             },
             {
+                text:'Schedules',
+                url:'/AdminDashboard/Schedules',
+                icon: ImRoad,
+            },
+            {
                 text:'Buses',
                 url:'/AdminDashboard/Buses',
                 icon: FaBusAlt

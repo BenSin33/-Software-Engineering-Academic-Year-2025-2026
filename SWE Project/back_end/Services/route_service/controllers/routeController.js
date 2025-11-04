@@ -3,7 +3,6 @@ const queries= require('../db/queries')
 async function getAllRoutes(req,res){
   try{
     const routes = await queries.getRoutes();
-    console.log('yaput; ',routes)
     if(!routes || routes.length === 0){
       return res.status(404).json({message:'không có dữ liệu tuyến đường'})
     }
@@ -13,6 +12,32 @@ async function getAllRoutes(req,res){
     return res.status(500).json({message:'server lỗi'});
   }
 }
+async function getRoute(req, res) {
+  try {
+    const { RouteID } = req.body;
+
+    // 1️⃣ Kiểm tra đầu vào
+    if (!RouteID) {
+      return res.status(400).json({ message: "RouteID is required" });
+    }
+
+    // 2️⃣ Gọi service (phải có await)
+    const route = await getRouteByID(RouteID);
+
+    // 3️⃣ Kiểm tra kết quả
+    if (!route) {
+      return res.status(404).json({ message: "Route not found" });
+    }
+
+    // 4️⃣ Trả kết quả thành công
+    return res.status(200).json(route);
+
+  } catch (error) {
+    console.error("Error fetching route:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
 async function addNewRoute(req, res) {
   try {
     const {driverID,busID,routeName,startLocation,endLocation } = req.body;
@@ -63,5 +88,5 @@ async function deleteRoute(req,res){
 module.exports={
   getAllRoutes,
   addNewRoute,
-  updateCurrentRoute,deleteRoute,
+  updateCurrentRoute,deleteRoute,getRoute
 }
