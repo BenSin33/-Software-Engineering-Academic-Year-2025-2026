@@ -1,23 +1,52 @@
-'use client'
-import { Layout } from '../../components/Layouts/Layout'
-import { HiUserCircle, HiBell, HiChat } from 'react-icons/hi'
+// app/ParentDashboard/layout.tsx
+
+'use client';
+
+import { Layout } from '../../components/Layouts/Layout';
+import { HiUserCircle, HiBell, HiChat, HiLocationMarker } from 'react-icons/hi';
 
 export default function ParentDashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = { name: 'Admin' }
+  const user = {
+    name: 'Parent', // Có thể lấy từ localStorage hoặc context
+  };
 
   const navItems = [
     {
       text: 'Dashboard',
-      url: '/parents',
+      url: '/ParentDashboard',
       icon: HiUserCircle,
-      subModules: [
-        { text: 'Overview', url: '/ParentDashboard', icon: HiUserCircle },
-        { text: 'Children Info', url: '/ParentDashboard/ChildInfo', icon: HiUserCircle },
+      children: [
+        {
+          text: 'Overview',
+          url: '/ParentDashboard/Overview',
+        },
+        {
+          text: 'Children Info',
+          url: '/ParentDashboard/ChildrenInfo',
+        },
       ],
     },
-    { text: 'Tracking', url: '/ParentDashboard/Tracking', icon: HiChat },
-    { text: 'Notifications', url: '/ParentDashboard/Notifications', icon: HiBell },
-  ]
+    {
+      text: 'Messages',
+      url: '/ParentDashboard/Message',
+      icon: HiChat, // Icon tin nhắn
+    },
+    {
+      text: 'Notifications',
+      url: '/ParentDashboard/Notifications',
+      icon: HiBell,
+    },
 
-  return <Layout list={navItems} user={user}>{children}</Layout>
+    {
+      text: 'Bus Location',
+      url: '/ParentDashboard/BusLocation',
+      icon: HiLocationMarker,
+    }
+  ];
+
+  return (
+    <Layout list={navItems} user={user}>
+      {children}
+    </Layout>
+  );
 }

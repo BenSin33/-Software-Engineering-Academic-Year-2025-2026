@@ -18,7 +18,7 @@ async function initDatabase() {
       multipleStatements: true
     });
 
-    console.log('✅ Kết nối thành công!');
+    console.log(' Kết nối thành công!');
     console.log('📂 Đang đọc file schema.sql...');
 
     // Đọc file SQL
@@ -28,13 +28,13 @@ async function initDatabase() {
     console.log('⚙️  Đang thực thi schema...');
     await connection.query(schema);
 
-    console.log('✅ Khởi tạo database thành công!');
+    console.log(' Khởi tạo database thành công!');
     console.log('📊 Database: bus_service_db');
     console.log('📋 Bảng: Buses, Drivers');
     console.log('📝 Dữ liệu mẫu đã được thêm');
     
   } catch (error) {
-    console.error('❌ Lỗi:', error.message);
+    console.error(' Lỗi:', error.message);
     process.exit(1);
   } finally {
     if (connection) {

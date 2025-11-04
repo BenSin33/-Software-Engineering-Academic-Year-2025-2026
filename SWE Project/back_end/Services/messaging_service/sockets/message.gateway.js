@@ -1,7 +1,7 @@
-import { Server } from "socket.io";
-import MessageService from "../services/message.service";
+const { Server } = require("socket.io");
+const MessageService = require("../services/message.service");
 
-export function setupSocket(server) {
+function setupSocket(server) {
   const io = new Server(server, {
     cors: {
       origin: "*",
@@ -13,12 +13,19 @@ export function setupSocket(server) {
 
     // Khi client gửi tin nhắn
     socket.on("sendMessage", async (data) => {
-      const savedMessage = await MessageService.saveMessage(data);
-      io.emit("newMessage", savedMessage); // broadcast cho mọi người
+      try {
+        const savedMessage = await MessageService.saveMessage(data);
+        io.emit("newMessage", savedMessage); // broadcast cho mọi người
+      } catch (error) {
+        console.error("Error saving message:", error);
+        socket.emit("error", { message: "Failed to send message" });
+      }
     });
 
     socket.on("disconnect", () => {
-      console.log("❌ A user disconnected:", socket.id);
+      console.log(" A user disconnected:", socket.id);
     });
   });
 }
+
+module.exports = { setupSocket };

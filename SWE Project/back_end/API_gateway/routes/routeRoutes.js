@@ -7,6 +7,7 @@ const {routeController} = require('../controllers/routeController.js')
  * 🟢 GET /routes
  * Lấy danh sách tuyến và gộp tên tài xế (fail-safe)
  */
+
 router.get("/", routeController);
 
 /**
@@ -42,7 +43,7 @@ router.post("/add", async (req, res) => {
       response,
     });
   } catch (err) {
-    console.error("❌ Lỗi không mong muốn khi thêm tuyến:", err);
+    console.error(" Lỗi không mong muốn khi thêm tuyến:", err);
     return res.status(500).json({ message: "Lỗi server khi thêm tuyến mới" });
   }
 });
@@ -79,13 +80,13 @@ router.post("/edit/:id", async (req, res) => {
       response,
     });
   } catch (err) {
-    console.error("❌ Lỗi không mong muốn khi cập nhật tuyến:", err);
+    console.error(" Lỗi không mong muốn khi cập nhật tuyến:", err);
     return res.status(500).json({ message: "Lỗi server khi cập nhật tuyến" });
   }
 });
 
 /**
- * ❌ POST /routes/delete/:id
+ *  POST /routes/delete/:id
  * Xóa tuyến (fail-safe)
  */
 router.post("/delete/:id", async (req, res) => {

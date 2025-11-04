@@ -44,7 +44,7 @@ async function addNewStudent(req, res) {
     // 🧩 Thêm học sinh vào DB
     const insertId = await queries.addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID);
 
-    // ✅ Trả về thông tin học sinh mới thêm (có thể fetch lại sau nếu cần)
+    //  Trả về thông tin học sinh mới thêm (có thể fetch lại sau nếu cần)
     res.status(201).json({
       message: "Thêm học sinh thành công",
       student: {
@@ -59,7 +59,7 @@ async function addNewStudent(req, res) {
     });
 
   } catch (error) {
-    console.error("❌ Lỗi khi thêm học sinh:", error);
+    console.error(" Lỗi khi thêm học sinh:", error);
     res.status(500).json({
       error: "Không thể thêm học sinh",
       details: error.message

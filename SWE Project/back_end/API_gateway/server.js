@@ -12,13 +12,17 @@ const authRoutes = require('./routes/authRoutes');
 const studentRoutes = require('./routes/studentRoutes');
 const routeRoutes = require('./routes/routeRoutes');
 const locationRoutes=require('./routes/locationRoutes.js');
+
 const scheduleRoutes = require('./routes/scheduleRoutes.js')
+const messageRoutes = require('./routes/messageRoutes.js');
 
 app.use("/api/auth", authRoutes);
 app.use("/Students", studentRoutes);
 app.use('/routes',routeRoutes)
 app.use('/location',locationRoutes)
 app.use('/Schedules',scheduleRoutes)
+app.use('/api/messges', messageRoutes)
+
 const PORT = 5000;
 app.listen(PORT, () => {
     console.log('API Gateway running on port', PORT);

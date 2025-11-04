@@ -3,55 +3,22 @@
 import { useState, useEffect, useMemo } from "react";
 import "./BusesPage.css";
 import { Filter, Search } from "lucide-react";
-
-// 1. CẬP NHẬT: Interface này đã được cập nhật để khớp với CSDL
-interface Bus {
-  id: string;
-  license_plate: string;
-  model: string;
-  year: number;
-  status: "running" | "waiting" | "maintenance" | "ready";
-  capacity: number;
-  current_load: number;
-  fuel_level: number;
-  driver_name: string;
-  route_id: string;
-  speed: number;
-  distance: number;
-  location: string;
-  last_maintenance: string; // Sẽ có dạng 'YYYY-MM-DD' từ CSDL
-}
-
-// 2. THÊM MỚI: Hàm tiện ích để format ngày tháng
-// Chuyển 'YYYY-MM-DD' thành 'DD/MM/YYYY'
-const formatDisplayDate = (dateString: string) => {
-  if (!dateString) return "N/A";
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return "N/A";
-    return date.toLocaleDateString("vi-VN");
-  } catch (error) {
-    return "N/A";
-  }
-};
-
-// Chuyển 'DD/MM/YYYY' thành 'YYYY-MM-DD' để gửi cho API
-const formatApiDate = (dateString: string) => {
-  if (!dateString || !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
-    return new Date().toISOString().split("T")[0]; // Mặc định là hôm nay
-  }
-  try {
-    const parts = dateString.split("/");
-    const date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    return date.toISOString().split("T")[0];
-  } catch (error) {
-    return new Date().toISOString().split("T")[0];
-  }
-};
+import {
+  fetchAllBuses,
+  fetchBusById,
+  createBus,
+  updateBus,
+  deleteBus,
+  BusFrontend,
+  BusCreateRequest,
+  BusUpdateRequest,
+  mapBusFrontendToBackend,
+} from "@/app/API/busService";
+import { fetchAllDrivers } from "@/app/API/driverService";
+import { fetchRouteService } from "@/app/API/routeService";
 
 export default function BusesPage() {
-  // 3. CẬP NHẬT: Khởi tạo mảng rỗng, dữ liệu sẽ được fetch từ API
-  const [buses, setBuses] = useState<Bus[]>([]);
+  const [buses, setBuses] = useState<BusFrontend[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -60,72 +27,99 @@ export default function BusesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAdvancedFilter, setShowAdvancedFilter] = useState(false);
-  const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
+  const [selectedBus, setSelectedBus] = useState<BusFrontend | null>(null);
   const [sortBy, setSortBy] = useState<string>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [drivers, setDrivers] = useState<any[]>([]); // [{id, name,...}]
+  const [routes, setRoutes] = useState<any[]>([]);   // [{RouteID, RouteName,...}]
+  // Dùng DriverID, RouteID chứ không lưu tên để liên kết chắc chắn
+  const [driverMap, setDriverMap] = useState<{ [key: number]: any }>({});
 
-  // 4. CẬP NHẬT: Đổi tên trường để khớp với CSDL
-  const initialFormData: Partial<Bus> = {
+  const initialFormData: Partial<BusFrontend> = {
     id: "",
     license_plate: "",
-    model: "",
-    year: new Date().getFullYear(),
     status: "ready",
     capacity: 0,
     current_load: 0,
     fuel_level: 100,
     driver_name: "",
     route_id: "",
-    speed: 0,
-    distance: 0,
     location: "",
-    last_maintenance: new Date().toISOString().split("T")[0],
+    PickUpLocation: "",
+    DropOffLocation: "",
   };
 
-  const [formData, setFormData] = useState<Partial<Bus>>(initialFormData);
+  const [formData, setFormData] = useState<Partial<BusFrontend>>(initialFormData);
 
   const [advancedFilters, setAdvancedFilters] = useState({
     minCapacity: "",
     maxCapacity: "",
     minFuel: "",
-    year: "",
     route: "",
   });
 
   const itemsPerPage = 4;
-  const API_URL = "http://localhost:3002/api"; // URL của bus_service
+  const LOCATION_SERVICE_URL = "http://localhost:5010/api";
 
-  // 5. THÊM MỚI: Hàm fetch dữ liệu
-  const fetchBuses = async () => {
+  //  Sử dụng API service để fetch buses
+  const loadBuses = async () => {
     setLoading(true);
     try {
-      // Ví dụ: gọi API với phân trang và bộ lọc (nếu backend hỗ trợ)
-      // Hiện tại, chúng ta fetch tất cả
-      const response = await fetch(`${API_URL}/buses?limit=1000`);
-      if (!response.ok) {
-        throw new Error("Không thể tải danh sách xe");
-      }
-      const result = await response.json();
-      if (result.success && Array.isArray(result.data)) {
-        setBuses(result.data);
-      } else {
-        setBuses([]);
-      }
-    } catch (error) {
+      const busesData = await fetchAllBuses(
+        {
+          status: filterStatus !== "all" ? filterStatus : undefined,
+          search: searchTerm || undefined,
+          minCapacity: advancedFilters.minCapacity ? parseInt(advancedFilters.minCapacity) : undefined,
+          maxCapacity: advancedFilters.maxCapacity ? parseInt(advancedFilters.maxCapacity) : undefined,
+          minFuel: advancedFilters.minFuel ? parseInt(advancedFilters.minFuel) : undefined,
+          route: advancedFilters.route || undefined,
+        },
+        { limit: 1000, offset: 0 }
+      );
+      // Liên kết vị trí từ location_service
+      const busesWithLocation = await Promise.all(
+        busesData.map(async (b) => {
+          try {
+            const res = await fetch(`${LOCATION_SERVICE_URL}/locations/bus/${b.id}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.data) {
+                const { Latitude, Longitude } = data.data;
+                return { ...b, location: `${Latitude.toFixed(5)}, ${Longitude.toFixed(5)}` } as BusFrontend;
+              }
+            }
+          } catch (e) {
+            // ignore per-bus error; keep previous location
+          }
+          return b;
+        })
+      );
+      setBuses(busesWithLocation);
+    } catch (error: any) {
       console.error(error);
-      alert("Lỗi khi tải dữ liệu xe buýt.");
-      setBuses([]); // Xóa dữ liệu cũ nếu lỗi
+      alert("Lỗi khi tải dữ liệu xe buýt: " + error.message);
+      setBuses([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // 6. THÊM MỚI: Gọi fetchBuses khi component được tải
   useEffect(() => {
-    fetchBuses();
+    loadBuses();
   }, []);
 
-  // 7. CẬP NHẬT: Tối ưu hóa tính toán bằng useMemo
+  // Fetch drivers and routes for dropdown
+  useEffect(() => {
+    (async () => {
+      try {
+        const driverData = await fetchAllDrivers({ status: "active" });
+        setDrivers(driverData);
+        const routeRes = await fetchRouteService();
+        if (Array.isArray(routeRes?.routes)) setRoutes(routeRes.routes);
+      } catch (error) { console.error(error); }
+    })();
+  }, []);
+
   const stats = useMemo(() => {
     return {
       total: buses.length,
@@ -135,12 +129,6 @@ export default function BusesPage() {
       ready: buses.filter((b) => b.status === "ready").length,
       totalCapacity: buses.reduce((sum, b) => sum + b.capacity, 0),
       registered: buses.reduce((sum, b) => sum + b.current_load, 0),
-      needMaintenance: buses.filter(
-        (b) =>
-          b.fuel_level < 30 ||
-          b.distance > 150000 ||
-          (new Date().getTime() - new Date(b.last_maintenance).getTime()) / (1000 * 3600 * 24) > 90
-      ).length,
     };
   }, [buses]);
 
@@ -154,15 +142,13 @@ export default function BusesPage() {
     return badges[status as keyof typeof badges] || badges.ready;
   };
 
-  // 8. CẬP NHẬT: Tối ưu hóa filter/sort bằng useMemo
   const filteredBuses = useMemo(() => {
     return buses
       .filter((bus) => {
         const matchesSearch =
-          bus.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          bus.license_plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          bus.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          bus.driver_name.toLowerCase().includes(searchTerm.toLowerCase());
+          (bus.id?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+          (bus.license_plate?.toLowerCase() ?? "").includes(searchTerm.toLowerCase()) ||
+          (bus.driver_name?.toLowerCase() ?? "").includes(searchTerm.toLowerCase());
 
         const matchesFilter = filterStatus === "all" || bus.status === filterStatus;
 
@@ -170,16 +156,15 @@ export default function BusesPage() {
           (!advancedFilters.minCapacity || bus.capacity >= parseInt(advancedFilters.minCapacity)) &&
           (!advancedFilters.maxCapacity || bus.capacity <= parseInt(advancedFilters.maxCapacity)) &&
           (!advancedFilters.minFuel || bus.fuel_level >= parseInt(advancedFilters.minFuel)) &&
-          (!advancedFilters.year || bus.year === parseInt(advancedFilters.year)) &&
-          (!advancedFilters.route || bus.route_id.toLowerCase().includes(advancedFilters.route.toLowerCase()));
+          (!advancedFilters.route || (bus.route_id?.toLowerCase() ?? "").includes(advancedFilters.route.toLowerCase()));
 
         return matchesSearch && matchesFilter && matchesAdvanced;
       })
       .sort((a, b) => {
         type FieldValue = string | number | undefined;
 
-        const aRaw = a[sortBy as keyof Bus];
-        const bRaw = b[sortBy as keyof Bus];
+        const aRaw = a[sortBy as keyof BusFrontend];
+        const bRaw = b[sortBy as keyof BusFrontend];
 
         const aVal: FieldValue = typeof aRaw === "number" ? aRaw : aRaw !== undefined && aRaw !== null ? String(aRaw).toLowerCase() : undefined;
         const bVal: FieldValue = typeof bRaw === "number" ? bRaw : bRaw !== undefined && bRaw !== null ? String(bRaw).toLowerCase() : undefined;
@@ -200,7 +185,6 @@ export default function BusesPage() {
           return 0;
         }
 
-        // Fallback: compare string representations
         const aStr = String(aVal);
         const bStr = String(bVal);
         if (aStr < bStr) return sortOrder === "asc" ? -1 : 1;
@@ -209,7 +193,6 @@ export default function BusesPage() {
       });
   }, [buses, searchTerm, filterStatus, advancedFilters, sortBy, sortOrder]);
 
-  // 9. CẬP NHẬT: Tối ưu hóa phân trang bằng useMemo
   const paginatedBuses = useMemo(() => {
     const totalPages = Math.ceil(filteredBuses.length / itemsPerPage);
     const validCurrentPage = Math.max(1, Math.min(currentPage, totalPages));
@@ -224,124 +207,96 @@ export default function BusesPage() {
   const totalPages = Math.ceil(filteredBuses.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
 
-  // 10. CẬP NHẬT: Viết lại hàm Add để gọi API
+  const availableDrivers = useMemo(() => {
+    // lọc driver chưa bị gán xe khác (hoặc là driver của bus đang sửa)
+    return drivers.filter(d =>
+      !buses.some(b => b.driver_id === d.id && b.id !== formData.id)
+    );
+  }, [drivers, buses, formData.id]);
+
+  //  Sử dụng API service để thêm bus
   const handleAddBus = async () => {
-    // Client-side validation
-    if (!formData.id || !formData.license_plate || !formData.model || !formData.capacity) {
-      alert("Vui lòng điền đầy đủ thông tin bắt buộc (Mã xe, Biển số, Hãng xe, Sức chứa)!");
+    if (!formData.id || !formData.license_plate || !formData.capacity || !formData.driver_id || !formData.route_id) {
+      alert("Vui lòng điền đủ thông tin bắt buộc (bao gồm tài xế và tuyến)!");
       return;
     }
-
-    const newBusData = {
-      ...initialFormData, // Đảm bảo có đủ các trường
-      ...formData,
-      capacity: Number(formData.capacity) || 0,
-      year: Number(formData.year) || new Date().getFullYear(),
-      fuel_level: Number(formData.fuel_level) || 100,
-      last_maintenance: formData.last_maintenance ? formatApiDate(formData.last_maintenance) : new Date().toISOString().split("T")[0],
+    const newBusData: BusCreateRequest = {
+      BusID: formData.id,
+      PlateNumber: formData.license_plate,
+      Capacity: Number(formData.capacity) || 0,
+      CurrentLoad: Number(formData.current_load) || 0,
+      FuelLevel: Number(formData.fuel_level) || 100,
+      Status: formData.status || "ready",
+      Location: formData.location || null,
+      PickUpLocation: formData.PickUpLocation || null,
+      DropOffLocation: formData.DropOffLocation || null,
+      DriverID: Number(formData.driver_id),
+      RouteID: formData.route_id,
     };
 
     try {
-      const response = await fetch(`${API_URL}/buses`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newBusData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Lỗi khi thêm xe");
-      }
-
+      await createBus(newBusData);
       alert("Thêm xe thành công!");
       setShowAddModal(false);
       resetForm();
-      fetchBuses(); // Tải lại danh sách
+      loadBuses();
     } catch (error: any) {
-      console.error(error);
       alert(`Lỗi: ${error.message}`);
     }
   };
 
-  // 11. CẬP NHẬT: Viết lại hàm Edit để gọi API
+  //  Sử dụng API service để cập nhật bus
   const handleEditBus = async () => {
     if (!selectedBus) return;
 
-    // Chỉ gửi các trường đã thay đổi (hoặc toàn bộ form)
-    const updatedData = {
-      ...formData,
-      capacity: Number(formData.capacity) || 0,
-      year: Number(formData.year) || new Date().getFullYear(),
-      fuel_level: Number(formData.fuel_level) || 100,
-      current_load: Number(formData.current_load) || 0,
-      speed: Number(formData.speed) || 0,
-      distance: Number(formData.distance) || 0,
-      last_maintenance: formData.last_maintenance ? formatApiDate(formData.last_maintenance) : new Date().toISOString().split("T")[0],
+    const updatedData: BusUpdateRequest = {
+      PlateNumber: formData.license_plate,
+      Capacity: Number(formData.capacity) || 0,
+      CurrentLoad: Number(formData.current_load) || 0,
+      FuelLevel: Number(formData.fuel_level) || 100,
+      Status: formData.status,
+      Location: formData.location || null,
+      PickUpLocation: formData.PickUpLocation || null,
+      DropOffLocation: formData.DropOffLocation || null,
+      RouteID: formData.route_id && formData.route_id !== "N/A" ? formData.route_id : null,
     };
 
     try {
-      const response = await fetch(`${API_URL}/buses/${selectedBus.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || "Lỗi khi cập nhật xe");
-      }
-
+      await updateBus(selectedBus.id, updatedData);
       alert("Cập nhật xe thành công!");
       setShowEditModal(false);
       resetForm();
-      fetchBuses(); // Tải lại danh sách
+      await loadBuses(); // reload để cập nhật cả vị trí mới
     } catch (error: any) {
-      console.error(error);
       alert(`Lỗi: ${error.message}`);
     }
   };
 
-  // 12. CẬP NHẬT: Viết lại hàm Delete để gọi API
+  //  Sử dụng API service để xóa bus
   const handleDeleteBus = async (busId: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa xe này?")) {
       try {
-        const response = await fetch(`${API_URL}/buses/${busId}`, {
-          method: "DELETE",
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.message || "Lỗi khi xóa xe");
-        }
-
+        await deleteBus(busId);
         alert("Xóa xe thành công!");
-        fetchBuses(); // Tải lại danh sách
+        loadBuses();
       } catch (error: any) {
-        console.error(error);
         alert(`Lỗi: ${error.message}`);
       }
     }
   };
 
-  // Reset form
   const resetForm = () => {
     setFormData(initialFormData);
     setSelectedBus(null);
   };
 
-  // Open edit modal
-  const openEditModal = (bus: Bus) => {
+  const openEditModal = (bus: BusFrontend) => {
     setSelectedBus(bus);
-    // Chuyển ngày YYYY-MM-DD sang DD/MM/YYYY để hiển thị
-    setFormData({ ...bus, last_maintenance: formatDisplayDate(bus.last_maintenance) });
+    setFormData({ ...bus });
     setShowEditModal(true);
   };
 
-  // Open detail modal
-  const openDetailModal = (bus: Bus) => {
+  const openDetailModal = (bus: BusFrontend) => {
     setSelectedBus(bus);
     setShowDetailModal(true);
   };
@@ -389,7 +344,7 @@ export default function BusesPage() {
           </div>
         </div>
         <div className="stat-card stat-green">
-          <div className="stat-icon">📡</div>
+          <div className="stat-icon">🟢</div>
           <div className="stat-content">
             <div className="stat-label">Đang chạy</div>
             <div className="stat-value">{stats.running}</div>
@@ -430,13 +385,6 @@ export default function BusesPage() {
             <div className="stat-value">{stats.registered}</div>
           </div>
         </div>
-        <div className="stat-card stat-pink">
-          <div className="stat-icon">⚠</div>
-          <div className="stat-content">
-            <div className="stat-label">Cần bảo trì</div>
-            <div className="stat-value">{stats.needMaintenance}</div>
-          </div>
-        </div>
       </div>
 
       {/* Search and Filter */}
@@ -445,11 +393,11 @@ export default function BusesPage() {
           <Search className="search-icon" size={18} />
           <input
             type="text"
-            placeholder="Tìm kiếm theo mã xe, biển số, hãng xe, tài xế..."
+            placeholder="Tìm kiếm theo mã xe, biển số, tài xế..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
-              setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+              setCurrentPage(1);
             }}
             className="search-input"
           />
@@ -542,26 +490,6 @@ export default function BusesPage() {
             </div>
             <div>
               <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280" }}>
-                Năm sản xuất
-              </label>
-              <input
-                type="number"
-                value={advancedFilters.year}
-                onChange={(e) => {
-                  setAdvancedFilters({ ...advancedFilters, year: e.target.value });
-                  setCurrentPage(1);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "8px",
-                  fontSize: "14px",
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280" }}>
                 Tuyến đường
               </label>
               <input
@@ -583,7 +511,7 @@ export default function BusesPage() {
           </div>
           <button
             onClick={() => {
-              setAdvancedFilters({ minCapacity: "", maxCapacity: "", minFuel: "", year: "", route: "" });
+              setAdvancedFilters({ minCapacity: "", maxCapacity: "", minFuel: "", route: "" });
               setCurrentPage(1);
             }}
             style={{
@@ -609,7 +537,7 @@ export default function BusesPage() {
             className={`filter-tab ${filterStatus === status ? "active" : ""}`}
             onClick={() => {
               setFilterStatus(status);
-              setCurrentPage(1); // Reset về trang 1
+              setCurrentPage(1);
             }}
           >
             {status === "all"
@@ -634,10 +562,6 @@ export default function BusesPage() {
                   </span>
                 </div>
                 <div className="bus-card-license">{bus.license_plate}</div>
-              </div>
-
-              <div className="bus-model">
-                {bus.model} - {bus.year}
               </div>
 
               <div className="progress-section">
@@ -682,12 +606,12 @@ export default function BusesPage() {
                   <div className="info-value">{bus.route_id || "N/A"}</div>
                 </div>
                 <div className="bus-info-item">
-                  <div className="info-label">TỐC ĐỘ</div>
-                  <div className="info-value">{bus.speed} km/h</div>
+                  <div className="info-label">ĐIỂM ĐI</div>
+                  <div className="info-value">{bus.PickUpLocation || "N/A"}</div>
                 </div>
                 <div className="bus-info-item">
-                  <div className="info-label">KM ĐÃ ĐI</div>
-                  <div className="info-value">{bus.distance.toLocaleString()}</div>
+                  <div className="info-label">ĐIỂM ĐẾN</div>
+                  <div className="info-value">{bus.DropOffLocation || "N/A"}</div>
                 </div>
               </div>
 
@@ -697,13 +621,6 @@ export default function BusesPage() {
                   <div className="location-label">VỊ TRÍ HIỆN TẠI</div>
                   <div className="location-value">{bus.location || "N/A"}</div>
                 </div>
-              </div>
-
-              <div className="bus-maintenance">
-                <span className="maintenance-icon">🔧</span>
-                <span className="maintenance-text">
-                  Bảo trì lần cuối: {formatDisplayDate(bus.last_maintenance)}
-                </span>
               </div>
 
               <div className="bus-card-actions">
@@ -752,7 +669,6 @@ export default function BusesPage() {
             >
               ‹ Trước
             </button>
-            {/* Chỉ hiển thị một vài trang nếu có quá nhiều */}
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
@@ -788,7 +704,6 @@ export default function BusesPage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          // 13. SỬA LỖI: Gọi handleCloseAddModal khi nhấn nền mờ
           onClick={handleCloseAddModal}
         >
           <div
@@ -806,7 +721,6 @@ export default function BusesPage() {
             <h2 style={{ marginTop: 0, marginBottom: "24px", fontSize: "24px", fontWeight: 700 }}>
               Thêm xe mới
             </h2>
-            {/* Form (sử dụng các trường đã đổi tên) */}
             <div style={{ display: "grid", gap: "16px" }}>
               <div>
                 <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
@@ -846,45 +760,6 @@ export default function BusesPage() {
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Hãng xe *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.model}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                    placeholder="VD: Hyundai Universe"
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Năm SX *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
-              </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
@@ -903,14 +778,13 @@ export default function BusesPage() {
                     }}
                   />
                 </div>
-
-                <div>
+<div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
                     Trạng thái
                   </label>
                   <select
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as Bus["status"] })}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as BusFrontend["status"] })}
                     style={{
                       width: "100%",
                       padding: "12px",
@@ -929,31 +803,48 @@ export default function BusesPage() {
 
               <div>
                 <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Tài xế
+                  Tài xế *
                 </label>
-                <input
-                  type="text"
-                  value={formData.driver_name}
-                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="VD: Nguyễn Văn A"
-                />
+                <select
+                  value={formData.driver_id || ""}
+                  onChange={e => setFormData({ ...formData, driver_id: e.target.value ? Number(e.target.value) : undefined })}
+                  style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
+                >
+                  <option value="">-- Chọn tài xế --</option>
+                  {availableDrivers.map(driver => (
+                    <option value={driver.id} key={driver.id}>
+                      {driver.name} / {driver.phone}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
                 <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Tuyến đường
+                  Tuyến đường *
+                </label>
+                <select
+                  value={formData.route_id || ""}
+                  onChange={e => setFormData({ ...formData, route_id: e.target.value })}
+                  style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
+                >
+                  <option value="">-- Chọn tuyến --</option>
+                  {routes.map(route => (
+                    <option value={route.RouteID} key={route.RouteID}>
+                      {route.RouteName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                  Điểm đi
                 </label>
                 <input
                   type="text"
-                  value={formData.route_id}
-                  onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
+                  value={formData.PickUpLocation}
+                  onChange={(e) => setFormData({ ...formData, PickUpLocation: e.target.value })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -961,7 +852,25 @@ export default function BusesPage() {
                     borderRadius: "8px",
                     fontSize: "14px",
                   }}
-                  placeholder="VD: ROUTE-01"
+                  placeholder="VD: 227 Nguyễn Văn Cừ, P4, Q5"
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                  Điểm đến
+                </label>
+                <input
+                  type="text"
+                  value={formData.DropOffLocation}
+                  onChange={(e) => setFormData({ ...formData, DropOffLocation: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                  }}
+                  placeholder="VD: Trường THPT Năng khiếu"
                 />
               </div>
 
@@ -983,25 +892,6 @@ export default function BusesPage() {
                   placeholder="VD: Bãi đỗ trường"
                 />
               </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Bảo trì lần cuối
-                </label>
-                <input
-                  type="text"
-                  value={formData.last_maintenance}
-                  onChange={(e) => setFormData({ ...formData, last_maintenance: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="DD/MM/YYYY"
-                />
-              </div>
             </div>
 
             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
@@ -1010,7 +900,7 @@ export default function BusesPage() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#FFAC50", // Đổi màu
+                  background: "#FFAC50",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -1057,7 +947,6 @@ export default function BusesPage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          // 14. SỬA LỖI: Gọi handleCloseEditModal khi nhấn nền mờ
           onClick={handleCloseEditModal}
         >
           <div
@@ -1093,44 +982,6 @@ export default function BusesPage() {
                     fontSize: "14px",
                   }}
                 />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Hãng xe *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.model}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Năm SX *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
@@ -1195,7 +1046,7 @@ export default function BusesPage() {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Bus["status"] })}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as BusFrontend["status"] })}
                   style={{
                     width: "100%",
                     padding: "12px",
@@ -1229,42 +1080,57 @@ export default function BusesPage() {
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Tuyến đường
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.route_id}
-                    onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Tốc độ (km/h)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.speed}
-                    onChange={(e) => setFormData({ ...formData, speed: parseInt(e.target.value) })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                  Tuyến đường
+                </label>
+                <input
+                  type="text"
+                  value={formData.route_id}
+                  onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                  Điểm đi
+                </label>
+                <input
+                  type="text"
+                  value={formData.PickUpLocation}
+                  onChange={(e) => setFormData({ ...formData, PickUpLocation: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                  Điểm đến
+                </label>
+                <input
+                  type="text"
+                  value={formData.DropOffLocation}
+                  onChange={(e) => setFormData({ ...formData, DropOffLocation: e.target.value })}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "2px solid #e5e7eb",
+                    borderRadius: "8px",
+                    fontSize: "14px",
+                  }}
+                />
               </div>
 
               <div>
@@ -1284,43 +1150,6 @@ export default function BusesPage() {
                   }}
                 />
               </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Km đã đi
-                </label>
-                <input
-                  type="number"
-                  value={formData.distance}
-                  onChange={(e) => setFormData({ ...formData, distance: parseInt(e.target.value) })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Bảo trì lần cuối
-                </label>
-                <input
-                  type="text"
-                  value={formData.last_maintenance}
-                  onChange={(e) => setFormData({ ...formData, last_maintenance: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="DD/MM/YYYY"
-                />
-              </div>
             </div>
 
             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
@@ -1329,7 +1158,7 @@ export default function BusesPage() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#FFAC50", // Đổi màu
+                  background: "#FFAC50",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -1376,7 +1205,6 @@ export default function BusesPage() {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          // 15. SỬA LỖI: Gọi handleCloseDetailModal khi nhấn nền mờ
           onClick={handleCloseDetailModal}
         >
           <div
@@ -1409,7 +1237,6 @@ export default function BusesPage() {
             </div>
 
             <div style={{ display: "grid", gap: "24px" }}>
-              {/* Basic Info */}
               <div>
                 <h3
                   style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
@@ -1441,36 +1268,6 @@ export default function BusesPage() {
                         marginBottom: "4px",
                       }}
                     >
-                      HÃNG XE
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.model}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      NĂM SẢN XUẤT
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.year}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
                       SỨC CHỨA
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
@@ -1480,7 +1277,6 @@ export default function BusesPage() {
                 </div>
               </div>
 
-              {/* Current Status */}
               <div>
                 <h3
                   style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
@@ -1550,7 +1346,6 @@ export default function BusesPage() {
                 </div>
               </div>
 
-              {/* Operation Info */}
               <div>
                 <h3
                   style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
@@ -1597,10 +1392,10 @@ export default function BusesPage() {
                         marginBottom: "4px",
                       }}
                     >
-                      TỐC ĐỘ
+                      ĐIỂM ĐI
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.speed} km/h
+                      {selectedBus.PickUpLocation || "N/A"}
                     </div>
                   </div>
                   <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
@@ -1612,21 +1407,20 @@ export default function BusesPage() {
                         marginBottom: "4px",
                       }}
                     >
-                      QUÃNG ĐƯỜNG ĐÃ ĐI
+                      ĐIỂM ĐẾN
                     </div>
                     <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.distance.toLocaleString()} km
+                      {selectedBus.DropOffLocation || "N/A"}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Location & Maintenance */}
               <div>
                 <h3
                   style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
                 >
-                  Vị trí & Bảo trì
+                  Vị trí
                 </h3>
                 <div
                   style={{
@@ -1656,22 +1450,6 @@ export default function BusesPage() {
                     </div>
                   </div>
                 </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "12px",
-                    background: "#f9fafb",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <span style={{ fontSize: "16px" }}>🔧</span>
-                  <span style={{ fontSize: "13px", color: "#6b7280", fontWeight: 500 }}>
-                    Bảo trì lần cuối: {formatDisplayDate(selectedBus.last_maintenance)}
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -1684,15 +1462,14 @@ export default function BusesPage() {
                 style={{
                   flex: 1,
                   padding: "12px",
-                  background: "#FFAC50", // Đổi màu
+                  background: "#FFAC50",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
                   fontSize: "15px",
                   fontWeight: 600,
                   cursor: "pointer",
-                }}
-              >
+                }}>
                 Chỉnh sửa
               </button>
               <button

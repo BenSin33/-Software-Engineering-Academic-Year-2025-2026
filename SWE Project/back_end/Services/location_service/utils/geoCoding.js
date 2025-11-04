@@ -11,7 +11,7 @@ async function getCoordinatesOSM(address) {
       const { lat, lng } = data.results[0].geometry;
       return { lat, lng };
     } else {
-      console.log("❌ Không tìm thấy tọa độ cho:", address);
+      console.log(" Không tìm thấy tọa độ cho:", address);
       return null;
     }
   } catch (error) {

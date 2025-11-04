@@ -71,17 +71,17 @@ export default function StudentsPage() {
             .then(data => {
 
                 if (Array.isArray(data)) {
-                    // ✅ trường hợp trả mảng trực tiếp
+                    //  trường hợp trả mảng trực tiếp
                     setStudents(data);
                 } else if (Array.isArray(data.mergedData)) {
-                    // ✅ trường hợp backend trả { mergedData: [...] }
+                    //  trường hợp backend trả { mergedData: [...] }
                     setStudents(data.mergedData);
                 } else {
                     console.warn("⚠️ Dữ liệu trả về không phải array:", data);
                     setStudents([]); // fallback
                 }
             })
-            .catch(err => console.error("❌ Lỗi fetch:", err));
+            .catch(err => console.error(" Lỗi fetch:", err));
     }
         , [])
     const itemsPerPage = 6;

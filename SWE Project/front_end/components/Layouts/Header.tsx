@@ -1,10 +1,10 @@
 // File: components/Layouts/Header.tsx
 'use client'
 
-import { useState } from 'react'; // ✅ 1. Import useState
+import { useState } from 'react'; //  1. Import useState
 import { HiUserCircle, HiChat, HiBell, HiOutlineLogout } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
-import NotificationDropdown from './NotificationDropdown'; // ✅ 2. Import component dropdown
+import NotificationDropdown from './NotificationDropdown'; //  2. Import component dropdown
 
 interface HeaderProps {
   user: any;
@@ -12,7 +12,7 @@ interface HeaderProps {
 }
 
 export function Header({ user, toggleSidebar }: HeaderProps) {
-  const [showNotifications, setShowNotifications] = useState(false); // ✅ 3. Tạo state để quản lý việc ẩn/hiện
+  const [showNotifications, setShowNotifications] = useState(false); //  3. Tạo state để quản lý việc ẩn/hiện
   const router = useRouter();
 
   // Dữ liệu thông báo giả
@@ -54,7 +54,7 @@ export function Header({ user, toggleSidebar }: HeaderProps) {
         {user && (
           <div className="flex items-center gap-3 pr-3">
             <div className="relative">
-              {/* ✅ 4. Thêm onClick cho chuông thông báo */}
+              {/*  4. Thêm onClick cho chuông thông báo */}
               <HiBell
                 size={25}
                 className="text-[#FFAC50] cursor-pointer"
@@ -80,7 +80,7 @@ export function Header({ user, toggleSidebar }: HeaderProps) {
         )}
       </header>
 
-      {/* ✅ 5. Hiển thị dropdown nếu state là true */}
+      {/*  5. Hiển thị dropdown nếu state là true */}
       {showNotifications && <NotificationDropdown notifications={notifications} />}
     </>
   );
