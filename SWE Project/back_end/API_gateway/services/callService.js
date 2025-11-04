@@ -3,6 +3,7 @@ const SERVICE_URLS = {
   parent_service: "http://localhost:5002", // ✅ thêm dòng này
   route_service: "http://localhost:5003",
   driver_service: "http://localhost:5004",
+  schedule_service: "http://localhost:5005",
   location_service: "http://localhost:5010"
 };
 

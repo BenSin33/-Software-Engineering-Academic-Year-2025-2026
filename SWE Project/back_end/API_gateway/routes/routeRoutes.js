@@ -2,48 +2,12 @@ const express = require("express");
 const { callService } = require("../services/callService.js");
 
 const router = express.Router();
-
+const {routeController} = require('../controllers/routeController.js')
 /**
  * 🟢 GET /routes
  * Lấy danh sách tuyến và gộp tên tài xế (fail-safe)
  */
-router.get("/", async (req, res) => {
-  try {
-    // --- 1️⃣ Lấy danh sách tuyến ---
-    let routes = [];
-    try {
-      const routeResponse = await callService("route_service", "/Routes", "GET");
-      routes = routeResponse.routes || routeResponse || [];
-    } catch (err) {
-      console.warn("⚠️ Lỗi khi lấy dữ liệu route_service:", err.message);
-    }
-
-    // --- 2️⃣ Lấy danh sách tài xế ---
-    let drivers = [];
-    try {
-      const driverResponse = await callService("driver_service", "/drivers", "GET");
-      drivers = driverResponse.drivers || driverResponse || [];
-    } catch (err) {
-      console.warn("⚠️ Lỗi khi lấy dữ liệu driver_service:", err.message);
-    }
-
-    // --- 3️⃣ Gộp dữ liệu ---
-    const mergedData = routes.map((route) => {
-      const driver = drivers.find((d) => d.driverID === route.driverID);
-      return {
-        ...route,
-        DriverName: driver ? driver.fullName : "Không có dữ liệu tài xế",
-      };
-    });
-    return res.status(200).json({
-      message: "Lấy dữ liệu thành công (có thể thiếu một số dữ liệu nếu service con lỗi)",
-      routes: mergedData,
-    });
-  } catch (err) {
-    console.error("❌ Lỗi không mong muốn:", err);
-    return res.status(500).json({ message: "Lỗi server khi lấy dữ liệu tuyến" });
-  }
-});
+router.get("/", routeController);
 
 /**
  * ➕ POST /routes/add
@@ -52,7 +16,7 @@ router.get("/", async (req, res) => {
 router.post("/add", async (req, res) => {
   const { driverID, busID, routeName, startLocation, endLocation } = req.body;
   const formData = { driverID, busID, routeName, startLocation, endLocation };
-  console.log('req.body: ',req.body)
+  
   try {
     // --- Gọi route_service ---
     let response;

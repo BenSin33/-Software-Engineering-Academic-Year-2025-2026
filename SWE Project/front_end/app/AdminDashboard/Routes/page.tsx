@@ -132,7 +132,6 @@ export default function RoutesPage() {
 
 
     const itemsPerPage = 6;
-    console.log('routes: ', routes)
     // --- Filtering Logic ---
     const filteredRoutes = routes.filter(route => {
         const searchTermLower = searchTerm.toLowerCase();
@@ -213,7 +212,7 @@ export default function RoutesPage() {
         }
     };
     const displayRouteOnMap = async (route: any) => {
-        console.log('kaka: ', route);
+    
         setMapError('');
         setMapLoading(true);
 
@@ -255,7 +254,7 @@ export default function RoutesPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('đii: ', data.updatedRoute);
+              
                 if (data) {
                     setRoutes((prevRoute) =>
                         prevRoute.map((route) => route.RouteID.toString() === selectedRoute.RouteID.toString() ? data.updatedRoute : route)

@@ -14,17 +14,16 @@ router.post("/coordinates", async (req, res) => {
       `/students/route/${route.RouteID}/PickUpPoint`,
       "GET"
     );
-    console.log('circle: ',response.addressArr)
-    console.log('là:',response)
+  
     addressArr = response.addressArr || [];
     if (addressArr.length > 0) {
       // addressArr.push(route.EndLocation);
-      console.log('uhu: ',addressArr)
+      
       try {
         // 🔹 Gọi sang location_service để chuyển địa chỉ thành tọa độ
         const coordinatesData = await callService(
           "location_service",
-          "/location/coordinates",
+          "/api/locations/coordinates",
           "POST",
           addressArr
         );

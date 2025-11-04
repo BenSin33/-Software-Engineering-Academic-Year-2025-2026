@@ -1,4 +1,5 @@
 // app/admin/layout.tsx
+'use client'
 import { Layout } from "@/components/Layouts/Layout"
 import { adminSidebarModel } from "@/models/admin/adminSidebarModel"
 const user={
@@ -7,8 +8,8 @@ const user={
 }
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-screen">
-        <Layout list={adminSidebarModel} user={user} children={children} />
+    <div suppressHydrationWarning={true} className="flex h-screen w-screen">
+        <Layout suppressHydrationWarning={true} list={adminSidebarModel} user={user} children={children} />
     </div>
   )
 }
