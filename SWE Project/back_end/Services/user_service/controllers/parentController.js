@@ -1,17 +1,21 @@
 const queries = require('../db/parentQueries');
 const { success, error } = require('../utils/response');
+const { syncParentToService, deleteParentFromService } = require('../utils/syncUtils');
 
 // Tạo parent mới
 const createParent = async (req, res) => {
   try {
     const { userId, trackingId, fullName, phoneNumber, email, address } = req.body;
-    
-    // Validate input
+
     if (!userId || !fullName || !phoneNumber || !email) {
       return error(res, 'Thiếu thông tin bắt buộc', 400);
     }
-    
+
     const parentId = await queries.createParent(userId, trackingId, fullName, phoneNumber, email, address);
+
+    //  Đồng bộ sang service khác
+    await syncParentToService({ parentId, userId, trackingId, fullName, phoneNumber, email, address });
+
     success(res, { parentId }, 'Tạo phụ huynh thành công', 201);
   } catch (err) {
     console.error('Error creating parent:', err);
@@ -19,7 +23,7 @@ const createParent = async (req, res) => {
   }
 };
 
-// 🔧 THÊM: Lấy tất cả parents
+// Lấy tất cả phụ huynh
 const getAllParents = async (req, res) => {
   try {
     const parents = await queries.getAllParents();
@@ -30,7 +34,7 @@ const getAllParents = async (req, res) => {
   }
 };
 
-// Lấy parent theo ParentID
+// Lấy phụ huynh theo ParentID
 const getParentById = async (req, res) => {
   try {
     const parent = await queries.getParentById(req.params.id);
@@ -42,7 +46,7 @@ const getParentById = async (req, res) => {
   }
 };
 
-// Lấy parent theo UserID
+// Lấy phụ huynh theo UserID
 const getParentByUserId = async (req, res) => {
   try {
     const parent = await queries.getParentByUserId(req.params.userId);
@@ -54,11 +58,17 @@ const getParentByUserId = async (req, res) => {
   }
 };
 
-// Cập nhật parent
+// Cập nhật phụ huynh
 const updateParent = async (req, res) => {
   try {
     const { trackingId, fullName, phoneNumber, email, address } = req.body;
-    await queries.updateParent(req.params.id, trackingId, fullName, phoneNumber, email, address);
+    const parentId = req.params.id;
+
+    await queries.updateParent(parentId, trackingId, fullName, phoneNumber, email, address);
+
+    //  Đồng bộ sang service khác
+    await syncParentToService({ parentId, trackingId, fullName, phoneNumber, email, address });
+
     success(res, null, 'Cập nhật phụ huynh thành công');
   } catch (err) {
     console.error('Error updating parent:', err);
@@ -66,10 +76,16 @@ const updateParent = async (req, res) => {
   }
 };
 
-// Xóa parent
+// Xóa phụ huynh
 const deleteParent = async (req, res) => {
   try {
-    await queries.deleteParent(req.params.id);
+    const parentId = req.params.id;
+
+    await queries.deleteParent(parentId);
+
+    //  Đồng bộ xóa sang service khác
+    await deleteParentFromService(parentId);
+
     success(res, null, 'Xóa phụ huynh thành công');
   } catch (err) {
     console.error('Error deleting parent:', err);
@@ -77,11 +93,11 @@ const deleteParent = async (req, res) => {
   }
 };
 
-module.exports = { 
+module.exports = {
   createParent,
-  getAllParents, // 🔧 Export thêm
-  getParentById, 
+  getAllParents,
+  getParentById,
   getParentByUserId,
-  updateParent, 
-  deleteParent 
+  updateParent,
+  deleteParent
 };

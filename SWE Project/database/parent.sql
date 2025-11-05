@@ -39,20 +39,3 @@ INSERT INTO parents (ParentID, UserID, TrackingID, FullName, PhoneNumber, Email,
 ('P004', 'U007', 'T004', 'Phạm Văn Nam', '0934567890', 'pvn@gmail.com', '321 Hai Bà Trưng, Q.1, TP.HCM'),
 ('P005', 'U008', 'T005', 'Hoàng Thị Hương', '0945678901', 'hth@gmail.com', '654 Nguyễn Thị Minh Khai, Q.1, TP.HCM');
 
--- 5. Kiểm tra dữ liệu
-SELECT 
-  ParentID,
-  UserID,
-  FullName,
-  PhoneNumber,
-  Email,
-  Address,
-  CreatedAt
-FROM parents
-ORDER BY CreatedAt DESC;
-
--- 6. Hiển thị structure
-DESCRIBE parents;
-
--- 7. Thống kê
-SELECT COUNT(*) as TotalParents FROM parents;

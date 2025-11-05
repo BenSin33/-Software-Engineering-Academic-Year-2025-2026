@@ -1,7 +1,7 @@
 version: '3.9'
 
 services:
-  # 🌐 API Gateway (dùng server.js)
+  # 🌐 API Gateway
   api_gateway:
     build: .
     container_name: api_gateway
@@ -18,7 +18,7 @@ services:
       - route_service
       - student_service
 
-  # 🔐 Auth Service (dùng app.js)
+  # 🔐 Auth Service
   auth_service:
     build: .
     container_name: auth_service
@@ -32,7 +32,7 @@ services:
     networks:
       - app-net
 
-  # 🚌 Bus Service (dùng app.js)
+  # 🚌 Bus Service
   bus_service:
     build: .
     container_name: bus_service
@@ -40,13 +40,13 @@ services:
       - "5011:5011"
     command: ["node", "Services/bus_service/app.js"]
     environment:
-      - PORT=5002
+      - PORT=5011
     volumes:
       - .:/app
     networks:
       - app-net
 
-  # 🗺️ Route Service (dùng app.js)
+  # 🗺️ Route Service
   route_service:
     build: .
     container_name: route_service
@@ -60,7 +60,7 @@ services:
     networks:
       - app-net
 
-  # 🎓 Student Service (dùng app.js)
+  # 🎓 Student Service
   student_service:
     build: .
     container_name: student_service
@@ -74,6 +74,20 @@ services:
     networks:
       - app-net
 
+  # 👤 User Service
+  user_service: 
+    build: .
+    container_name: user_service
+    ports:
+      - "5012:5012"
+    command: ["node", "Services/user_service/app.js"]
+    environment:
+      - PORT=5012
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+      
 networks:
   app-net:
     driver: bridge
