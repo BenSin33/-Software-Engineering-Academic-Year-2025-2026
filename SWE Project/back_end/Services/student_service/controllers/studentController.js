@@ -88,7 +88,23 @@ async function deleteStudent(req, res) {
     console.error(err);
     res.status(501).send('error: ', err)
   }
+}
 
+async function getStudentsByParent(req, res) {
+  const { parentID } = req.params;
+
+  try {
+    const students = await queries.getStudentsByParentID(parentID);
+
+    if (!students || students.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy học sinh nào cho phụ huynh này' });
+    }
+
+    res.status(200).json({ message: 'Lấy danh sách học sinh thành công', students });
+  } catch (err) {
+    console.error('Lỗi khi lấy học sinh theo ParentID:', err);
+    res.status(500).json({ message: 'Lỗi server khi lấy học sinh' });
+  }
 }
 // async function updatetudent(req,res){
 //     try{
@@ -103,5 +119,8 @@ async function deleteStudent(req, res) {
 module.exports = {
   getAllStudents,
   addNewStudent,
-  updateCurrentStudent, deleteStudent,getPickUpPoint
+  updateCurrentStudent,
+  deleteStudent,
+  getPickUpPoint,
+  getStudentsByParent
 }

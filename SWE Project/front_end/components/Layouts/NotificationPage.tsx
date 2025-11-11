@@ -35,15 +35,15 @@ const Icon = ({ type }) => {
 
 export default function AlertsPage() {
   return (
-    // ✅ 1. Đổi màu nền trang thành màu xám rất nhạt (gần như trắng)
+    //  1. Đổi màu nền trang thành màu xám rất nhạt (gần như trắng)
     <div className="p-6 md:p-8 h-full bg-gray-100">
       
-      {/* ✅ 2. Đổi màu chữ tiêu đề thành màu tối */}
+      {/*  2. Đổi màu chữ tiêu đề thành màu tối */}
       <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">
         Cảnh báo & Thông báo
       </h1>
       
-      {/* ✅ 3. Đổi màu nền của khung chứa thông báo thành màu trắng */}
+      {/*  3. Đổi màu nền của khung chứa thông báo thành màu trắng */}
       <div className="bg-white rounded-lg shadow-md">
         <ul className="divide-y divide-gray-200">
           {alerts.map((alert) => (
@@ -52,7 +52,7 @@ export default function AlertsPage() {
                 <Icon type={alert.type} />
               </div>
               <div className="flex-1">
-                {/* ✅ 4. Đổi màu chữ của nội dung và thời gian thành màu tối */}
+                {/*  4. Đổi màu chữ của nội dung và thời gian thành màu tối */}
                 <p className="text-md text-gray-700">{alert.message}</p>
                 <p className="text-sm text-gray-500 mt-1">{alert.time}</p>
               </div>

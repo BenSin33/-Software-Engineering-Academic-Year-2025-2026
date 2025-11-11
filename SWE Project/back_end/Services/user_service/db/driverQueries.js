@@ -1,65 +1,114 @@
-// Import thư viện uuid để tạo mã định danh duy nhất cho mỗi tài xế
+// Import thư viện uuid để tạo mã định danh duy nhất
 const { v4: uuidv4 } = require('uuid');
 
-// Import kết nối cơ sở dữ liệu từ file pool.js
+// Import kết nối cơ sở dữ liệu
 const pool = require('./pool');
 
-// Hàm tạo mới một tài xế trong cơ sở dữ liệu
-const createDriver = async (userId, fullName, phoneNumber, email, status) => {
-  const driverId = uuidv4(); // Tạo mã DriverID duy nhất
+// Tạo tài xế mới
+const createDriver = async (userId, fullName, phoneNumber, email, status = 'active') => {
+  const driverId = uuidv4();
   try {
-    // Thực hiện câu lệnh SQL để thêm tài xế vào bảng drivers
     await pool.query(
-      'INSERT INTO drivers (DriverID, UserID, FullName, PhoneNumber, Email, Status) VALUES (?, ?, ?, ?, ?, ?)',
-      [driverId, userId, fullName, phoneNumber, email, status]
+      `INSERT INTO drivers 
+       (DriverID, UserID, FullName, PhoneNumber, Email, Status) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [driverId, userId, fullName, phoneNumber, email, status || 'active']
     );
-    return driverId; // Trả về DriverID vừa tạo
-  } catch (error) {
-    // Nếu có lỗi xảy ra, ghi log và ném lỗi ra ngoài
-    console.error('Error creating driver:', error);
-    throw error;
+    return driverId;
+  } catch (err) {
+    console.error('Lỗi khi tạo tài xế:', err);
+    throw new Error('Không thể tạo tài xế mới: ' + err.message);
   }
 };
 
-// Hàm lấy thông tin tài xế theo DriverID
+// Lấy tất cả tài xế
+const getAllDrivers = async () => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, CreatedAt 
+       FROM drivers 
+       ORDER BY CreatedAt DESC`
+    );
+    return rows;
+  } catch (err) {
+    console.error('Lỗi khi lấy danh sách tài xế:', err);
+    throw new Error('Không thể lấy danh sách tài xế: ' + err.message);
+  }
+};
+
+// Lấy tài xế theo DriverID
 const getDriverById = async (driverId) => {
   try {
-    // Truy vấn cơ sở dữ liệu để lấy thông tin tài xế
-    const [rows] = await pool.query('SELECT * FROM drivers WHERE DriverID = ?', [driverId]);
-    return rows[0]; // Trả về dòng đầu tiên (tài xế tương ứng)
-  } catch (error) {
-    // Ghi log nếu có lỗi và ném lỗi ra ngoài
-    console.error('Error fetching driver:', error);
-    throw error;
+    const [rows] = await pool.query(
+      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, CreatedAt 
+       FROM drivers 
+       WHERE DriverID = ?`,
+      [driverId]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    console.error('Lỗi khi lấy tài xế theo ID:', err);
+    throw new Error('Không thể lấy thông tin tài xế: ' + err.message);
   }
 };
 
-// Hàm cập nhật thông tin tài xế theo DriverID
+// Lấy tài xế theo UserID (rất quan trọng để liên kết với tài khoản người dùng)
+const getDriverByUserId = async (userId) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, CreatedAt 
+       FROM drivers 
+       WHERE UserID = ?`,
+      [userId]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    console.error('Lỗi khi lấy tài xế theo UserID:', err);
+    throw new Error('Không thể lấy thông tin tài xế theo UserID: ' + err.message);
+  }
+};
+
+// Cập nhật thông tin tài xế
 const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
   try {
-    // Thực hiện câu lệnh SQL để cập nhật thông tin tài xế
-    await pool.query(
-      'UPDATE drivers SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ? WHERE DriverID = ?',
+    const [result] = await pool.query(
+      `UPDATE drivers 
+       SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
+       WHERE DriverID = ?`,
       [fullName, phoneNumber, email, status, driverId]
     );
-  } catch (error) {
-    // Ghi log nếu có lỗi và ném lỗi ra ngoài
-    console.error('Error updating driver:', error);
-    throw error;
+
+    if (result.affectedRows === 0) {
+      throw new Error('Không tìm thấy tài xế để cập nhật');
+    }
+  } catch (err) {
+    console.error('Lỗi khi cập nhật tài xế:', err);
+    throw new Error('Cập nhật tài xế thất bại: ' + err.message);
   }
 };
 
-// Hàm xoá tài xế khỏi cơ sở dữ liệu theo DriverID
+// Xóa tài xế (xóa cứng)
 const deleteDriver = async (driverId) => {
   try {
-    // Thực hiện câu lệnh SQL để xoá tài xế
-    await pool.query('DELETE FROM drivers WHERE DriverID = ?', [driverId]);
-  } catch (error) {
-    // Ghi log nếu có lỗi và ném lỗi ra ngoài
-    console.error('Error deleting driver:', error);
-    throw error;
+    const [result] = await pool.query(
+      'DELETE FROM drivers WHERE DriverID = ?',
+      [driverId]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error('Không tìm thấy tài xế để xóa');
+    }
+  } catch (err) {
+    console.error('Lỗi khi xóa tài xế:', err);
+    throw new Error('Xóa tài xế thất bại: ' + err.message);
   }
 };
 
-// Xuất các hàm để sử dụng ở các module khác
-module.exports = { createDriver, getDriverById, updateDriver, deleteDriver };
+module.exports = {
+  createDriver,
+  getAllDrivers,
+  getDriverById,
+  getDriverByUserId,
+  updateDriver,
+  deleteDriver
+};

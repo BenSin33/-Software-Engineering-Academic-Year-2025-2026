@@ -227,7 +227,7 @@ const useScheduleActions = (
           );
         }
 
-        alert(`✅ Cập nhật lịch trình ID ${result.ScheduleID} thành công!`);
+        alert(` Cập nhật lịch trình ID ${result.ScheduleID} thành công!`);
       } else {
         // 🟢 Thêm lịch trình mới
         result = await ScheduleService.createSchedule(data);
@@ -236,7 +236,7 @@ const useScheduleActions = (
           setSchedules(prev => [result, ...prev]); // thêm vào đầu danh sách
         }
 
-        alert(`✅ Tạo lịch trình mới ID ${result.ScheduleID} thành công!`);
+        alert(` Tạo lịch trình mới ID ${result.ScheduleID} thành công!`);
       }
 
       // 🟡 Nếu không truyền setSchedules, fallback refetch
@@ -264,7 +264,7 @@ const useScheduleActions = (
         refetchSchedules();
       }
 
-      alert(`✅ Đã xóa Lịch trình ID ${schedule.ScheduleID}.`);
+      alert(` Đã xóa Lịch trình ID ${schedule.ScheduleID}.`);
       return true;
     } catch (err) {
       console.error("Lỗi xóa lịch trình:", err);
