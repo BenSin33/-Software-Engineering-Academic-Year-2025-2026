@@ -1,10 +1,24 @@
-const mysql2 = require('mysql2/promise');
+const mysql = require('mysql2/promise');
 
-const db = mysql2.createPool({
-  host: process.env.HOST || 'localhost',
-  user: process.env.USER || 'root',
-  password: process.env.PASSWORD || '',
-  database: process.env.DATABASE || 'students',
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'host.docker.internal',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'students',
+  port: process.env.DB_PORT || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-module.exports = db;
+// Test connection
+pool.getConnection()
+  .then(connection => {
+    console.log(' Database connected successfully');
+    connection.release();
+  })
+  .catch(err => {
+    console.error(' Database connection error:', err.message);
+  });
+
+module.exports = pool;

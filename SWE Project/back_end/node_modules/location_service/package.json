@@ -1,22 +1,13 @@
 {
   "name": "location_service",
   "version": "1.0.0",
-  "description": "Location tracking and route management service for school bus system",
-  "main": "app.js",
-  "type": "commonjs",
+  "description": "Location Tracking Service for School Transport System",
+  "main": "server.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
-  "keywords": [
-    "location",
-    "tracking",
-    "gps",
-    "routes",
-    "geofencing",
-    "maps"
-  ],
+  "keywords": ["location", "tracking", "gps", "school", "transport", "map", "routing"],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -24,7 +15,7 @@
     "mysql2": "^3.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "axios": "^1.6.0"
+    "axios": "^1.6.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

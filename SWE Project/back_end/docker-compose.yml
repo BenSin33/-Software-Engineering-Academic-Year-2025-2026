@@ -65,10 +65,10 @@ services:
     build: .
     container_name: student_service
     ports:
-      - "5004:5004"
+      - "5013:5013"
     command: ["node", "Services/student_service/app.js"]
     environment:
-      - PORT=5004
+      - PORT=5013
     volumes:
       - .:/app
     networks:

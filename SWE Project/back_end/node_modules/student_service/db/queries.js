@@ -34,9 +34,17 @@ async function deleteStudent(StudentID){
   await pool.query(sql,[StudentID])
 }
 
+async function getStudentsByParentID(parentID) {
+  const sql = 'SELECT * FROM students WHERE ParentID = ?';
+  const [rows] = await pool.query(sql, [parentID]);
+  return rows; // Trả về danh sách học sinh của phụ huynh
+}
+
 module.exports = {
   getStudents,
   addStudent,
   updateCurrentStudent,
-  deleteStudent,getStudentsByRouteID
+  deleteStudent,getStudentsByRouteID,
+  getStudentsByParentID
+
 };

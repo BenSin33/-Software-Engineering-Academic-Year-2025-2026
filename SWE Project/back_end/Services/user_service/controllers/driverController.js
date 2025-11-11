@@ -6,31 +6,59 @@ const { syncDriverToService, deleteDriverFromService } = require('../utils/syncU
 const createDriver = async (req, res) => {
   try {
     const { userId, fullName, phoneNumber, email, status } = req.body;
+
+    if (!userId || !fullName || !phoneNumber || !email) {
+      return error(res, 'Thiếu thông tin bắt buộc', 400);
+    }
+
     const driverId = await queries.createDriver(userId, fullName, phoneNumber, email, status);
 
-    //  Đồng bộ sang service khác
+    // Đồng bộ sang service khác
     await syncDriverToService({ driverId, userId, fullName, phoneNumber, email, status });
 
     success(res, { driverId }, 'Tạo tài xế thành công', 201);
   } catch (err) {
     console.error('Error creating driver:', err);
-    error(res);
+    error(res, err.message);
   }
 };
 
-// Lấy thông tin tài xế theo ID
+// Lấy tất cả tài xế
+const getAllDrivers = async (req, res) => {
+  try {
+    const drivers = await queries.getAllDrivers();
+    success(res, drivers, 'Lấy danh sách tài xế thành công');
+  } catch (err) {
+    console.error('Error getting all drivers:', err);
+    error(res, err.message);
+  }
+};
+
+// Lấy tài xế theo DriverID
 const getDriverById = async (req, res) => {
   try {
     const driver = await queries.getDriverById(req.params.id);
     if (!driver) return error(res, 'Không tìm thấy tài xế', 404);
     success(res, driver);
   } catch (err) {
-    console.error('Error fetching driver by ID:', err);
-    error(res);
+    console.error('Error getting driver:', err);
+    error(res, err.message);
   }
 };
 
-// Cập nhật thông tin tài xế
+// Lấy tài xế theo UserID
+const getDriverByUserId = async (req, res) => {
+  try {
+    const driver = await queries.getDriverByUserId(req.params.userId);
+    if (!driver) return error(res, 'Không tìm thấy tài xế', 404);
+    success(res, driver);
+  } catch (err) {
+    console.error('Error getting driver by userId:', err);
+    error(res, err.message);
+  }
+};
+
+// Cập nhật tài xế
 const updateDriver = async (req, res) => {
   try {
     const { fullName, phoneNumber, email, status } = req.body;
@@ -38,36 +66,38 @@ const updateDriver = async (req, res) => {
 
     await queries.updateDriver(driverId, fullName, phoneNumber, email, status);
 
-    //  Đồng bộ sang service khác
+    // Đồng bộ sang service khác
     await syncDriverToService({ driverId, fullName, phoneNumber, email, status });
 
     success(res, null, 'Cập nhật tài xế thành công');
   } catch (err) {
     console.error('Error updating driver:', err);
-    error(res);
+    error(res, err.message);
   }
 };
 
-// Xóa tài xế khỏi hệ thống
+// Xóa tài xế
 const deleteDriver = async (req, res) => {
   try {
     const driverId = req.params.id;
 
     await queries.deleteDriver(driverId);
 
-    //  Đồng bộ xóa sang service khác
+    // Đồng bộ xóa sang service khác
     await deleteDriverFromService(driverId);
 
     success(res, null, 'Xóa tài xế thành công');
   } catch (err) {
     console.error('Error deleting driver:', err);
-    error(res);
+    error(res, err.message);
   }
 };
 
 module.exports = {
   createDriver,
+  getAllDrivers,
   getDriverById,
+  getDriverByUserId,
   updateDriver,
   deleteDriver
 };
