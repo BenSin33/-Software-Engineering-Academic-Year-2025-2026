@@ -2,8 +2,8 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
-import dynamic from 'next/dynamic'; // ✅ 1. Import dynamic
-import { useMemo } from 'react';     // ✅ Import useMemo để tối ưu
+import dynamic from 'next/dynamic'; //  1. Import dynamic
+import { useMemo } from 'react';     //  Import useMemo để tối ưu
 
 // Dữ liệu giả lập cho thông tin chuyến đi
 const tripInfo = {
@@ -15,7 +15,7 @@ const tripInfo = {
 
 export default function TrackingPage() {
     
-  // ✅ 2. Sử dụng dynamic import để MapView chỉ render ở client
+  //  2. Sử dụng dynamic import để MapView chỉ render ở client
   const DynamicMapView = useMemo(() => dynamic(
     () => import('@/components/Layouts/MapView'), // Đảm bảo đường dẫn đến MapView.tsx là chính xác
     { 
@@ -51,7 +51,7 @@ export default function TrackingPage() {
               Bản đồ tuyến đường
             </h2>
             
-            {/* ✅ 3. Thay thế div giữ chỗ bằng component bản đồ động */}
+            {/*  3. Thay thế div giữ chỗ bằng component bản đồ động */}
             <div className="h-[500px] w-full rounded-md overflow-hidden">
                 <DynamicMapView />
             </div>

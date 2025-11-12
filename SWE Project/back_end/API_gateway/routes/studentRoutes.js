@@ -110,24 +110,26 @@ router.post("/edit/:id", async (req, res) => {
   }
 });
 
-// Lấy chi tiết 1 sinh viên
-// router.get("/:id", async (req, res) => {
-//   try {
-//     const data = await callService("student_service", `/students/${req.params.id}`, "GET");
-//     res.json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: "Không thể lấy thông tin sinh viên" });
-//   }
-// });
+/*
+    Lấy chi tiết 1 sinh viên
+    router.get("/:id", async (req, res) => {
+      try {
+        const data = await callService("student_service", `/students/${req.params.id}`, "GET");
+        res.json(data);
+      } catch (error) {
+        res.status(500).json({ error: "Không thể lấy thông tin sinh viên" });
+      }
+    });
 
-// // Tạo mới sinh viên
-// router.post("/", async (req, res) => {
-//   try {
-//     const data = await callService("student_service", "/students", "POST", req.body);
-//     res.status(201).json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: "Không thể tạo sinh viên mới" });
-//   }
-// });
+    // Tạo mới sinh viên
+    router.post("/", async (req, res) => {
+      try {
+        const data = await callService("student_service", "/students", "POST", req.body);
+        res.status(201).json(data);
+      } catch (error) {
+        res.status(500).json({ error: "Không thể tạo sinh viên mới" });
+      }
+    });
+*/
 
 module.exports = router;

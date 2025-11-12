@@ -209,76 +209,76 @@ const useSchedules = () => {
 
 // Hook để xử lý các hành động CRUD
 const useScheduleActions = (
-    refetchSchedules: () => void,
-    setSchedules?: React.Dispatch<React.SetStateAction<Schedule[]>>
+  refetchSchedules: () => void,
+  setSchedules?: React.Dispatch<React.SetStateAction<Schedule[]>>
 ) => {
-    const handleSaveSchedule = async (
-        data: ScheduleFormData,
-        isEdit: boolean,
-        scheduleId: number | null
-    ) => {
-        try {
-            let result: Schedule;
-            if (isEdit && scheduleId) {
-                // 🟢 Cập nhật lịch trình
-                result = await ScheduleService.updateSchedule(scheduleId, data);
-                
-                if (setSchedules) {
-                    setSchedules(prev =>
-                        prev.map(s =>
-                            s.ScheduleID === result.ScheduleID ? result : s
-                        )
-                    );
-                }
+  const handleSaveSchedule = async (
+    data: ScheduleFormData,
+    isEdit: boolean,
+    scheduleId: number | null
+  ) => {
+    try {
+      let result: Schedule;
 
-                alert(`✅ Cập nhật lịch trình ID ${result.ScheduleID} thành công!`);
-            } else {
-                // 🟢 Thêm lịch trình mới
-                result = await ScheduleService.createSchedule(data);
+      if (isEdit && scheduleId) {
+        // 🟢 Cập nhật lịch trình
+        result = await ScheduleService.updateSchedule(scheduleId, data);
 
-                if (setSchedules) {
-                    setSchedules(prev => [result, ...prev]); // thêm vào đầu danh sách
-                }
-
-                alert(`✅ Tạo lịch trình mới ID ${result.ScheduleID} thành công!`);
-            }
-
-            // 🟡 Nếu không truyền setSchedules, fallback refetch
-            if (!setSchedules) {
-                refetchSchedules();
-            }
-
-            return true;
-        } catch (err) {
-            console.error("Lỗi thao tác lịch trình:", err);
-            alert(`❌ Lỗi ${isEdit ? "cập nhật" : "tạo"} lịch trình. Vui lòng kiểm tra console.`);
-            return false;
+        if (setSchedules) {
+          setSchedules(prev =>
+            prev.map(s => (s.ScheduleID === result.ScheduleID ? result : s))
+          );
         }
-    };
 
-    const handleDeleteSchedule = async (schedule: Schedule) => {
-        try {
-            await ScheduleService.deleteSchedule(schedule.ScheduleID);
+        alert(`✅ Cập nhật lịch trình ID ${result.ScheduleID} thành công!`);
+      } else {
+        // 🟢 Thêm lịch trình mới
+        result = await ScheduleService.createSchedule(data);
 
-            if (setSchedules) {
-                setSchedules(prev =>
-                    prev.filter(s => s.ScheduleID !== schedule.ScheduleID)
-                );
-            } else {
-                refetchSchedules();
-            }
-
-            alert(`✅ Đã xóa Lịch trình ID ${schedule.ScheduleID}.`);
-            return true;
-        } catch (err) {
-            console.error("Lỗi xóa lịch trình:", err);
-            alert(`❌ Lỗi xóa lịch trình ID ${schedule.ScheduleID}.`);
-            return false;
+        if (setSchedules) {
+          setSchedules(prev => [result, ...prev]); // thêm vào đầu danh sách
         }
-    };
 
-    return { handleSaveSchedule, handleDeleteSchedule };
+        alert(`✅ Tạo lịch trình mới ID ${result.ScheduleID} thành công!`);
+      }
+
+      // 🟡 Nếu không truyền setSchedules, fallback refetch
+      if (!setSchedules) {
+        refetchSchedules();
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Lỗi thao tác lịch trình:", err);
+      alert(`❌ Lỗi ${isEdit ? "cập nhật" : "tạo"} lịch trình. Vui lòng kiểm tra console.`);
+      return false;
+    }
+  };
+
+  const handleDeleteSchedule = async (schedule: Schedule) => {
+    try {
+      await ScheduleService.deleteSchedule(schedule.ScheduleID);
+
+      if (setSchedules) {
+        setSchedules(prev =>
+          prev.filter(s => s.ScheduleID !== schedule.ScheduleID)
+        );
+      } else {
+        refetchSchedules();
+      }
+
+      alert(`✅ Đã xóa Lịch trình ID ${schedule.ScheduleID}.`);
+      return true;
+    } catch (err) {
+      console.error("Lỗi xóa lịch trình:", err);
+      alert(`❌ Lỗi xóa lịch trình ID ${schedule.ScheduleID}.`);
+      return false;
+    }
+  };
+
+  return { handleSaveSchedule, handleDeleteSchedule };
 };
+
 
 
 // ====================================================================
