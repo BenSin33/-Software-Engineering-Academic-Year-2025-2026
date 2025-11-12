@@ -23,7 +23,7 @@ async function addSchedule(RouteID, Date, StartTime,EndTime) {
 async function updateSchedule(ScheduleID, RouteID, Date, StartTime,EndTime) {
   const sql = `
     UPDATE schedules
-    SET RouteID = ?, Date = ?, TimeStart = ?, TimeEnd = ?
+    SET RouteID = ?, \`Date\` = ?, TimeStart = ?, TimeEnd = ?
     WHERE ScheduleID = ?
   `;
   await pool.query(sql, [RouteID, Date, StartTime,EndTime, ScheduleID]);

@@ -3,15 +3,18 @@
 import React, { useState, useEffect, useCallback, ReactElement } from "react";
 // Import icons
 import { Clock, CheckCircle, XCircle, Bus, UserCheck, Calendar, Filter, Plus, Edit, Trash2, MapPin, Eye, ChevronLeft, ChevronRight, X, Info } from "lucide-react";
+import MapView from "@/components/Layouts/MapView";
 
 // ====================================================================
 // 1. INTERFACES & TYPES (Giao diện dữ liệu)
 // ====================================================================
 
 interface coordinates { lng: number, lat: number }
-
+type Route = coordinates[];
+type Routes = Route[];
 interface Schedule {
     ScheduleID: number;
+    Status: string;
     RouteID: number;
     RouteName: string;
     BusID: string;
@@ -159,13 +162,15 @@ const ScheduleService = {
             body: JSON.stringify(data),
         });
         if (!response.ok) { throw new Error(`Failed to update schedule: ${response.statusText}`); }
-        return response.json() as Promise<Schedule>;
+        return response.json();
     },
     async deleteSchedule(id: number): Promise<void> {
-        // Mock success for UI if using mock data
-        if (API_BASE_URL.includes("localhost:5000")) { return; }
-        const response = await fetch(`${API_BASE_URL}/delete/${id}`, { method: 'DELETE' });
-        if (!response.ok) { throw new Error(`Failed to delete schedule: ${response.statusText}`); }
+        try{
+           const response = await fetch(`${API_BASE_URL}/delete/${id}`, { method: 'DELETE' });
+           if(!response.ok) throw new Error('lỗi xóa lịch trình')
+        }catch(error){
+            console.error(error);
+        } 
     },
 };
 
@@ -195,11 +200,11 @@ const useSchedules = () => {
 
     useEffect(() => {
         fetchSchedules();
-        const interval = setInterval(() => { fetchSchedules(true); }, 5000);
+        const interval = setInterval(() => { fetchSchedules(true); }, 15000);
         return () => clearInterval(interval);
     }, [fetchSchedules]);
 
-    return { schedules,setSchedules, loading, error, refetchSchedules: fetchSchedules };
+    return { schedules, setSchedules, loading, error, refetchSchedules: fetchSchedules };
 };
 
 // Hook để xử lý các hành động CRUD
@@ -221,13 +226,11 @@ const useScheduleActions = (
 
         if (setSchedules) {
           setSchedules(prev =>
-            prev.map(s =>
-              s.ScheduleID === result.ScheduleID ? result : s
-            )
+            prev.map(s => (s.ScheduleID === result.ScheduleID ? result : s))
           );
         }
 
-        alert(` Cập nhật lịch trình ID ${result.ScheduleID} thành công!`);
+        alert(`✅ Cập nhật lịch trình ID ${result.ScheduleID} thành công!`);
       } else {
         // 🟢 Thêm lịch trình mới
         result = await ScheduleService.createSchedule(data);
@@ -236,7 +239,7 @@ const useScheduleActions = (
           setSchedules(prev => [result, ...prev]); // thêm vào đầu danh sách
         }
 
-        alert(` Tạo lịch trình mới ID ${result.ScheduleID} thành công!`);
+        alert(`✅ Tạo lịch trình mới ID ${result.ScheduleID} thành công!`);
       }
 
       // 🟡 Nếu không truyền setSchedules, fallback refetch
@@ -264,7 +267,7 @@ const useScheduleActions = (
         refetchSchedules();
       }
 
-      alert(` Đã xóa Lịch trình ID ${schedule.ScheduleID}.`);
+      alert(`✅ Đã xóa Lịch trình ID ${schedule.ScheduleID}.`);
       return true;
     } catch (err) {
       console.error("Lỗi xóa lịch trình:", err);
@@ -275,6 +278,7 @@ const useScheduleActions = (
 
   return { handleSaveSchedule, handleDeleteSchedule };
 };
+
 
 
 // ====================================================================
@@ -408,7 +412,7 @@ const ModalWrapper = ({ children, onClose }: { children: React.ReactNode, onClos
 //         </ModalWrapper>
 //     );
 // };
-const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave }: any) => {
+const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave,formatDate }: any) => {
     const isEdit = !!schedule;
 
     // --- KHỞI TẠO STATE ---
@@ -451,8 +455,8 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave }: any) => {
 
         // Gửi dữ liệu đi, thêm Status mặc định (Scheduled) hoặc giữ Status cũ nếu là Edit
         const dataToSend = isEdit
-            ? { ...formData}
-            : { ...formData};
+            ? { ...formData }
+            : { ...formData };
 
         onSave(dataToSend, isEdit, schedule ? schedule.ScheduleID : null).then((success: boolean) => {
             if (success) onClose();
@@ -490,7 +494,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave }: any) => {
                             <input
                                 type="date"
                                 name="Date"
-                                value={formData.Date}
+                                value={formatDate(formData.Date)}
                                 onChange={handleChange}
                                 required
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
@@ -630,21 +634,21 @@ const ScheduleDetailModal = ({ isOpen, onClose, schedule }: { isOpen: boolean, o
 
 export default function SchedulesPage() {
     // 1. SỬ DỤNG HOOKS
-    const { schedules, loading, error, refetchSchedules,setSchedules } = useSchedules();
-    const { handleSaveSchedule, handleDeleteSchedule } = useScheduleActions(refetchSchedules,setSchedules);
+    const { schedules, loading, error, refetchSchedules, setSchedules } = useSchedules();
+    const { handleSaveSchedule, handleDeleteSchedule } = useScheduleActions(refetchSchedules, setSchedules);
 
     // 2. STATE VÀ LOGIC UI
     const [searchTerm, setSearchTerm] = useState("");
-    const [filterStatus, setFilterStatus] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("Tất cả");
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
     const [mapCoordinates, setMapCoordinates] = useState<coordinates[]>([]);
     const [mapLoading, setMapLoading] = useState(false);
-
+    const [routes, setRoutes] = useState<Routes>([]);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [showFormModal, setShowFormModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-
+    const [runningSchedules, setRunningSchedules] = useState<Schedule[]>([]);
     // Effect để cập nhật bản đồ khi dữ liệu thay đổi
     // useEffect(() => {
     //     if (!selectedSchedule && schedules.length > 0) {
@@ -657,6 +661,43 @@ export default function SchedulesPage() {
     // }, [schedules]);
 
     // --- HÀM XỬ LÝ SỰ KIỆN UI ---
+  useEffect(() => {
+  const filtered = schedules.filter(s => s.Status === 'Đang hoạt động');
+  setRunningSchedules(filtered);
+
+  // Chỉ chạy khi filtered đã có dữ liệu
+  if (filtered.length === 0) return;
+
+  const displayAllRoads = async (runningSchedules: any[]) => {
+    for (const schedule of runningSchedules) {
+      try {
+        const response = await fetch('http://localhost:5000/location/coordinates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(schedule), // 👈 cần gửi dữ liệu cụ thể (ví dụ: schedule.route)
+        });
+
+        if (!response.ok) throw new Error('Lỗi server khi fetch tọa độ');
+
+        const data = await response.json();
+
+        if (!data?.coordinates?.length) throw new Error('Tọa độ trống');
+
+        setRoutes((prev) => [...prev, data.coordinates]); // ✅ bất biến
+        console.log('coorss: ', data.coordinates);
+      } catch (err: any) {
+        console.error(err);
+        // setMapError(err.message || 'Lỗi không lấy được dữ liệu');
+      } finally {
+        setMapLoading(false);
+      }
+    }
+  };
+
+  displayAllRoads(filtered);
+}, [schedules]);
+
+
     const displayRouteOnMap = async (schedule: Schedule) => {
         setMapLoading(true);
         setSelectedSchedule(schedule);
@@ -670,16 +711,30 @@ export default function SchedulesPage() {
         }
     };
 
+    const formatDate = (day: any) => {
+        if (!day) return ""; // nếu không có dữ liệu thì trả về rỗng tránh crash
+        const date = new Date(day);
+
+        if (isNaN(date.getTime())) return ""; // kiểm tra có phải ngày hợp lệ không
+
+        return date.toISOString().split("T")[0];
+    };
+
     // --- Lọc và Phân trang ---
     const filteredSchedules = schedules.filter(schedule => {
         const searchTermLower = String(searchTerm).toLowerCase();
-        const matchesSearch = String(schedule.RouteName).toLowerCase().includes(searchTermLower) ||
+        const matchesSearch =
+            String(schedule.RouteName).toLowerCase().includes(searchTermLower) ||
             String(schedule.BusID).toLowerCase().includes(searchTermLower) ||
             String(schedule.DriverName).toLowerCase().includes(searchTermLower);
-        // const matchesStatus = filterStatus === 'all' || String(schedule.Status).toLowerCase() === filterStatus.toLowerCase();
-        return matchesSearch
-        // && matchesStatus;
+
+        const matchesStatus =
+            filterStatus.toLowerCase() === 'tất cả' ||
+            String(schedule.Status).toLowerCase() === filterStatus.toLowerCase();
+
+        return matchesSearch && matchesStatus;
     });
+
 
     const totalPages = Math.ceil(filteredSchedules.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -697,7 +752,7 @@ export default function SchedulesPage() {
     const handleOpenDetailModal = (schedule: Schedule, e: React.MouseEvent) => { e.stopPropagation(); setSelectedSchedule(schedule); setShowDetailModal(true); };
     const handleOpenDeleteModal = (schedule: Schedule, e: React.MouseEvent) => { e.stopPropagation(); setSelectedSchedule(schedule); setShowDeleteModal(true); };
 
-    // const runningSchedules = schedules.filter(s => s.Status === 'Running');
+   
 
     if (loading && schedules.length === 0) {
         return (
@@ -738,12 +793,12 @@ export default function SchedulesPage() {
             )}
 
             {/* Thống kê nhanh */}
-            {/* <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="Tổng lịch trình" value={schedules.length.toString()} color="bg-orange-400" icon={Calendar} />
                 <StatCard label="Đang hoạt động" value={runningSchedules.length.toString()} color="bg-green-500" icon={Bus} />
-                <StatCard label="Dự kiến" value={schedules.filter(s => s.Status === 'Scheduled').length.toString()} color="bg-blue-400" icon={Clock} />
-                <StatCard label="Đã hoàn thành" value={schedules.filter(s => s.Status === 'Completed').length.toString()} color="bg-gray-400" icon={CheckCircle} />
-            </div> */}
+                <StatCard label="Dự kiến" value={schedules.filter(s => s.Status === 'Dự Kiến').length.toString()} color="bg-blue-400" icon={Clock} />
+                <StatCard label="Đã hoàn thành" value={schedules.filter(s => s.Status === 'Đã hoàn thành').length.toString()} color="bg-gray-400" icon={CheckCircle} />
+            </div>
 
             {/* Bản đồ & Lịch trình đang hoạt động */}
             <div className="flex flex-col lg:flex-row gap-6 mb-8">
@@ -751,20 +806,17 @@ export default function SchedulesPage() {
                 <div className="lg:w-2/3 h-[550px] bg-white rounded-xl shadow-2xl overflow-hidden p-4 flex items-center justify-center relative border border-gray-200">
                     <h3 className="absolute z-10 top-4 left-4 text-lg font-bold text-gray-800 flex items-center gap-2 p-2 bg-white/80 backdrop-blur-sm rounded-lg"><MapPin className="w-5 h-5 text-orange-500" /> Giám sát Vị trí (Real-time)</h3>
                     {mapLoading ? (
-                        <div className="text-center text-gray-500 flex items-center gap-2"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div> Đang tải bản đồ...</div>
-                    ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-gray-500 text-center absolute">
-                                Bản đồ giả lập: Đã tải **{mapCoordinates.length}** điểm tuyến đường.
-                                {selectedSchedule && <p className="mt-2 text-sm font-medium">Đang hiển thị tuyến: **{selectedSchedule.RouteName}**</p>}
-                                <p className="mt-1 text-xs text-gray-400">Nhấn vào một lịch trình để hiển thị tuyến đường trên bản đồ</p>
-                            </span>
+                          <div className="flex flex-col items-center space-y-4 h-full justify-center">
+                            <div className="w-16 h-16 border-4 border-[#FFAC50] border-t-transparent rounded-full animate-spin -mt-[5rem]"></div>
+                            <p className="text-gray-700 text-lg font-medium">Đang lấy dữ liệu tuyến đường...</p>
                         </div>
-                    )}
+                    ):
+                        <MapView coordinates={routes}/>
+                    }
                 </div>
 
                 {/* 2. Lịch trình đang hoạt động */}
-                {/* <div className="lg:w-1/3 space-y-4 max-h-[550px] overflow-y-auto pr-2">
+                <div className="lg:w-1/3 space-y-4 max-h-[550px] overflow-y-auto pr-2">
                     <h3 className="text-xl font-bold text-gray-900 mb-4 sticky top-0 bg-gray-50 z-10 py-1 flex items-center gap-2"><Bus className="w-6 h-6 text-green-600"/> Lịch trình đang chạy ({runningSchedules.length})</h3>
                     {runningSchedules.length > 0 ? (
                         runningSchedules.map((schedule) => (
@@ -775,7 +827,7 @@ export default function SchedulesPage() {
                             Hiện không có lịch trình nào đang hoạt động.
                         </div>
                     )}
-                </div> */}
+                </div>
             </div>
 
             {/* Bảng quản lý Lịch trình chi tiết */}
@@ -783,7 +835,7 @@ export default function SchedulesPage() {
                 <div className="p-4 border-b border-gray-100 flex flex-wrap gap-4 items-center">
                     {/* Search & Filter */}
                     <div suppressHydrationWarning={true} className="relative flex-1 min-w-[250px]"><Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" /><input suppressHydrationWarning={true} type="text" placeholder="Tìm kiếm..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 ${RING_COLOR}`} /></div>
-                    {['all', 'Running', 'Scheduled', 'Completed', 'Delayed', 'Cancelled'].map(status => (
+                    {['Tất cả', 'Đã hoàn thành', 'Dự kiến', 'Đang hoạt động'].map(status => (
                         <button suppressHydrationWarning={true} key={status} onClick={() => setFilterStatus(status)} className={`px-4 py-2 text-sm font-semibold rounded-lg transition duration-200 ${filterStatus === status.toLowerCase() ? `${PRIMARY_COLOR} text-white shadow-md` : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} focus:outline-none focus:ring-4 ${RING_COLOR}`}>{status === 'all' ? 'Tất cả' : status}</button>
                     ))}
                 </div>
@@ -792,19 +844,20 @@ export default function SchedulesPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                         <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200"><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule ID</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Route Name</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Route ID</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver Name</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">BusID</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th></tr>
+                            <tr className="bg-gray-50 border-b border-gray-200"><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule ID</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Route Name</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Route ID</th><th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver Name</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">BusID</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Time</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th><th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th></tr>
                         </thead>
                         <tbody>
                             {currentSchedules.length > 0 ? (
                                 currentSchedules.map((schedule) => (
                                     <tr key={schedule.ScheduleID} onClick={() => displayRouteOnMap(schedule)} className={`border-b border-gray-100 transition duration-200 hover:bg-gray-50 cursor-pointer ${selectedSchedule?.ScheduleID === schedule.ScheduleID ? 'bg-orange-50 border-orange-200 shadow-inner' : ''}`}>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{schedule.ScheduleID}</p></td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{schedule.RouteName}</p></td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{schedule.RouteID}</p></td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{schedule.DriverName}</p></td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{schedule.BusID}</p></td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{`${schedule.StartTime}-${schedule.EndTime}`}</p></td>
-                                        <td className="px-6 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900">{schedule.Date}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">SD{schedule.ScheduleID}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{schedule.RouteName}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{schedule.RouteID}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{schedule.DriverName}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{schedule.BusID}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{`${schedule.StartTime}-${schedule.EndTime}`}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{formatDate(schedule.Date)}</p></td>
+                                        <td className="px-3 py-4 whitespace-nowrap"><p className="font-medium text-sm text-gray-900 text-center">{schedule.Status}</p></td>
 
 
                                         {/* <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(schedule.Status)}</td> */}
@@ -869,6 +922,7 @@ export default function SchedulesPage() {
             />
 
             <ScheduleFormModal
+                formatDate={formatDate}
                 isOpen={showFormModal}
                 onClose={() => setShowFormModal(false)}
                 schedule={selectedSchedule}

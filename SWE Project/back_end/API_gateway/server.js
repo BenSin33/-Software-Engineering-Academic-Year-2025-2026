@@ -15,9 +15,13 @@ const routeRoutes = require('./routes/routeRoutes');
 const locationRoutes=require('./routes/locationRoutes.js');
 const scheduleRoutes = require('./routes/scheduleRoutes.js')
 const messageRoutes = require('./routes/messageRoutes.js');
+
+const ORS = require('./routes/ORSdrivingCar.js')
+
 const driverRoutes = require('../Services/user_service/routes/driverRoutes');
 const parentRoutes = require('../Services/user_service/routes/parentRoutes');
 const userRoutes = require('../Services/user_service/routes/userRoutes');
+
 
 app.use("/api/auth", authRoutes);
 //app.use("/Students", studentRoutes);
@@ -26,6 +30,9 @@ app.use('/routes',routeRoutes)
 app.use('/location',locationRoutes)
 app.use('/Schedules',scheduleRoutes)
 app.use('/api/messges', messageRoutes)
+
+app.use('/ORS',ORS)
+
 app.use('/api/drivers', driverRoutes);
 app.use('/api/parents', parentRoutes);
 app.use('/api/users', userRoutes);
