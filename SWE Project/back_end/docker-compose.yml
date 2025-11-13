@@ -65,10 +65,10 @@ services:
     build: .
     container_name: student_service
     ports:
-      - "5013:5013"
+      - "5001:5001"
     command: ["node", "Services/student_service/app.js"]
     environment:
-      - PORT=5013
+      - PORT=5001
     volumes:
       - .:/app
     networks:
@@ -83,6 +83,32 @@ services:
     command: ["node", "Services/user_service/app.js"]
     environment:
       - PORT=5012
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+  
+  schedule_service:
+    build: .
+    container_name: schedule_service
+    ports:
+      - "5005:5005"
+    command: ["node", "Services/schedule_service/app.js"]
+    environment:
+      - PORT=5005
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  location_service:
+    build: .
+    container_name: location_service
+    ports:
+      - "5009:5009"
+    command: ["node", "Services/schedule_service/app.js"]
+    environment:
+      - PORT=5009
     volumes:
       - .:/app
     networks:
