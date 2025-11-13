@@ -66,7 +66,7 @@ export default function StudentsPage() {
         routeID:'',
     });
     useEffect(() => {
-        fetch('http://localhost:5000/Students')
+        fetch('http://localhost:5000/students')
             .then(res => res.json())
             .then(data => {
 
