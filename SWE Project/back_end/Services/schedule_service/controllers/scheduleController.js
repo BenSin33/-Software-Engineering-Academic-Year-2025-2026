@@ -38,9 +38,9 @@ async function getSchedulesByRouteID(req, res) {
 // 🟦 Thêm lịch trình mới
 async function addNewSchedule(req, res) {
   try {
-    const { RouteID, Date, StartTime, EndTime } = req.body;
+    const { RouteID, Date, StartTime,EndTime } = req.body;
 
-    const insertId = await queries.addSchedule(RouteID, Date, StartTime, EndTime);
+    const insertId = await queries.addSchedule(RouteID, Date, StartTime,EndTime);
 
     res.status(201).json({
       message: "Thêm lịch trình thành công",
@@ -65,8 +65,9 @@ async function addNewSchedule(req, res) {
 async function updateSchedule(req, res) {
   try {
     const { scheduleID } = req.params;
-    const { RouteID, Date, StartTime, EndTime } = req.body;
-    await queries.updateSchedule(scheduleID, RouteID, Date, StartTime, EndTime);
+    const { RouteID, Date, TimeStart, TimeEnd } = req.body;
+
+    await queries.updateSchedule(scheduleID, RouteID, Date, TimeStart, TimeEnd);
 
     res.status(200).json({
       message: "Cập nhật lịch trình thành công",
@@ -74,15 +75,13 @@ async function updateSchedule(req, res) {
         ScheduleID: scheduleID,
         RouteID,
         Date,
-        StartTime,
-        EndTime,
+        TimeStart,
+        TimeEnd,
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Lỗi khi cập nhật lịch trình",
-      error: error.message || error,
-    });
+    console.error(error);
+    res.status(500).send("Lỗi khi cập nhật lịch trình: " + error);
   }
 }
 

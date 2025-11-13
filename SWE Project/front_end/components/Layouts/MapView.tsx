@@ -1,13 +1,14 @@
-'use client'
+'use client';
+
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
+
+// Sửa lỗi icon mặc định
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import busIcon from '../../public/busIcon.svg';
-import polyline from '@mapbox/polyline'; // ✅ Thêm dòng này
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x.src,
@@ -15,128 +16,64 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow.src,
 });
 
-const busMarker = L.icon([{
-  iconURL: busIcon,
-  iconSize: [40, 40],      
-  iconAnchor: [20, 20],
-}])
+type Coordinate = {
+  lat: number;
+  lng: number;
+};
 
-type Coordinate = { lat: number; lng: number };
-type MapViewProps = { coordinates?: Coordinate[] | Coordinate[][] };
+export default function MapView({ coordinates = [] }: { coordinates?: Coordinate[] }) {
+  const [route, setRoute] = useState<L.LatLngExpression[]>([]);
 
-export default function MapView({ coordinates = [] }: MapViewProps) {
-  const [routes, setRoutes] = useState<L.LatLngExpression[][]>([]);
-  const getCurrentTime = ()=>{
-    
-  }
+  const orsApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxZTJkMDY4NjI0ODQ1NjZiNTdkNTU5ZmQ0OGRlMWY2IiwiaCI6Im11cm11cjY0In0='; //  OpenRouteService key
+
   useEffect(() => {
-    if (!coordinates || (coordinates as any).length === 0) return;
+    if (!coordinates || coordinates.length < 2) return;
 
-    const normalizedRoutes: Coordinate[][] = Array.isArray(coordinates[0])
-      ? (coordinates as Coordinate[][])
-      : [coordinates as Coordinate[]];
-    console.log('allroutes: ',routes)
-    async function fetchRoutes() {
-      const allRoutes: L.LatLngExpression[][] = [];
+    async function fetchRoute() {
+      try {
+        // Tạo chuỗi tọa độ [lng,lat] (ORS yêu cầu theo thứ tự này)
+        const coordsString = coordinates.map(c => `${c.lng},${c.lat}`).join('|');
 
-      for (const route of normalizedRoutes) {
-        if (route.length < 2) continue;
+        const response = await fetch(
+          `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${orsApiKey}&start=${coordinates[0].lng},${coordinates[0].lat}&end=${coordinates[coordinates.length - 1].lng},${coordinates[coordinates.length - 1].lat}`
+        );
 
-        try {
-          const body = {
-            coordinates: route.map((pos) => [pos.lng, pos.lat]),
-          };
-
-          const response = await fetch(
-            'http://localhost:5000/ORS/drivingCar',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(body),
-            }
-          );
-
-          if (!response.ok) {
-            console.error('Lỗi khi gọi ORS API:', await response.text());
-            continue;
-          }
-
-          const data = await response.json();
-          console.log('nisa: ', data);
-
-          let line: L.LatLngExpression[] = [];
-
-          // ✅ Nếu ORS trả về geometry dạng chuỗi — decode
-          if (typeof data.routes[0].geometry === 'string') {
-            const decoded = polyline.decode(data.routes[0].geometry);
-            line = decoded.map(([lat, lng]) => [lat, lng]);
-          } 
-          // ✅ Nếu geometry là object có coordinates
-          else if (data.routes[0].geometry?.coordinates) {
-            line = data.routes[0].geometry.coordinates.map(
-              (c: number[]) => [c[1], c[0]]
-            );
-          }
-          console.log('line: ',line);
-          allRoutes.push(line);
-        } catch (error) {
-          console.error('Lỗi lấy định tuyến:', error);
+        if (!response.ok) {
+          console.error('Lỗi khi gọi ORS API:', await response.text());
+          return;
         }
-      }
 
-      setRoutes(allRoutes);
+        const data = await response.json();
+        const line = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+        setRoute(line);
+      } catch (error) {
+        console.error('Lỗi lấy định tuyến:', error);
+      }
     }
 
-    fetchRoutes();
+    fetchRoute();
   }, [coordinates]);
 
-  const firstRoute = Array.isArray(coordinates[0])
-    ? (coordinates as Coordinate[][])[0]
-    : (coordinates as Coordinate[]);
-  const center =
-    firstRoute.length > 0
-      ? [firstRoute[0].lat, firstRoute[0].lng]
-      : [10.77653, 106.700981];
+  const center = (coordinates && coordinates.length > 0)
+    ? [coordinates[0].lat, coordinates[0].lng]
+    : [10.77653, 106.700981];
 
   return (
-    <MapContainer
-      center={center as L.LatLngExpression}
-      zoom={12}
-      style={{ height: '100%', width: '100%', borderRadius: '12px', zIndex: 0 }}
-    >
+    <MapContainer center={center as L.LatLngExpression} zoom={10} style={{ height: '100%',zIndex:'0', width: '100%', borderRadius: '12px' }}>
       <TileLayer
         attribution='&copy; <a href="https://www.maptiler.com/">MapTiler</a> & <a href="https://www.openstreetmap.org/">OSM</a>'
-        url='https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=KVeN2HZJbhgfyv2ekxLj'
+        url={`https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=KVeN2HZJbhgfyv2ekxLj`}
       />
 
-      { Array.isArray(coordinates[0])
-        ? (coordinates as Coordinate[][]).map((route, i) =>
-            route.map((pos, j) => (
-              <Marker key={`marker-${i}-${j}`} position={[pos.lat, pos.lng]}>
-                <Popup>
-                  Tuyến {i + 1} - Điểm {j + 1}
-                </Popup>
-              </Marker>
-            ))
-          )
-        : (coordinates as Coordinate[]).map((pos, i) => (
-            <Marker key={`marker-single-${i}`} position={[pos.lat, pos.lng]}>
-              <Popup>Điểm {i + 1}</Popup>
-            </Marker>
-          ))}
-        {/* <Marker position = {}>
-
-        </Marker> */}
-      {routes.map((r, i) => (
-        <Polyline
-          key={`route-${i}`}
-          positions={r}
-          color={i % 2 === 0 ? '#4285F4' : '#FF6347'}
-          weight={5}
-        />
+      {/* Marker cho từng tọa độ */}
+      {(coordinates || []).map((pos, idx) => (
+        <Marker key={idx} position={[pos.lat, pos.lng]}>
+          <Popup>Điểm {idx + 1}</Popup>
+        </Marker>
       ))}
+
+      {/* Đường định tuyến thật */}
+      {route.length > 0 && <Polyline positions={route} color="#4285F4" weight={5} />}
     </MapContainer>
   );
 }
