@@ -87,6 +87,7 @@ services:
       - .:/app
     networks:
       - app-net
+
   
   schedule_service:
     build: .

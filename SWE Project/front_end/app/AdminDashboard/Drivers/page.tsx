@@ -99,297 +99,183 @@ export default function DriversPage() {
   });
 
   const itemsPerPage = 5;
-  const API_URL = "http://localhost:3002/api";
+const BUS_DRIVER_API_URL = "http://localhost:5000/api/bus-drivers";
+const BUS_API_URL = "http://localhost:5000/api/buses";
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [statsRes, driversRes, busesRes] = await Promise.all([
-        fetch(`${API_URL}/drivers/stats`),
-        fetch(`${API_URL}/drivers?limit=1000`),
-        fetch(`${API_URL}/buses?limit=1000`)
-      ]);
+const fetchData = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const [statsRes, driversRes, busesRes] = await Promise.all([
+      fetch(`${BUS_DRIVER_API_URL}/stats`),
+      fetch(`${BUS_DRIVER_API_URL}?limit=1000`),
+      fetch(`${BUS_API_URL}?limit=1000`)
+    ]);
 
-      if (!statsRes.ok) throw new Error("Không thể tải thống kê tài xế");
-      if (!driversRes.ok) throw new Error("Không thể tải danh sách tài xế");
-      if (!busesRes.ok) throw new Error("Không thể tải danh sách xe");
+    if (!statsRes.ok) throw new Error("Không thể tải thống kê tài xế");
+    if (!driversRes.ok) throw new Error("Không thể tải danh sách tài xế");
+    if (!busesRes.ok) throw new Error("Không thể tải danh sách xe");
 
-      const statsData = await statsRes.json();
-      const driversData = await driversRes.json();
-      const busesData = await busesRes.json();
+    const statsData = await statsRes.json();
+    const driversData = await driversRes.json();
+    const busesData = await busesRes.json();
 
-      if (statsData.success) {
-        setDriverStats(statsData.data);
-      }
+    if (statsData.success) {
+      setDriverStats(statsData.data);
+    }
 
-      if (driversData.success && busesData.success) {
-        const busMap = new Map<number, { busId: string; routeId: string }>();
-        if (Array.isArray(busesData.data)) {
-          busesData.data.forEach((bus: ApiBus) => {
-            if (bus.DriverID) {
-              busMap.set(bus.DriverID, {
-                busId: bus.BusID,
-                routeId: bus.RouteID || "N/A"
-              });
-            }
-          });
-        }
-
-        const mappedDrivers = driversData.data.map((driver: ApiDriver): Driver => {
-          const assignedBus = busMap.get(driver.DriverID);
-          
-          return {
-            id: driver.DriverID,
-            userId: driver.UserID,
-            name: driver.Fullname,
-            phone: driver.PhoneNumber,
-            email: driver.Email,
-            status: driver.Status,
-            bus: assignedBus ? assignedBus.busId : "-",
-            route: assignedBus ? assignedBus.routeId : "-",
-            avatar: driver.Fullname.charAt(0).toUpperCase()
-          };
+    if (driversData.success && busesData.success) {
+      const busMap = new Map<number, { busId: string; routeId: string }>();
+      if (Array.isArray(busesData.data)) {
+        busesData.data.forEach((bus: ApiBus) => {
+          if (bus.DriverID) {
+            busMap.set(bus.DriverID, {
+              busId: bus.BusID,
+              routeId: bus.RouteID || "N/A"
+            });
+          }
         });
-
-        setDrivers(mappedDrivers);
-      } else {
-        throw new Error(driversData.message || busesData.message || "Lỗi tải dữ liệu");
       }
-    } catch (err: any) {
-      setError(err.message);
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+      const mappedDrivers = driversData.data.map((driver: ApiDriver): Driver => {
+        const assignedBus = busMap.get(driver.DriverID);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const busData = await fetchAllBuses();
-        setBusList(busData);
-        const routes = await fetchRouteService();
-        setRouteList(routes?.routes || []);
-      } catch (error) {
-        console.error("Lỗi tải bus hoặc route:", error);
-      }
-    })();
-  }, []);
-
-  const filteredDrivers = useMemo(() => {
-    return drivers.filter(driver => {
-      const matchesBasicSearch = 
-        driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        driver.phone.includes(searchTerm) ||
-        driver.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = filterStatus === "all" || driver.status === filterStatus;
-      
-      const matchesName = !advancedFilters.name || 
-        driver.name.toLowerCase().includes(advancedFilters.name.toLowerCase());
-      const matchesPhone = !advancedFilters.phone || 
-        driver.phone.includes(advancedFilters.phone);
-      const matchesEmail = !advancedFilters.email || 
-        driver.email.toLowerCase().includes(advancedFilters.email.toLowerCase());
-      const matchesBus = !advancedFilters.bus || 
-        driver.bus.toLowerCase().includes(advancedFilters.bus.toLowerCase());
-      const matchesRoute = !advancedFilters.route || 
-        driver.route.toLowerCase().includes(advancedFilters.route.toLowerCase());
-
-      return matchesBasicSearch && matchesStatus && matchesName && 
-             matchesPhone && matchesEmail && matchesBus && matchesRoute;
-    });
-  }, [searchTerm, filterStatus, advancedFilters, drivers]);
-
-  const totalPages = Math.ceil(filteredDrivers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentDrivers = filteredDrivers.slice(startIndex, endIndex);
-
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterStatus, advancedFilters]);
-
-  const stats = useMemo(() => {
-    return [
-      { label: "Tổng số tài xế", value: driverStats.total.toString(), color: "bg-blue-500", icon: UserCircle },
-      { label: "Đang hoạt động", value: driverStats.active.toString(), color: "bg-green-500", icon: CheckCircle },
-      { label: "Đang nghỉ", value: driverStats.rest.toString(), color: "bg-yellow-500", icon: Clock },
-    ];
-  }, [driverStats]);
-
-  const handleAdvancedSearch = () => {
-    setCurrentPage(1);
-  };
-
-  const resetAdvancedFilters = () => {
-    setAdvancedFilters({
-      name: "",
-      phone: "",
-      email: "",
-      bus: "",
-      route: "",
-    });
-    setCurrentPage(1);
-  };
-
-  const resetForm = () => {
-    setFormData(initialFormData);
-  };
-
-  const handleAddDriver = async () => {
-    if (!formData.name || !formData.phone || !formData.email || !formData.userId || !formData.bus || !formData.route) {
-      alert("Vui lòng điền đủ các trường bắt buộc!");
-      return;
-    }
-
-    const newDriverData = {
-      UserID: parseInt(formData.userId),
-      Fullname: formData.name,
-      PhoneNumber: formData.phone,
-      Email: formData.email,
-      Status: formData.status,
-      BusID: formData.bus,
-      RouteID: formData.route,
-    };
-
-    try {
-      const response = await fetch(`${API_URL}/drivers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDriverData),
+        return {
+          id: driver.DriverID,
+          userId: driver.UserID,
+          name: driver.Fullname,
+          phone: driver.PhoneNumber,
+          email: driver.Email,
+          status: driver.Status,
+          bus: assignedBus ? assignedBus.busId : "-",
+          route: assignedBus ? assignedBus.routeId : "-",
+          avatar: driver.Fullname.charAt(0).toUpperCase()
+        };
       });
 
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "Lỗi khi thêm tài xế");
-      }
-
-      alert("Thêm tài xế thành công!");
-      setShowAddModal(false);
-      resetForm();
-      fetchData();
-    } catch (err: any) {
-      alert(`Lỗi: ${err.message}`);
-      console.error(err);
+      setDrivers(mappedDrivers);
+    } else {
+      throw new Error(driversData.message || busesData.message || "Lỗi tải dữ liệu");
     }
+  } catch (err: any) {
+    setError(err.message);
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleAddDriver = async () => {
+  if (!formData.name || !formData.phone || !formData.email || !formData.userId || !formData.bus || !formData.route) {
+    alert("Vui lòng điền đủ các trường bắt buộc!");
+    return;
+  }
+
+  const newDriverData = {
+    UserID: parseInt(formData.userId),
+    Fullname: formData.name,
+    PhoneNumber: formData.phone,
+    Email: formData.email,
+    Status: formData.status,
+    BusID: formData.bus,
+    RouteID: formData.route,
   };
 
-  const handleEditClick = (driver: Driver) => {
-    setEditingDriver(driver);
-    setFormData({
-      userId: driver.userId.toString(),
-      name: driver.name,
-      phone: driver.phone,
-      email: driver.email,
-      status: driver.status,
-      bus: driver.bus,
-      route: driver.route,
+  try {
+    const response = await fetch(`${BUS_DRIVER_API_URL}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newDriverData),
     });
-    setShowEditModal(true);
-  };
 
-  // 🔧 Mở MessagePanel thay vì modal cũ
-  const handleOpenMessagePanel = (driver: Driver) => {
-    setMessageDriver(driver);
-    setShowMessagePanel(true);
-  };
-
-  const handleUpdateDriver = async () => {
-    if (!formData.name || !formData.phone || !formData.email) {
-      alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
-      return;
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.message || "Lỗi khi thêm tài xế");
     }
-    if (!editingDriver) return;
 
-    const updatedData = {
-      Fullname: formData.name,
-      PhoneNumber: formData.phone,
-      Email: formData.email,
-      Status: formData.status,
-      BusID: formData.bus,
-      RouteID: formData.route,
-    };
+    alert("Thêm tài xế thành công!");
+    setShowAddModal(false);
+    resetForm();
+    fetchData();
+  } catch (err: any) {
+    alert(`Lỗi: ${err.message}`);
+    console.error(err);
+  }
+};
 
-    try {
-      const response = await fetch(`${API_URL}/drivers/${editingDriver.id}`, {
+const handleUpdateDriver = async () => {
+  if (!formData.name || !formData.phone || !formData.email) {
+    alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+    return;
+  }
+  if (!editingDriver) return;
+
+  const updatedData = {
+    Fullname: formData.name,
+    PhoneNumber: formData.phone,
+    Email: formData.email,
+    Status: formData.status,
+    BusID: formData.bus,
+    RouteID: formData.route,
+  };
+
+  try {
+    const response = await fetch(`${BUS_DRIVER_API_URL}/${editingDriver.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedData),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.message || "Lỗi khi cập nhật");
+    }
+
+    if (editingDriver.status !== formData.status) {
+      await fetch(`${BUS_DRIVER_API_URL}/${editingDriver.id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify({ status: formData.status }),
+      });
+    }
+
+    alert("Cập nhật thông tin tài xế thành công!");
+    setShowEditModal(false);
+    setEditingDriver(null);
+    resetForm();
+    fetchData();
+  } catch (err: any) {
+    alert(`Lỗi: ${err.message}`);
+    console.error(err);
+  }
+};
+
+const handleConfirmDelete = async () => {
+  if (deletingDriverId !== null) {
+    try {
+      const response = await fetch(`${BUS_DRIVER_API_URL}/${deletingDriverId}`, {
+        method: "DELETE",
       });
 
       const result = await response.json();
+
       if (!response.ok) {
-        throw new Error(result.message || "Lỗi khi cập nhật");
+        if (response.status === 400 && result.message) {
+          throw new Error(result.message);
+        }
+        throw new Error(result.message || "Lỗi khi xóa tài xế");
       }
 
-      if (editingDriver.status !== formData.status) {
-        await fetch(`${API_URL}/drivers/${editingDriver.id}/status`, {
-           method: "PUT",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({ status: formData.status }),
-        });
-      }
-
-      alert("Cập nhật thông tin tài xế thành công!");
-      setShowEditModal(false);
-      setEditingDriver(null);
-      resetForm();
+      alert("Xóa tài xế thành công!");
+      setShowDeleteConfirm(false);
+      setDeletingDriverId(null);
       fetchData();
     } catch (err: any) {
       alert(`Lỗi: ${err.message}`);
       console.error(err);
     }
-  };
-
-  const handleDeleteClick = (id: number) => {
-    setDeletingDriverId(id);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (deletingDriverId !== null) {
-      try {
-        const response = await fetch(`${API_URL}/drivers/${deletingDriverId}`, {
-          method: "DELETE",
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          if (response.status === 400 && result.message) {
-            throw new Error(result.message);
-          }
-          throw new Error(result.message || "Lỗi khi xóa tài xế");
-        }
-
-        alert("Xóa tài xế thành công!");
-        setShowDeleteConfirm(false);
-        setDeletingDriverId(null);
-        fetchData();
-      } catch (err: any) {
-        alert(`Lỗi: ${err.message}`);
-        console.error(err);
-      }
-    }
-  };
-
-  const getStatusBadge = (status: Driver["status"]) => {
-    return status === "active" ? (
-      <span className="statusBadge statusActive">
-        Đang hoạt động
-      </span>
-    ) : (
-      <span className="statusBadge statusRest">
-        Đang nghỉ
-      </span>
-    );
-  };
+  }
+};
 
   return (
     <div className="driversContainer">
