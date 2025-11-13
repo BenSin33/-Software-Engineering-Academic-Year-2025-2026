@@ -1,6 +1,6 @@
 // app/API/busService.ts
 
-const API_URL = "http://localhost:3002/api";
+const API_URL = "http://localhost:5000/api";
 
 // Interface định nghĩa cấu trúc dữ liệu Bus từ backend
 export interface BusBackend {
@@ -156,6 +156,7 @@ export async function fetchAllBuses(
         "Content-Type": "application/json",
       },
     });
+    console.log("Đường dẫn lấy được",`${API_URL}/buses?${params.toString()}`);
 
     if (!response.ok) {
       throw new Error("Không thể tải danh sách xe");
