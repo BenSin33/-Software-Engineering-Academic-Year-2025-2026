@@ -6,6 +6,8 @@ const eventPublisher = require('../events/eventPublisher');
 // ===================================
 
 async function getAllBuses(req, res) {
+  console.log("📥 [GET] /api/buses - Backend đã nhận request");
+
   try {
     const {
       status,
@@ -18,10 +20,14 @@ async function getAllBuses(req, res) {
       offset = 0
     } = req.query;
 
+    console.log("🔍 Query params:", req.query);
+
     const filters = { status, search, minCapacity, maxCapacity, minFuel, route };
     const pagination = { limit: parseInt(limit), offset: parseInt(offset) };
 
     const result = await busQueries.findAll(filters, pagination);
+
+    console.log("✅ Trả về danh sách xe buýt:", result.buses?.length || 0);
 
     res.json({
       success: true,
@@ -33,7 +39,7 @@ async function getAllBuses(req, res) {
       }
     });
   } catch (error) {
-    console.error('Error fetching buses:', error);
+    console.error('❌ Lỗi khi lấy danh sách xe buýt:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -41,6 +47,7 @@ async function getAllBuses(req, res) {
     });
   }
 }
+
 
 async function getBusById(req, res) {
   try {
