@@ -5,6 +5,7 @@ exports.routeProcessing = async function () {
   try {
     // --- Gọi route_service ---
     const routeResponse = await callService("route_service", "/Routes", "GET");
+    console.log('đã gọi route')
     const routes = routeResponse.routes || routeResponse || [];
 
     // --- Gọi driver_service (có thể lỗi) ---

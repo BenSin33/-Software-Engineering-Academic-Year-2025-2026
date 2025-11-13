@@ -1,14 +1,13 @@
-'use client';
-
+'use client'
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
-
-// Sửa lỗi icon mặc định
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import polyline from '@mapbox/polyline';
+import objectHash from 'object-hash';
 
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x.src,
@@ -16,64 +15,159 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow.src,
 });
 
-type Coordinate = {
-  lat: number;
-  lng: number;
+type Coordinate = { lat: number; lng: number };
+
+type BusState = {
+  routeId: string;
+  position: L.LatLngExpression;
+  startTime: number;
+  stepIndex: number;
 };
 
-export default function MapView({ coordinates = [] }: { coordinates?: Coordinate[] }) {
-  const [route, setRoute] = useState<L.LatLngExpression[]>([]);
+type MapViewProps = {
+  coordinates?: Coordinate[] | Coordinate[][];
+  showBuses?: boolean; // mới: quyết định có hiển thị bus
+};
 
-  const orsApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxZTJkMDY4NjI0ODQ1NjZiNTdkNTU5ZmQ0OGRlMWY2IiwiaCI6Im11cm11cjY0In0='; //  OpenRouteService key
+const busIcon = L.icon({
+  iconUrl: '/bus.png',
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+});
 
-  useEffect(() => {
-    if (!coordinates || coordinates.length < 2) return;
+function hashRoute(route: L.LatLngExpression[]) {
+  return objectHash(route);
+}
 
-    async function fetchRoute() {
+export default function MapView({ coordinates = [], showBuses = true }: MapViewProps) {
+  const [routes, setRoutes] = useState<{ routeId: string; path: L.LatLngExpression[] }[]>([]);
+  const [busStates, setBusStates] = useState<BusState[]>([]);
+  const updateInterval = 1000;
+
+  const normalizedRoutes: Coordinate[][] = Array.isArray(coordinates[0])
+    ? (coordinates as Coordinate[][])
+    : [coordinates as Coordinate[]];
+
+  const fetchRoutes = async () => {
+    const allRoutes: { routeId: string; path: L.LatLngExpression[] }[] = [];
+
+    for (const route of normalizedRoutes) {
+      if (route.length < 2) continue;
+
       try {
-        // Tạo chuỗi tọa độ [lng,lat] (ORS yêu cầu theo thứ tự này)
-        const coordsString = coordinates.map(c => `${c.lng},${c.lat}`).join('|');
+        const body = { coordinates: route.map(p => [p.lng, p.lat]) };
+        const res = await fetch('http://localhost:5000/ORS/drivingCar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
 
-        const response = await fetch(
-          `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${orsApiKey}&start=${coordinates[0].lng},${coordinates[0].lat}&end=${coordinates[coordinates.length - 1].lng},${coordinates[coordinates.length - 1].lat}`
-        );
-
-        if (!response.ok) {
-          console.error('Lỗi khi gọi ORS API:', await response.text());
-          return;
+        let line: L.LatLngExpression[] = [];
+        if (typeof data.routes[0].geometry === 'string') {
+          const decoded = polyline.decode(data.routes[0].geometry);
+          line = decoded.map(([lat, lng]) => [lat, lng]);
+        } else if (data.routes[0].geometry?.coordinates) {
+          line = data.routes[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
         }
 
-        const data = await response.json();
-        const line = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
-        setRoute(line);
-      } catch (error) {
-        console.error('Lỗi lấy định tuyến:', error);
+        allRoutes.push({ routeId: hashRoute(line), path: line });
+      } catch (err) {
+        console.error(err);
       }
     }
 
-    fetchRoute();
-  }, [coordinates]);
+    setRoutes(allRoutes);
 
-  const center = (coordinates && coordinates.length > 0)
-    ? [coordinates[0].lat, coordinates[0].lng]
-    : [10.77653, 106.700981];
+    // Chỉ tạo busState nếu showBuses = true
+    if (showBuses) {
+      setBusStates(prevBusStates => {
+        const newBusStates: BusState[] = [];
+
+        allRoutes.forEach(route => {
+          const existingBus = prevBusStates.find(b => b.routeId === route.routeId);
+          if (existingBus) {
+            newBusStates.push(existingBus);
+          } else {
+            newBusStates.push({
+              routeId: route.routeId,
+              position: route.path[0],
+              startTime: Date.now(),
+              stepIndex: 0,
+            });
+          }
+        });
+
+        return newBusStates;
+      });
+    } else {
+      setBusStates([]); // không hiển thị bus
+    }
+  };
+
+  useEffect(() => {
+    fetchRoutes();
+    const interval = setInterval(fetchRoutes, 15000);
+    return () => clearInterval(interval);
+  }, [coordinates, showBuses]);
+
+  useEffect(() => {
+    if (!showBuses || routes.length === 0) return;
+
+    const interval = setInterval(() => {
+      setBusStates(prev =>
+        prev.map(bus => {
+          const route = routes.find(r => r.routeId === bus.routeId);
+          if (!route || route.path.length === 0) return bus;
+
+          const elapsed = Date.now() - bus.startTime;
+          const step = Math.floor(elapsed / updateInterval);
+          const newStep = Math.min(step, route.path.length - 1);
+
+          return { ...bus, position: route.path[newStep], stepIndex: newStep };
+        })
+      );
+    }, updateInterval);
+
+    return () => clearInterval(interval);
+  }, [routes, showBuses]);
+
+  const center =
+    normalizedRoutes[0].length > 0
+      ? [normalizedRoutes[0][0].lat, normalizedRoutes[0][0].lng]
+      : [10.77653, 106.700981];
 
   return (
-    <MapContainer center={center as L.LatLngExpression} zoom={10} style={{ height: '100%',zIndex:'0', width: '100%', borderRadius: '12px' }}>
+    <MapContainer
+      center={center as L.LatLngExpression}
+      zoom={13}
+      style={{ height: '100%', width: '100%', borderRadius: '12px' }}
+    >
       <TileLayer
         attribution='&copy; <a href="https://www.maptiler.com/">MapTiler</a> & <a href="https://www.openstreetmap.org/">OSM</a>'
-        url={`https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=KVeN2HZJbhgfyv2ekxLj`}
+        url='https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=KVeN2HZJbhgfyv2ekxLj'
       />
 
-      {/* Marker cho từng tọa độ */}
-      {(coordinates || []).map((pos, idx) => (
-        <Marker key={idx} position={[pos.lat, pos.lng]}>
-          <Popup>Điểm {idx + 1}</Popup>
-        </Marker>
+      {/* Marker điểm gốc tuyến */}
+      {normalizedRoutes.map((route, i) =>
+        route.map((pos, j) => (
+          <Marker key={`marker-${i}-${j}`} position={[pos.lat, pos.lng]}>
+            <Popup>Tuyến {i + 1} - Điểm {j + 1}</Popup>
+          </Marker>
+        ))
+      )}
+
+      {/* Polyline */}
+      {routes.map((r, i) => (
+        <Polyline key={`route-${i}`} positions={r.path} color="#4285F4" weight={5} />
       ))}
 
-      {/* Đường định tuyến thật */}
-      {route.length > 0 && <Polyline positions={route} color="#4285F4" weight={5} />}
+      {/* Marker bus */}
+      {showBuses &&
+        busStates.map(bus => (
+          <Marker key={`bus-${bus.routeId}`} position={bus.position} icon={busIcon} />
+        ))}
     </MapContainer>
   );
 }
