@@ -1,7 +1,6 @@
 // app/API/driverService.ts
 
-const API_URL = "http://localhost:3002/api";
-
+const API_URL = "http://localhost:5000/api/bus-drivers";
 // Interface định nghĩa cấu trúc dữ liệu Driver từ backend
 export interface DriverBackend {
   DriverID: number;
