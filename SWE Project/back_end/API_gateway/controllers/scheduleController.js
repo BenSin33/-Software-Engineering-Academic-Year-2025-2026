@@ -52,24 +52,24 @@ exports.scheduleController = async function (req, res) {
     } catch (err) {
       console.warn("⚠️ Lỗi khi lấy dữ liệu schedule_service:", err.message);
     }
-    const {getStatus} = require('../utils/utils')
+
     // --- 2️⃣ Gọi lại routeProcessing nội bộ ---
     const routes = await routeProcessing();
+
     // --- 3️⃣ Gộp dữ liệu ---
     const mergedData = schedules.map((schedule) => {
       const matchedRoute = routes.find((r) => r.RouteID === schedule.RouteID);
       return {
         ScheduleID: schedule.ScheduleID || "Không có dữ liệu",
-        RouteID: matchedRoute? schedule.RouteID : "Không có dữ liệu",
-        RouteName: matchedRoute? matchedRoute.RouteName:"Không có dữ liệu",
+        RouteID: schedule.RouteID || "Không có dữ liệu",
         BusID: matchedRoute ? matchedRoute.BusID : "Không có dữ liệu",
         DriverName: matchedRoute ? matchedRoute.DriverName : "Không có dữ liệu",
-        StartTime: schedule.TimeStart || "Không có dữ liệu",
-        EndTime: schedule.TimeEnd || "Không có dữ liệu",
+        StartTime: schedule.StartTime || "Không có dữ liệu",
+        EndTime: schedule.EndTime || "Không có dữ liệu",
         Date: schedule.Date || "Không có dữ liệu",
-        Status: getStatus(schedule.TimeStart,schedule.TimeEnd,schedule.Date)
       };
     });
+    console.log('d: ',mergedData)
     // --- 4️⃣ Trả kết quả ---
     return res.status(200).json({
       message: "Lấy dữ liệu schedule + route + driver thành công",

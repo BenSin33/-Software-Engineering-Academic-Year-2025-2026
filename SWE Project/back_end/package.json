@@ -10,11 +10,9 @@
     "dev": "concurrently \"npm run dev --workspace=auth-service\" \"npm run dev --workspace=user-service\" \"npm run dev --workspace=student-service\""
   },
   "dependencies": {
-    "@mapbox/polyline": "^1.2.1",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
-    "dayjs": "^1.11.19",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "express-validator": "^7.3.0",
