@@ -526,7 +526,7 @@ export default function RoutesPage() {
                             <p className="text-gray-700 text-lg font-medium">Đang lấy dữ liệu tuyến đường...</p>
                         </div>
                     ) : (
-                        <MapView coordinates={coordinates} />
+                        <MapView coordinates={coordinates} showBuses={false} />
                     )}
                 </div>
 

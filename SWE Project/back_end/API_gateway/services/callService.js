@@ -1,11 +1,11 @@
 const SERVICE_URLS = {
-  student_service: "http://localhost:5001",
+  student_service: "http://student_service:5001",
   parent_service: "http://localhost:5002",
   messaging_service: "http://localhost:5002",
-  route_service: "http://localhost:5003",
+  route_service: "http://route_service:5003",
   driver_service: "http://localhost:5004",
-  schedule_service: "http://localhost:5005",
-  location_service: "http://localhost:5010"
+  schedule_service: "http://schedule_service:5005",
+  location_service: "http://location_service:5009"
 };
 
 async function callService(serviceName, path, method = "GET", data = null) {
