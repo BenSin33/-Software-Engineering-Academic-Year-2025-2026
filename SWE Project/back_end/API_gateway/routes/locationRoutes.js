@@ -14,7 +14,7 @@ router.post("/coordinates", async (req, res) => {
       `/students/route/${route.RouteID}/PickUpPoint`,
       "GET"
     );
-  
+    console.log('1st res: ',response.addressArr)
     addressArr = response.addressArr || [];
     if (addressArr.length > 0) {
       // addressArr.push(route.EndLocation);
@@ -27,7 +27,7 @@ router.post("/coordinates", async (req, res) => {
           "POST",
           addressArr
         );
-
+         console.log('2nd err: ',coordinatesData.coordinates)
         console.log('coordData: ',coordinatesData)
         coordinates = coordinatesData.coordinates || [];
 

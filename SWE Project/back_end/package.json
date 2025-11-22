@@ -10,6 +10,7 @@
     "dev": "concurrently \"npm run dev --workspace=auth-service\" \"npm run dev --workspace=user-service\" \"npm run dev --workspace=student-service\""
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.7",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",

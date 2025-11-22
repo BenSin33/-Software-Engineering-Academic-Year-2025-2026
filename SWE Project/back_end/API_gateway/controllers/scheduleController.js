@@ -48,7 +48,6 @@ exports.scheduleController = async function (req, res) {
     let schedules = [];
     try {
       const scheduleResponse = await callService("schedule_service", "/Schedules", "GET");
-      console.log('nó dó: ',scheduleResponse)
       schedules = scheduleResponse.schedules || scheduleResponse || [];
     } catch (err) {
       console.warn("⚠️ Lỗi khi lấy dữ liệu schedule_service:", err.message);
@@ -72,6 +71,7 @@ exports.scheduleController = async function (req, res) {
         Status: getStatus(schedule.TimeStart,schedule.TimeEnd,schedule.Date)
       };
     });
+    console.log('merge: ',mergedData)
     // --- 4️⃣ Trả kết quả ---
     return res.status(200).json({
       message: "Lấy dữ liệu schedule + route + driver thành công",
