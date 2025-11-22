@@ -1,11 +1,14 @@
-const dayjs = require('dayjs')
+const dayjs = require('dayjs');
+const customParseFormat = require('dayjs/plugin/customParseFormat');
+dayjs.extend(customParseFormat);
 
 function getStatus(timeStart, timeEnd, date) {
     if (!timeStart || !timeEnd || !date) return 'chưa có lịch trình'
-    const now = dayjs();
-    
+    const now = dayjs().format('YYYY-MM-DD HH:mm');
+
     const start = dayjs(new Date(`${timeStart} ${formatDate(date)}`))
     const end = dayjs(new Date(`${timeEnd} ${formatDate(date)}`))
+    console.log(`now: ${now}, start: ${start}, end: ${end}, start.isAfter(now): ${start.isAfter(now)}`)
     if (start.isAfter(now)) return 'Dự Kiến';
     else if (end.isBefore(now)) return 'Đã hoàn thành';
     else return 'Đang hoạt động'

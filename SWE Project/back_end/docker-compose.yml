@@ -12,6 +12,8 @@ services:
       - .:/app
     networks:
       - app-net
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     depends_on:
       - auth_service
       - bus_service
@@ -107,7 +109,7 @@ services:
     container_name: location_service
     ports:
       - "5009:5009"
-    command: ["node", "Services/schedule_service/app.js"]
+    command: ["node", "Services/location_service/app.js"]
     environment:
       - PORT=5009
     volumes:
