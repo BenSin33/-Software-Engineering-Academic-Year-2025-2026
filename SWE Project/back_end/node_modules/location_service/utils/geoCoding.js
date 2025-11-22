@@ -1,23 +1,23 @@
 // 🗺️ services/location_service/utils/geoCoding.js
+
 async function getCoordinatesOSM(address) {
-  const apiKey = "94d6121119b649b4972adf740c394a43";
-  const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(address)}&key=${apiKey}&language=vi&countrycode=vn&limit=1`;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY; 
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=vi`;
 
   try {
     const response = await fetch(url);
     const data = await response.json();
 
-    if (data.results && data.results.length > 0) {
-      const { lat, lng } = data.results[0].geometry;
+    if (data.status === "OK" && data.results.length > 0) {
+      const { lat, lng } = data.results[0].geometry.location;
       return { lat, lng };
     } else {
-      console.log(" Không tìm thấy tọa độ cho:", address);
+      console.log("⚠️ Không tìm thấy tọa độ cho:", address, "Status:", data.status);
       return null;
     }
   } catch (error) {
-    console.error("⚠️ Lỗi khi gọi OpenCage API:", error.message);
+    console.error("⚠️ Lỗi khi gọi Google Geocoding API:", error.message);
     return null;
   }
 }
-
 module.exports = { getCoordinatesOSM };

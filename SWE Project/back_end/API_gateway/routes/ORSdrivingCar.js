@@ -16,7 +16,7 @@ router.post('/drivingCar', async (req, res) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${orsSecond}`,
+          Authorization: `Bearer ${orsApiKey}`,
         },
         body: JSON.stringify(routes),
       }
