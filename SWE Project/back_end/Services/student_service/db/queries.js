@@ -6,7 +6,12 @@ async function getStudents() {
 }
 
 async function getStudentsByRouteID(id){
-  const [rows]=await pool.query('select pickUpPoint from students where routeID = ?',[id]);
+  const [rows]=await pool.query('select StudentID,pickUpPoint from students where routeID = ?',[id]);
+  return rows;
+}
+
+async function getStudent(id){
+  const [rows]=await pool.query('select * from students where StudentID = ?',[id]);
   return rows;
 }
 
@@ -45,6 +50,7 @@ module.exports = {
   addStudent,
   updateCurrentStudent,
   deleteStudent,getStudentsByRouteID,
-  getStudentsByParentID
+  getStudentsByParentID,
+  getStudent
 
 };

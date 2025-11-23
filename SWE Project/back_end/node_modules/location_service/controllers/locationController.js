@@ -6,8 +6,51 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-exports.getCoordinatesArray=async (req, res)=> {
+// exports.getCoordinatesArray=async (req, res)=> {
+//   const addressArr = req.body; // Mảng địa chỉ gửi từ frontend
+//   const coordinates = [];
+
+//   console.log("📍 Nhận được danh sách địa chỉ:", addressArr);
+
+//   if (!Array.isArray(addressArr) || addressArr.length === 0) {
+//     return res.status(400).json({
+//       message: "Dữ liệu đầu vào không hợp lệ. Cần truyền vào mảng các địa chỉ.",
+//     });
+//   }
+
+//   try {
+//     for (const address of addressArr) {
+//       console.log(`🔍 Đang xử lý: ${address}`);
+//       const coordinate = await geoCoding.getCoordinatesOSM(address);
+
+//       if (coordinate) {
+//         console.log(` Thành công: ${address} →`, coordinate);
+//         coordinates.push(coordinate);
+//       } else {
+//         console.log(` Không tìm thấy tọa độ cho: ${address}`);
+//       }
+
+//       // Bắt buộc delay để tránh vượt giới hạn rate limit của OpenCage
+//       await delay(1000);
+//     }
+
+//     console.log("📦 Tất cả tọa độ:", coordinates);
+
+//     return res.status(200).json({
+//       message: "Chuyển tọa độ thành công",
+//       coordinates,
+//     });
+//   } catch (err) {
+//     console.error("💥 Lỗi khi chuyển đổi tọa độ:", err);
+//     return res.status(500).json({
+//       message: "Lỗi server khi chuyển địa chỉ sang tọa độ",
+//     });
+//   }
+// }
+
+exports.getCoordinatesArray = async (req, res) => {
   const addressArr = req.body; // Mảng địa chỉ gửi từ frontend
+  console.log('addressArr: ',addressArr)
   const coordinates = [];
 
   console.log("📍 Nhận được danh sách địa chỉ:", addressArr);
@@ -19,18 +62,40 @@ exports.getCoordinatesArray=async (req, res)=> {
   }
 
   try {
-    for (const address of addressArr) {
+    for (const item of addressArr) {
+      let address;
+      let newEntry = {};
+
+      if (typeof item === 'string') {
+        // Start hoặc end location
+        address = item;
+        newEntry.type = coordinates.length === 0 ? 'start' : 'end';
+        newEntry.address = address;
+      } else if (typeof item === 'object' && item.pickUpPoint) {
+        // Các điểm trung gian của học sinh
+        console.log("item hợp lệ: ",item)
+        address = item.pickUpPoint;
+        newEntry.type = 'student';
+        newEntry.studentID = item.StudentID;
+        newEntry.pickUpPoint = address;
+      } else {
+        console.log("⚠️ Bỏ qua item không hợp lệ:", item);
+        continue; // skip nếu không hợp lệ
+      }
+
       console.log(`🔍 Đang xử lý: ${address}`);
       const coordinate = await geoCoding.getCoordinatesOSM(address);
 
       if (coordinate) {
-        console.log(` Thành công: ${address} →`, coordinate);
-        coordinates.push(coordinate);
+        console.log(` ✅ Thành công: ${address} →`, coordinate);
+        newEntry.lat = coordinate.lat;
+        newEntry.lng = coordinate.lng;
+        coordinates.push(newEntry);
       } else {
-        console.log(` Không tìm thấy tọa độ cho: ${address}`);
+        console.log(` ❌ Không tìm thấy tọa độ cho: ${address}`);
       }
 
-      // Bắt buộc delay để tránh vượt giới hạn rate limit của OpenCage
+      // Delay để tránh vượt giới hạn rate limit
       await delay(1000);
     }
 
@@ -46,7 +111,7 @@ exports.getCoordinatesArray=async (req, res)=> {
       message: "Lỗi server khi chuyển địa chỉ sang tọa độ",
     });
   }
-}
+};
 
 // exports.getAllCurrentLocations = async (req, res) => {
 //   try {

@@ -8,6 +8,7 @@ studentRouter.get('/route/:id/PickUpPoint',studentController.getPickUpPoint)
 studentRouter.post('/add', studentController.addNewStudent);
 studentRouter.post('/edit/:studentID',studentController.updateCurrentStudent)
 studentRouter.post('/delete/:studentID',studentController.deleteStudent)
+studentRouter.post('/:studentID',studentController.getStudent)
 studentRouter.get('/by-parent/:parentID', studentController.getStudentsByParent);
 module.exports = studentRouter;
 

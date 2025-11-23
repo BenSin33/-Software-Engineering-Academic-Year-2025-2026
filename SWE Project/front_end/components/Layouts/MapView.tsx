@@ -1,33 +1,32 @@
-'use client'
+'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { v4 as uuidv4 } from 'uuid';
 import polylineDecode from '@mapbox/polyline';
 
 type Coordinate = { lat: number; lng: number };
-
-type BusState = {
-  id: string;
-  routeIndex: number; // index tuyến trong routes
-  position: Coordinate;
-  stepIndex: number;
-};
-
-type MapViewProps = {
-  coordinates?: Coordinate[] | Coordinate[][];
-  showBuses?: boolean;
-};
+type BusState = { id: string; routeKey: string; position: Coordinate; stepIndex: number };
+type MapViewProps = { coordinates?: Coordinate[] | Coordinate[][]; showBuses?: boolean };
 
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '12px' };
 const defaultCenter = { lat: 10.77653, lng: 106.700981 };
-const updateInterval = 200; // 0.2s để mượt
+const updateInterval = 300;
+
+function hashRoute(route: Coordinate[]) {
+  return route.map(p => `${p.lat.toFixed(6)}_${p.lng.toFixed(6)}`).join('|');
+}
+
+// Hàm sinh màu theo index
+function getColor(index: number) {
+  const colors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF5722', '#9C27B0'];
+  return colors[index % colors.length];
+}
 
 export default function MapView({ coordinates = [], showBuses = true }: MapViewProps) {
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-  });
+  console.log('structure: ',coordinates)
+  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: `${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}` });
 
-  const [routes, setRoutes] = useState<Coordinate[][]>([]);
+  const [routes, setRoutes] = useState<{ key: string; path: Coordinate[] }[]>([]);
   const [busStates, setBusStates] = useState<BusState[]>([]);
 
   const normalizedRoutes: Coordinate[][] = Array.isArray(coordinates[0])
@@ -36,16 +35,12 @@ export default function MapView({ coordinates = [], showBuses = true }: MapViewP
 
   const busIcon = useMemo(() => {
     if (!isLoaded) return undefined;
-    return {
-      url: '/file.svg', 
-      scaledSize: new window.google.maps.Size(40, 40),
-      anchor: new window.google.maps.Point(20, 20),
-    };
+    return { url: '/bus.svg', scaledSize: new window.google.maps.Size(40, 40), anchor: new window.google.maps.Point(20, 20) };
   }, [isLoaded]);
 
-  // fetch routes từ ORS
-  const fetchRoutes = async () => {
-    const newRoutes: Coordinate[][] = [];
+  /** Fetch geometry từ API */
+  const fetchRoutesFromAPI = async () => {
+    const newRoutes: { key: string; path: Coordinate[] }[] = [];
 
     for (const route of normalizedRoutes) {
       if (route.length < 2) continue;
@@ -56,80 +51,75 @@ export default function MapView({ coordinates = [], showBuses = true }: MapViewP
           body: JSON.stringify({ coordinates: route.map(p => [p.lng, p.lat]) }),
         });
         if (!res.ok) continue;
-        const data = await res.json();
 
+        const data = await res.json();
         let line: Coordinate[] = [];
         if (typeof data.routes[0].geometry === 'string') {
-          const decoded = polylineDecode.decode(data.routes[0].geometry);
-          line = decoded.map(([lat, lng]) => ({ lat, lng }));
+          line = polylineDecode.decode(data.routes[0].geometry).map(([lat, lng]) => ({ lat, lng }));
         } else if (data.routes[0].geometry?.coordinates) {
           line = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
         }
-
-        newRoutes.push(line);
+        newRoutes.push({ key: hashRoute(line), path: line });
       } catch (err) {
-        console.error(err);
+        console.error('Fetch route error:', err);
       }
     }
 
-    setRoutes(newRoutes);
+    const isSame = routes.length === newRoutes.length &&
+      routes.every((r, i) => r.key === newRoutes[i].key);
 
-    // Khởi tạo busStates: mỗi tuyến 1 bus
-    if (showBuses) {
-      setBusStates(prev => {
-        return newRoutes.map((route, index) => {
-          const existing = prev.find(b => b.routeIndex === index);
-          return existing || { id: uuidv4(), routeIndex: index, position: route[0], stepIndex: 0 };
+    if (!isSame) {
+      setRoutes(newRoutes);
+
+      setBusStates(prevBus => {
+        const busMap = new Map(prevBus.map(b => [b.routeKey, b]));
+        return newRoutes.map(r => {
+          const oldBus = busMap.get(r.key);
+          return oldBus
+            ? { ...oldBus, position: oldBus.position, stepIndex: oldBus.stepIndex }
+            : { id: uuidv4(), routeKey: r.key, position: r.path[0], stepIndex: 0 };
         });
       });
-    } else {
-      setBusStates([]);
     }
   };
 
   useEffect(() => {
-    fetchRoutes();
-    const interval = setInterval(fetchRoutes, 15000);
-    return () => clearInterval(interval);
-  }, [coordinates, showBuses]);
+    if (normalizedRoutes.length === 0) return;
+    fetchRoutesFromAPI();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedRoutes]);
 
-  // di chuyển bus
+  /** Di chuyển bus */
   useEffect(() => {
-    if (!showBuses || routes.length === 0) return;
-
+    if (!showBuses || routes.length === 0 || busStates.length === 0) return;
     const interval = setInterval(() => {
       setBusStates(prev =>
         prev.map(bus => {
-          const route = routes[bus.routeIndex];
-          if (!route || route.length < 2) return bus;
-          const nextStep = (bus.stepIndex + 1) % route.length;
-          return { ...bus, position: route[nextStep], stepIndex: nextStep };
+          const route = routes.find(r => r.key === bus.routeKey);
+          if (!route || route.path.length < 2) return bus;
+          const nextStep = (bus.stepIndex + 1) % route.path.length;
+          return { ...bus, stepIndex: nextStep, position: route.path[nextStep] };
         })
       );
     }, updateInterval);
-
     return () => clearInterval(interval);
-  }, [routes, showBuses]);
+  }, [routes, busStates, showBuses]);
 
   if (!isLoaded) return <div>Loading map...</div>;
-
-  const center = normalizedRoutes[0]?.[0] || defaultCenter;
+  const center = routes[0]?.path[0] || defaultCenter;
 
   return (
     <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13}>
-      {/* route markers */}
-      {normalizedRoutes.map((route, i) =>
-        route.map((pos, j) => <Marker key={`marker-${i}-${j}`} position={pos} />)
-      )}
-
-      {/* polylines */}
+      {normalizedRoutes.map((route, i) => route.map((pos, j) => <Marker key={`marker-${i}-${j}`} position={pos} />))}
       {routes.map((r, i) => (
-        <Polyline key={`route-${i}`} path={r} options={{ strokeColor: '#4285F4', strokeWeight: 5 }} />
+        <Polyline
+          key={`route-${i}`}
+          path={r.path}
+          options={{ strokeColor: getColor(i), strokeWeight: 5 }}
+        />
       ))}
-
-      {/* buses */}
-      {showBuses &&
-        busStates.map(bus => <Marker key={bus.id} position={bus.position} icon={busIcon} />)}
+      {showBuses && busStates.map(bus => <Marker key={bus.id} position={bus.position} icon={busIcon} />)}
     </GoogleMap>
   );
 }
+

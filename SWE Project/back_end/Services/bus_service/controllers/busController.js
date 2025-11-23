@@ -20,7 +20,6 @@ async function getAllBuses(req, res) {
       offset = 0
     } = req.query;
 
-    console.log("🔍 Query params:", req.query);
 
     const filters = { status, search, minCapacity, maxCapacity, minFuel, route };
     const pagination = { limit: parseInt(limit), offset: parseInt(offset) };

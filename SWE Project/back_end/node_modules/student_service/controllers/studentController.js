@@ -10,6 +10,43 @@ const queries = require('../db/queries')
     res.status(500).json({ message: "Server lỗi" });
   }
 }
+async function getStudent(req, res) {
+  try {
+    const { studentID } = req.params; // Lấy studentID từ params
+    const data = await queries.getStudent(studentID); // Truyền vào query
+    if (!data) {
+      return res.status(404).json({ message: "Không tìm thấy học sinh" });
+    }
+    res.status(200).json(data);
+  } catch (err) {
+    console.error("Lỗi khi lấy học sinh:", err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+}
+// async function getPickUpPoint(req, res) {
+//   const { id } = req.params;
+//   try {
+//     const students = await queries.getStudentsByRouteID(id);
+//     if (!students || students.length === 0) {
+//       return res.status(404).json({
+//         message: "Không tìm thấy học sinh nào trong tuyến này",
+//         addressArr: [],
+//       });
+//     }
+
+//     // Chuyển danh sách object thành mảng địa chỉ
+//     const addressArr = students.map((student) => student.pickUpPoint);
+//     return res.status(200).json({
+//       message: "Fetch địa chỉ học sinh cùng tuyến thành công",
+//       addressArr,
+//     });
+//   } catch (err) {
+//     console.error("Lỗi khi lấy pickUpPoint:", err);
+//     return res.status(500).json({
+//       message: "Lỗi server khi lấy danh sách điểm đón học sinh",
+//     });
+//   }
+// }
 
 async function getPickUpPoint(req, res) {
   const { id } = req.params;
@@ -18,15 +55,18 @@ async function getPickUpPoint(req, res) {
     if (!students || students.length === 0) {
       return res.status(404).json({
         message: "Không tìm thấy học sinh nào trong tuyến này",
-        addressArr: [],
+        students: [],
       });
     }
 
-    // Chuyển danh sách object thành mảng địa chỉ
-    const addressArr = students.map((student) => student.pickUpPoint);
+    // Chuyển danh sách object thành mảng chứa cả studentID và pickUpPoint
+    const studentsData = students.map((student) => ({
+      StudentID: student.StudentID, // hoặc student.StudentID tùy DB
+      pickUpPoint: student.pickUpPoint,
+    }));
     return res.status(200).json({
-      message: "Fetch địa chỉ học sinh cùng tuyến thành công",
-      addressArr,
+      message: "Fetch danh sách học sinh cùng tuyến thành công",
+      students: studentsData,
     });
   } catch (err) {
     console.error("Lỗi khi lấy pickUpPoint:", err);
@@ -35,7 +75,6 @@ async function getPickUpPoint(req, res) {
     });
   }
 }
-
 
 async function addNewStudent(req, res) {
   try {
@@ -122,5 +161,6 @@ module.exports = {
   updateCurrentStudent,
   deleteStudent,
   getPickUpPoint,
-  getStudentsByParent
+  getStudentsByParent,
+  getStudent
 }
