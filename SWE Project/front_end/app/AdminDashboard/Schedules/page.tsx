@@ -256,12 +256,13 @@ const useScheduleActions = (
   };
 
   const handleDeleteSchedule = async (schedule: Schedule) => {
+    alert('xóa')
     try {
       await ScheduleService.deleteSchedule(schedule.ScheduleID);
 
       if (setSchedules) {
         setSchedules(prev =>
-          prev.filter(s => s.ScheduleID !== schedule.ScheduleID)
+          prev.filter(s => Number(s.ScheduleID) !== Number(schedule.ScheduleID))
         );
       } else {
         refetchSchedules();

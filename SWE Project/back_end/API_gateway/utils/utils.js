@@ -8,7 +8,6 @@ function getStatus(timeStart, timeEnd, date) {
 
     const start = dayjs(new Date(`${timeStart} ${formatDate(date)}`))
     const end = dayjs(new Date(`${timeEnd} ${formatDate(date)}`))
-    console.log(`now: ${now}, start: ${start}, end: ${end}, start.isAfter(now): ${start.isAfter(now)}`)
     if (start.isAfter(now)) return 'Dự Kiến';
     else if (end.isBefore(now)) return 'Đã hoàn thành';
     else return 'Đang hoạt động'

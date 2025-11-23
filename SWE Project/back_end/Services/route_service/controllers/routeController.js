@@ -14,7 +14,7 @@ async function getAllRoutes(req,res){
 }
 async function getRoute(req, res) {
   try {
-    const { RouteID } = req.body;
+    const { RouteID } = req.params;
 
     // 1️⃣ Kiểm tra đầu vào
     if (!RouteID) {
@@ -22,7 +22,7 @@ async function getRoute(req, res) {
     }
 
     // 2️⃣ Gọi service (phải có await)
-    const route = await getRouteByID(RouteID);
+    const route = await queries.getRouteByID(RouteID);
 
     // 3️⃣ Kiểm tra kết quả
     if (!route) {

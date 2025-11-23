@@ -21,7 +21,6 @@ router.get("/:senderID/:receiverID", async (req, res) => {
       "GET"
     );
     
-    console.log(` [API Gateway] Messages retrieved:`, messages);
     
     return res.status(200).json({
       success: true,
@@ -78,7 +77,6 @@ router.post("/", async (req, res) => {
       messageData
     );
 
-    console.log(` [API Gateway] Message sent:`, result);
 
     return res.status(201).json({
       success: true,
