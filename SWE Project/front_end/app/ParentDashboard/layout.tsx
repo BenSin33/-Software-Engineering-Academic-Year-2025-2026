@@ -34,10 +34,8 @@ export default function ParentDashboardLayout({ children }: { children: React.Re
 
   const navItems = [
     { text: 'Dashboard', url: '/ParentDashboard', icon: HiUserCircle },
-    { text: 'Overview', url: '/ParentDashboard/Overview', icon: HiUserCircle },
     { text: 'Children Info', url: '/ParentDashboard/ChildInfo', icon: HiUserCircle },
     { text: 'Messages', url: '/ParentDashboard/Message', icon: HiChat },
-    { text: 'Notifications', url: '/ParentDashboard/Notifications', icon: HiBell },
     { text: 'Bus Location', url: '/ParentDashboard/BusLocation', icon: HiLocationMarker },
   ];
 

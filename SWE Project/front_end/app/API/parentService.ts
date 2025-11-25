@@ -110,6 +110,7 @@ export async function getParentById(parentId: string): Promise<Parent> {
  * Lấy phụ huynh theo UserID
  */
 export async function getParentByUserId(userId: string): Promise<Parent> {
+  decodeToken();
   const url = `${API_BASE_URL}/api/parents/user/${userId}`;
   console.log("👉 Fetching parent by UserID:", url);
   logAuthInfo()
@@ -300,3 +301,30 @@ export function logAuthInfo(): void {
   }
 }
 
+export function decodeToken(): void {
+  const token = getToken();
+  if (!token) {
+    console.warn("⚠️ Không có token trong localStorage");
+    return;
+  }
+
+  try {
+    const payloadBase64 = token.split('.')[1];
+    const payloadJson = atob(payloadBase64);
+    const payload = JSON.parse(payloadJson);
+
+    console.log("📦 Token payload:", payload);
+    console.log("👉 exp:", payload.exp, "(Unix timestamp)");
+    console.log("👉 roleId:", payload.roleID);
+    console.log("👉 userId:", payload.userID);
+
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      console.warn("⚠️ Token đã hết hạn");
+    } else {
+      console.log("✅ Token còn hạn sử dụng");
+    }
+  } catch (err) {
+    console.error("❌ Không thể decode token:", err);
+  }
+}

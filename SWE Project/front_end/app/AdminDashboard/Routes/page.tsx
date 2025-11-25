@@ -226,6 +226,7 @@ export default function RoutesPage() {
             if (!response.ok) throw new Error('Lỗi server khi fetch tọa độ');
 
             const data = await response.json();
+            console.log('[DEBUG] Dữ liệu trả về từ API:', data);
 
             if (!data?.coordinates?.length) throw new Error('Tọa độ trống');
 

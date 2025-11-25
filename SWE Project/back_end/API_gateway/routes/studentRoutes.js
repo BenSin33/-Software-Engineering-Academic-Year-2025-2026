@@ -156,4 +156,25 @@ router.patch("/update-parent/:studentID", async (req, res) => {
   }
 });
 
+// Lấy danh sách học sinh theo ParentID
+router.get("/by-parent/:parentID", async (req, res) => {
+  try {
+    const { parentID } = req.params;
+
+    // Gọi xuống student_service
+    const result = await callService(
+      "student_service",
+      `/students/by-parent/${parentID}`,
+      "GET"
+    );
+
+    // Trả về dữ liệu cho frontend
+    res.json(result);
+  } catch (error) {
+    console.error("Lỗi khi lấy học sinh theo ParentID:", error.message);
+    res.status(500).json({ error: "Không thể lấy học sinh theo ParentID" });
+  }
+});
+
+
 module.exports = router;

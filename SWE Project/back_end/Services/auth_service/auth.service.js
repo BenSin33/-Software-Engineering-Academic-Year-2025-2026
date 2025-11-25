@@ -86,7 +86,7 @@ exports.login = async (req, res) => {
         roleName: user.RoleName, // Tên vai trò
       };
 
-      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" }); // Tạo token có thời hạn 1 giờ
+      const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "12h" }); // Tạo token có thời hạn 12 giờ
 
       await sendLog("auth_service", "login", user.UserID, user.RoleID, 200, "Login successful"); // Ghi log đăng nhập thành công
       return res.json({ token, userID: user.UserID, roleID: user.RoleID, roleName: user.RoleName }); // Trả về token và thông tin người dùng
