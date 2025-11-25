@@ -35,7 +35,7 @@ app.use('/location', locationRoutes)
 app.use('/Schedules', scheduleRoutes)
 app.use('/api/messages', messageRoutes)
 app.use('/api/drivers', driverRoutes);
-app.use('/api/parents', parentRoutes);
+app.use('/api/parents', parentRoutes);//
 app.use('/api/users', userRoutes);
 
 app.use('/ORS', ORS)

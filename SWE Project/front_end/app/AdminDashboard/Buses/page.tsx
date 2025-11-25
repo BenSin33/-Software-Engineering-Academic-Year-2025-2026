@@ -33,7 +33,7 @@ export default function BusesPage() {
   const [drivers, setDrivers] = useState<any[]>([]); // [{id, name,...}]
   const [routes, setRoutes] = useState<any[]>([]);   // [{RouteID, RouteName,...}]
   // Dùng DriverID, RouteID chứ không lưu tên để liên kết chắc chắn
-  const [driverMap, setDriverMap] = useState<{ [key: number]: any }>({});
+  const [driverMap, setDriverMap] = useState<{ [key: number]: any }>({})
 
   const initialFormData: Partial<BusFrontend> = {
     id: "",

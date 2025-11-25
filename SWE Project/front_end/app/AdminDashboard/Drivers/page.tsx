@@ -11,7 +11,7 @@ import MessagePanel from "@/components/Driver/MessagePanel";
 import { fetchAllBuses } from "@/app/API/busService";
 import { fetchRouteService } from "@/app/API/routeService";
 import MessagePanelToDriver from "@/components/Admin/MessagePanelToDriver";
-import { userIdToMessageId } from "@/utils/IdConverter";
+import { userIdToMessageId } from "@/utils/idConverter";
 
 interface Driver {
   id: number;
@@ -98,7 +98,7 @@ export default function DriversPage() {
   });
 
   const itemsPerPage = 5;
-  const API_URL = "http://localhost:5000/api/drivers";
+  const API_URL = "http://localhost:5000/api/bus-drivers";
 
   const fetchData = async () => {
     setLoading(true);
@@ -109,19 +109,24 @@ export default function DriversPage() {
         fetch(`${API_URL}?limit=1000`),
         fetch(`http://localhost:5000/api/buses?limit=1000`)
       ]);
-
+  
       if (!statsRes.ok) throw new Error("Không thể tải thống kê tài xế");
       if (!driversRes.ok) throw new Error("Không thể tải danh sách tài xế");
       if (!busesRes.ok) throw new Error("Không thể tải danh sách xe");
-
+  
       const statsData = await statsRes.json();
       const driversData = await driversRes.json();
       const busesData = await busesRes.json();
-
+  
+      // 👉 Log để kiểm tra dữ liệu thực tế
+      console.log("Stats data:", statsData);
+      console.log("Drivers data:", driversData);
+      console.log("Buses data:", busesData);
+  
       if (statsData.success) {
         setDriverStats(statsData.data);
       }
-
+  
       if (driversData.success && busesData.success) {
         const busMap = new Map<number, { busId: string; routeId: string }>();
         if (Array.isArray(busesData.data)) {
@@ -134,26 +139,31 @@ export default function DriversPage() {
             }
           });
         }
-
-        const mappedDrivers = driversData.data.map((driver: ApiDriver): Driver => {
+  
+        const mappedDrivers = driversData.data.map((driver: any): Driver => {
+          console.log("Driver record:", driver); // 👉 log từng driver
+  
           const assignedBus = busMap.get(driver.DriverID);
-
+  
           // Convert database status to frontend format
-          const status = driver.Status?.toLowerCase() === 'active' ? 'active' : 'rest';
-
+          const status = driver.Status?.toLowerCase() === "active" ? "active" : "rest";
+  
+          // ⚠️ Chỉnh lại key: nếu backend trả về fullName thì dùng driver.fullName
+          const fullName = driver.Fullname || driver.fullName || "Unknown";
+  
           return {
             id: driver.DriverID,
             userId: driver.UserID,
-            name: driver.FullName || "Unknown",
-            phone: driver.PhoneNumber || "",
-            email: driver.Email || "",
+            name: fullName,
+            phone: driver.PhoneNumber || driver.phone || "",
+            email: driver.Email || driver.email || "",
             status: status,
             bus: assignedBus ? assignedBus.busId : "-",
             route: assignedBus ? assignedBus.routeId : "-",
-            avatar: driver.FullName ? driver.FullName.charAt(0).toUpperCase() : "?"
+            avatar: fullName !== "Unknown" ? fullName.charAt(0).toUpperCase() : "?"
           };
         });
-
+  
         setDrivers(mappedDrivers);
       } else {
         throw new Error(driversData.message || busesData.message || "Lỗi tải dữ liệu");
@@ -165,6 +175,7 @@ export default function DriversPage() {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
     fetchData();

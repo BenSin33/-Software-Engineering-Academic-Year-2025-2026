@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Bus, MessageSquare } from 'lucide-react';
 import MapView from '@/components/Layouts/MapView';
 import MessagePanel from '@/components/Driver/MessagePanel';
-import { userIdToMessageId } from '@/utils/IdConverter';
+import { userIdToMessageId } from '@/utils/idConverter';
 import './DriverJourney.css';
 
 type ToggleSwitchProps = {

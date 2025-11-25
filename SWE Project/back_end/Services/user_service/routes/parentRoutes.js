@@ -4,7 +4,7 @@ const router = express.Router();
 const authorize = require('../middleware/auth.middleware');
 
 // GET thông tin 1 phụ huynh theo UserID
-router.get("/parents/user/:userId", authorize(["R003"]), parentController.getParentByUserId);
+router.get("/user/:userId", authorize(["R003"]), parentController.getParentByUserId);
 
 // Lấy tất cả phụ huynh
 router.get("/", parentController.getAllParents);
