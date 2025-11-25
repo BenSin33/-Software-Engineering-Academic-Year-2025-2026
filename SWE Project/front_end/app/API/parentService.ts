@@ -1,6 +1,6 @@
 // app/API/parentService.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3019';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export interface Parent {
   ParentID: string;
@@ -15,7 +15,7 @@ export interface Parent {
 }
 
 export interface CreateParentDto {
-  userId: string;
+  userId?: string;  // Optional - backend creates this automatically
   trackingId?: string;
   fullName: string;
   phoneNumber: string;
@@ -162,9 +162,6 @@ export async function deleteParent(parentId: string): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/parents/${parentId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
 
     if (!response.ok) {
@@ -174,5 +171,51 @@ export async function deleteParent(parentId: string): Promise<void> {
   } catch (error: any) {
     console.error(' Error deleting parent:', error);
     throw new Error(error.message || 'Lỗi khi xóa phụ huynh');
+  }
+}
+
+/**
+ * Tìm kiếm học sinh theo tên
+ */
+export async function searchStudents(name: string): Promise<any[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/students/search?name=${encodeURIComponent(name)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Lỗi khi tìm kiếm học sinh');
+    }
+
+    const result = await response.json();
+    return result.students || [];
+  } catch (error: any) {
+    console.error('Error searching students:', error);
+    return [];
+  }
+}
+
+/**
+ * Gán học sinh cho phụ huynh
+ */
+export async function assignStudentToParent(studentId: number, parentId: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/students/update-parent/${studentId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ parentID: parentId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Lỗi khi gán học sinh cho phụ huynh');
+    }
+  } catch (error: any) {
+    console.error('Error assigning student to parent:', error);
+    throw error;
   }
 }

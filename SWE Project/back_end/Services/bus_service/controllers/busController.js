@@ -20,6 +20,7 @@ async function getAllBuses(req, res) {
       offset = 0
     } = req.query;
 
+    console.log("🔍 Query params:", req.query);
 
     const filters = { status, search, minCapacity, maxCapacity, minFuel, route };
     const pagination = { limit: parseInt(limit), offset: parseInt(offset) };
@@ -231,6 +232,44 @@ async function updateBusStatus(req, res) {
   }
 }
 
+async function updateBusDriver(req, res) {
+  try {
+    const busId = req.params.id;
+    const { driverId } = req.body;
+
+    const existingBus = await busQueries.findById(busId);
+    if (!existingBus) {
+      return res.status(404).json({ success: false, message: 'Bus not found' });
+    }
+
+    await busQueries.assignDriver(busId, driverId);
+
+    res.json({ success: true, message: 'Driver assigned successfully' });
+  } catch (error) {
+    console.error('Error assigning driver:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+}
+
+async function updateBusRoute(req, res) {
+  try {
+    const busId = req.params.id;
+    const { routeId } = req.body;
+
+    const existingBus = await busQueries.findById(busId);
+    if (!existingBus) {
+      return res.status(404).json({ success: false, message: 'Bus not found' });
+    }
+
+    await busQueries.assignRoute(busId, routeId);
+
+    res.json({ success: true, message: 'Route assigned successfully' });
+  } catch (error) {
+    console.error('Error assigning route:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+}
+
 async function deleteBus(req, res) {
   try {
     const busId = req.params.id;
@@ -342,6 +381,8 @@ module.exports = {
   createBus,
   updateBus,
   updateBusStatus,
+  updateBusDriver,
+  updateBusRoute,
   deleteBus,
   getBusEvents,
   getBusesByRoute,

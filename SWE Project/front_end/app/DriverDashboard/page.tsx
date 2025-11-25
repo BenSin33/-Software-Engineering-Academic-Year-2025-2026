@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Bus, MessageSquare } from 'lucide-react';
 import MapView from '@/components/Layouts/MapView';
 import MessagePanel from '@/components/Driver/MessagePanel';
+import { userIdToMessageId } from '@/utils/IdConverter';
 import './DriverJourney.css';
 
 type ToggleSwitchProps = {
@@ -36,16 +37,20 @@ export default function DriverJourneyPage() {
 
   // 🔧 Lấy driver ID khi component mount
   useEffect(() => {
-    // CÁCH 1: Hardcode cho demo - Thay 101 bằng UserID thực tế của driver
-    // Kiểm tra trong database: SELECT UserID FROM Drivers WHERE DriverID = ?
-    setDriverId(101);
-    
+    // CÁCH 1: Hardcode cho demo - Driver UserID "U002" → Numeric ID 2
+    // Trong production, lấy từ localStorage hoặc context sau khi login
+    const driverUserIdString = 'U002'; // Hoặc lấy từ localStorage.getItem('userId')
+    const numericDriverId = userIdToMessageId(driverUserIdString);
+
+    console.log(`🔧 Driver UserID: ${driverUserIdString} → Numeric Message ID: ${numericDriverId}`);
+    setDriverId(numericDriverId);
+
     // CÁCH 2: Lấy từ localStorage (nếu đã lưu khi login)
-    // const storedUserId = localStorage.getItem('userId');
+    // const storedUserId = localStorage.getItem('userId'); // e.g., "U002"
     // if (storedUserId) {
-    //   setDriverId(parseInt(storedUserId));
+    //   setDriverId(userIdToMessageId(storedUserId));
     // } else {
-    //   setDriverId(101); // fallback
+    //   setDriverId(userIdToMessageId('U002')); // fallback
     // }
   }, []);
 
@@ -62,7 +67,7 @@ export default function DriverJourneyPage() {
       {/* Header */}
       <div className="page-main-header">
         <div className="user-actions">
-          <button 
+          <button
             className="report-button"
             onClick={() => setShowMessagePanel(true)}
             style={{ marginRight: '12px' }}

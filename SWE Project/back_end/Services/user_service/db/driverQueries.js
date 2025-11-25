@@ -1,11 +1,57 @@
-// Import thư viện uuid để tạo mã định danh duy nhất
-const { v4: uuidv4 } = require('uuid');
-
 // Import kết nối cơ sở dữ liệu
 const pool = require('./pool');
+const { v4: uuidv4 } = require('uuid');
 
-// Tạo tài xế mới
-const createDriver = async (userId, fullName, phoneNumber, email, status = 'active') => {
+// ============================
+// Helper: Generate sequential DriverID (Dxxx)
+// ============================
+const generateNextDriverId = async (connection = null) => {
+  const db = connection || pool;
+  try {
+    const [rows] = await db.query(
+      "SELECT DriverID FROM drivers WHERE DriverID LIKE 'D%' ORDER BY LENGTH(DriverID) DESC, DriverID DESC LIMIT 1"
+    );
+
+    if (rows.length === 0) {
+      return 'D001';
+    }
+
+    const lastId = rows[0].DriverID;
+    const numericPart = parseInt(lastId.substring(1));
+    const nextId = numericPart + 1;
+
+    return `D${nextId.toString().padStart(3, '0')}`;
+  } catch (error) {
+    console.error('Error generating DriverID:', error);
+    throw error;
+  }
+};
+
+// ============================
+// CREATE DRIVER (Sequential ID)
+// ============================
+const createDriverSequential = async (userId, fullName, phoneNumber, email, status = 'Active', connection = null) => {
+  const db = connection || pool;
+  const driverId = await generateNextDriverId(connection);
+
+  try {
+    await db.query(
+      `INSERT INTO drivers 
+       (DriverID, UserID, FullName, PhoneNumber, Email, Status) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [driverId, userId, fullName, phoneNumber, email, status || 'Active']
+    );
+    return driverId;
+  } catch (err) {
+    console.error('Lỗi khi tạo tài xế (Sequential):', err);
+    throw new Error('Không thể tạo tài xế mới: ' + err.message);
+  }
+};
+
+// ============================
+// CREATE DRIVER (UUID)
+// ============================
+const createDriverUUID = async (userId, fullName, phoneNumber, email, status = 'active') => {
   const driverId = uuidv4();
   try {
     await pool.query(
@@ -16,12 +62,14 @@ const createDriver = async (userId, fullName, phoneNumber, email, status = 'acti
     );
     return driverId;
   } catch (err) {
-    console.error('Lỗi khi tạo tài xế:', err);
+    console.error('Lỗi khi tạo tài xế (UUID):', err);
     throw new Error('Không thể tạo tài xế mới: ' + err.message);
   }
 };
 
-// Lấy tất cả tài xế
+// ============================
+// GET ALL DRIVERS
+// ============================
 const getAllDrivers = async () => {
   try {
     const [rows] = await pool.query(
@@ -36,7 +84,9 @@ const getAllDrivers = async () => {
   }
 };
 
-// Lấy tài xế theo DriverID
+// ============================
+// GET DRIVER BY ID
+// ============================
 const getDriverById = async (driverId) => {
   try {
     const [rows] = await pool.query(
@@ -52,7 +102,9 @@ const getDriverById = async (driverId) => {
   }
 };
 
-// Lấy tài xế theo UserID (rất quan trọng để liên kết với tài khoản người dùng)
+// ============================
+// GET DRIVER BY USER ID
+// ============================
 const getDriverByUserId = async (userId) => {
   try {
     const [rows] = await pool.query(
@@ -68,7 +120,9 @@ const getDriverByUserId = async (userId) => {
   }
 };
 
-// Cập nhật thông tin tài xế
+// ============================
+// UPDATE DRIVER
+// ============================
 const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
   try {
     const [result] = await pool.query(
@@ -87,7 +141,9 @@ const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
   }
 };
 
-// Xóa tài xế (xóa cứng)
+// ============================
+// DELETE DRIVER
+// ============================
 const deleteDriver = async (driverId) => {
   try {
     const [result] = await pool.query(
@@ -104,11 +160,32 @@ const deleteDriver = async (driverId) => {
   }
 };
 
+// ============================
+// DRIVER STATS
+// ============================
+const getDriverStats = async () => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN Status = 'Active' THEN 1 ELSE 0 END) as active,
+        SUM(CASE WHEN Status = 'Inactive' THEN 1 ELSE 0 END) as rest
+       FROM drivers`
+    );
+    return rows[0] || { total: 0, active: 0, rest: 0 };
+  } catch (err) {
+    console.error('Lỗi khi lấy thống kê tài xế:', err);
+    throw new Error('Không thể lấy thống kê tài xế: ' + err.message);
+  }
+};
+
 module.exports = {
-  createDriver,
+  createDriverSequential,
+  createDriverUUID,
   getAllDrivers,
   getDriverById,
   getDriverByUserId,
   updateDriver,
-  deleteDriver
+  deleteDriver,
+  getDriverStats
 };

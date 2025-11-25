@@ -73,14 +73,14 @@ export function mapDriverBackendToFrontend(driver: DriverBackend): DriverFronten
 // Hàm chuyển đổi từ frontend format sang backend format
 export function mapDriverFrontendToBackend(driver: Partial<DriverFrontend>): Partial<DriverBackend> {
   const backendDriver: Partial<DriverBackend> = {};
-  
+
   if (driver.id) backendDriver.DriverID = driver.id;
   if (driver.userId) backendDriver.UserID = driver.userId;
   if (driver.name) backendDriver.Fullname = driver.name;
   if (driver.phone) backendDriver.PhoneNumber = driver.phone;
   if (driver.email) backendDriver.Email = driver.email;
   if (driver.status) backendDriver.Status = driver.status;
-  
+
   return backendDriver;
 }
 
@@ -107,7 +107,7 @@ export async function fetchAllDrivers(
 ): Promise<DriverFrontend[]> {
   try {
     const params = new URLSearchParams();
-    
+
     // Thêm filters vào query params
     if (filters) {
       if (filters.status && filters.status !== 'all') params.append("status", filters.status);
@@ -116,7 +116,7 @@ export async function fetchAllDrivers(
       if (filters.PhoneNumber) params.append("PhoneNumber", filters.PhoneNumber);
       if (filters.Email) params.append("Email", filters.Email);
     }
-    
+
     // Thêm pagination
     if (pagination) {
       params.append("limit", (pagination.limit || 100).toString());
@@ -125,7 +125,7 @@ export async function fetchAllDrivers(
       params.append("limit", "1000");
     }
 
-    const response = await fetch(`${API_URL}/drivers?${params.toString()}`, {
+    const response = await fetch(`${API_URL}?${params.toString()}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -137,11 +137,11 @@ export async function fetchAllDrivers(
     }
 
     const result: DriverApiResponse = await response.json();
-    
+
     if (result.success && Array.isArray(result.data)) {
       return result.data.map(mapDriverBackendToFrontend);
     }
-    
+
     return [];
   } catch (error) {
     console.error("Lỗi fetchAllDrivers:", error);
@@ -156,7 +156,7 @@ export async function fetchAllDrivers(
  */
 export async function fetchDriverById(driverId: number): Promise<DriverFrontend> {
   try {
-    const response = await fetch(`${API_URL}/drivers/${driverId}`, {
+    const response = await fetch(`${API_URL}/${driverId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -168,11 +168,11 @@ export async function fetchDriverById(driverId: number): Promise<DriverFrontend>
     }
 
     const result: DriverApiResponse = await response.json();
-    
+
     if (result.success && result.data && !Array.isArray(result.data)) {
       return mapDriverBackendToFrontend(result.data);
     }
-    
+
     throw new Error("Dữ liệu không hợp lệ");
   } catch (error) {
     console.error("Lỗi fetchDriverById:", error);
@@ -187,7 +187,7 @@ export async function fetchDriverById(driverId: number): Promise<DriverFrontend>
  */
 export async function fetchDriverByUserId(userId: number): Promise<DriverFrontend> {
   try {
-    const response = await fetch(`${API_URL}/drivers/user/${userId}`, {
+    const response = await fetch(`${API_URL}/user/${userId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -199,11 +199,11 @@ export async function fetchDriverByUserId(userId: number): Promise<DriverFronten
     }
 
     const result: DriverApiResponse = await response.json();
-    
+
     if (result.success && result.data && !Array.isArray(result.data)) {
       return mapDriverBackendToFrontend(result.data);
     }
-    
+
     throw new Error("Dữ liệu không hợp lệ");
   } catch (error) {
     console.error("Lỗi fetchDriverByUserId:", error);
@@ -218,7 +218,7 @@ export async function fetchDriverByUserId(userId: number): Promise<DriverFronten
  */
 export async function createDriver(driverData: DriverCreateRequest): Promise<DriverApiResponse> {
   try {
-    const response = await fetch(`${API_URL}/drivers`, {
+    const response = await fetch(`${API_URL}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -250,7 +250,7 @@ export async function updateDriver(
   updateData: DriverUpdateRequest
 ): Promise<DriverApiResponse> {
   try {
-    const response = await fetch(`${API_URL}/drivers/${driverId}`, {
+    const response = await fetch(`${API_URL}/${driverId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -282,7 +282,7 @@ export async function updateDriverStatus(
   status: "active" | "rest"
 ): Promise<DriverApiResponse> {
   try {
-    const response = await fetch(`${API_URL}/drivers/${driverId}/status`, {
+    const response = await fetch(`${API_URL}/${driverId}/status`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -310,7 +310,7 @@ export async function updateDriverStatus(
  */
 export async function deleteDriver(driverId: number): Promise<DriverApiResponse> {
   try {
-    const response = await fetch(`${API_URL}/drivers/${driverId}`, {
+    const response = await fetch(`${API_URL}/${driverId}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -336,7 +336,7 @@ export async function deleteDriver(driverId: number): Promise<DriverApiResponse>
  */
 export async function fetchDriverStats(): Promise<DriverStats> {
   try {
-    const response = await fetch(`${API_URL}/drivers/stats`, {
+    const response = await fetch(`${API_URL}/stats`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -348,11 +348,11 @@ export async function fetchDriverStats(): Promise<DriverStats> {
     }
 
     const result = await response.json();
-    
+
     if (result.success) {
       return result.data;
     }
-    
+
     throw new Error("Dữ liệu không hợp lệ");
   } catch (error) {
     console.error("Lỗi fetchDriverStats:", error);

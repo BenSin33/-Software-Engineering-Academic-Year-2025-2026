@@ -4,6 +4,17 @@ const { callService } = require("../services/callService.js");
 
 const router = express.Router();
 
+router.get("/search", async (req, res) => {
+  try {
+    const { name } = req.query;
+    const result = await callService("student_service", `/students/search?name=${name}`, "GET");
+    res.json({ students: result.students || [] });
+  } catch (error) {
+    console.error(" Lỗi khi tìm kiếm học sinh:", error.message);
+    res.status(500).json({ error: "Không thể tìm kiếm học sinh" });
+  }
+});
+
 router.get("/", async (req, res) => {
   try {
     const studentData = await callService("student_service", "/students", "GET");
@@ -33,8 +44,8 @@ router.get("/", async (req, res) => {
 
 router.post("/add", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
 
     // 🧩 Gọi student_service để thêm học sinh
     const addedStudent = await callService("student_service", "/students/add", "POST", formData);
@@ -77,8 +88,8 @@ router.post("/delete/:id", async (req, res) => {
 });
 router.post("/edit/:id", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint,routeID };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
 
     // 🧩 Gọi student_service để cập nhật học sinh
     const result = await callService("student_service", `/students/edit/${req.params.id}`, "POST", formData);
@@ -131,5 +142,18 @@ router.post("/edit/:id", async (req, res) => {
       }
     });
 */
+
+// Update student's parent
+router.patch("/update-parent/:studentID", async (req, res) => {
+  try {
+    const { studentID } = req.params;
+    const { parentID } = req.body;
+    const result = await callService("student_service", `/students/update-parent/${studentID}`, "PATCH", { parentID });
+    res.status(200).json(result);
+  } catch (error) {
+    console.error(" Lỗi khi cập nhật phụ huynh cho học sinh:", error.message);
+    res.status(500).json({ error: "Không thể cập nhật phụ huynh cho học sinh" });
+  }
+});
 
 module.exports = router;

@@ -24,7 +24,7 @@ interface FormData {
     DateOfBirth: String;
     PickUpPoint: string;
     DropOffPoint: string;
-    routeID:string;
+    routeID: string;
 }
 
 // Interface for advanced filters
@@ -63,10 +63,10 @@ export default function StudentsPage() {
         DateOfBirth: '',
         PickUpPoint: '',
         DropOffPoint: '',
-        routeID:'',
+        routeID: '',
     });
     useEffect(() => {
-        fetch('http://localhost:5000/students')
+        fetch('http://localhost:5000/api/students')
             .then(res => res.json())
             .then(data => {
 
@@ -93,7 +93,7 @@ export default function StudentsPage() {
             String(student.StudentID).toLowerCase().includes(searchTermLower)
 
         const matchesStudentId = advancedFilters.StudentID === ""
-            String(student.StudentID).toLowerCase().includes(advancedFilters.StudentID.toLowerCase());
+        String(student.StudentID).toLowerCase().includes(advancedFilters.StudentID.toLowerCase());
 
 
         const matchesParentName = advancedFilters.ParentName === "" ||
@@ -138,18 +138,18 @@ export default function StudentsPage() {
             return;
         }
         try {
-           
-            const response = await fetch('http://localhost:5000/Students/add', {
+
+            const response = await fetch('http://localhost:5000/api/students/add', {
                 method: 'POST',
                 headers: { "content-type": 'application/json' },
                 body: JSON.stringify(formData)
             })
-          
-          
+
+
             if (response.ok) {
-              
+
                 const data = await response.json();
-             
+
                 if (data) setStudents([...students, data.student]);
                 alert('thêm học sinh thành công');
                 setShowAddModal(false);
@@ -159,7 +159,7 @@ export default function StudentsPage() {
         } catch (err) {
             console.error(err)
         }
-        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' });
+        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '', routeID: '' });
 
     };
 
@@ -168,7 +168,7 @@ export default function StudentsPage() {
         if (!formData.DateOfBirth || !formData.FullName || !formData.DropOffPoint || !formData.PickUpPoint)
             alert('nhap day du cac field')
         try {
-            const response = await fetch(`http://localhost:5000/Students/edit/${selectedStudent && selectedStudent.StudentID}`, {
+            const response = await fetch(`http://localhost:5000/api/students/edit/${selectedStudent && selectedStudent.StudentID}`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify(formData)
@@ -179,8 +179,8 @@ export default function StudentsPage() {
                     setStudents((prevStudents) =>
                         prevStudents.map((student) =>
                             student.StudentID.toString() === data.student.StudentID.toString()
-                                ? data.student 
-                                : student       
+                                ? data.student
+                                : student
                         )
                     );
                 }
@@ -203,20 +203,20 @@ export default function StudentsPage() {
         // setStudents(updatedStudents);
         setShowEditModal(false)
         setSelectedStudent(null);
-        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' });
+        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '', routeID: '' });
         alert("Cập nhật thông tin học sinh thành công!");
     };
 
     const handleDeleteStudent = async () => {
         if (!studentToDelete) return;
         try {
-            const response = await fetch(`http://localhost:5000/students/delete/${studentToDelete && studentToDelete.StudentID}`, {
+            const response = await fetch(`http://localhost:5000/api/students/delete/${studentToDelete && studentToDelete.StudentID}`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
             })
             if (response.ok) {
-               const cloneStudents= students.filter((student)=>student.StudentID !== studentToDelete.StudentID)
-               setStudents(cloneStudents)
+                const cloneStudents = students.filter((student) => student.StudentID !== studentToDelete.StudentID)
+                setStudents(cloneStudents)
             }
         } catch (err) {
             console.error(err)
@@ -270,7 +270,7 @@ export default function StudentsPage() {
                     onClick={() => {
                         setShowAddModal(true);
                         // Clear form data when opening add modal
-                        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' });
+                        setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '', routeID: '' });
                     }}
                     suppressHydrationWarning={true}
                     className="flex items-center gap-2 text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium transition duration-200 shadow-md hover:bg-orange-600 active:bg-orange-700"
@@ -432,7 +432,7 @@ export default function StudentsPage() {
                             </tr>
                         </thead>
                         <tbody>
-                
+
                             {currentStudents.length > 0 ? (
                                 currentStudents.map((student) => (
                                     <tr key={student.StudentID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
@@ -600,7 +600,7 @@ export default function StudentsPage() {
                         <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
                             <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                                 <h2 className="text-2xl font-bold text-gray-900">{showAddModal ? "Thêm Học sinh mới" : "Chỉnh sửa Học sinh"}</h2>
-                                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' }); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
+                                <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '', routeID: '' }); }} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
                             </div>
                             <div className="p-6">
                                 <div className="grid grid-cols-1 gap-4">
@@ -651,7 +651,7 @@ export default function StudentsPage() {
                                     <input type="date" name="registeredDate" placeholder="VD: 2007-12-07" value={formData.registeredDate} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                 </div> */}
                                     </div>
-                                       <div className="flex flex-col">
+                                    <div className="flex flex-col">
                                         <label className="text-sm text-gray-700 font-medium mb-1.5">Mã tuyến: </label>
                                         <input type="text" name="routeID" placeholder="VD: 1" value={formData.routeID} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                     </div>
@@ -663,10 +663,10 @@ export default function StudentsPage() {
                                         <label className="text-sm text-gray-700 font-medium mb-1.5">drop off point: </label>
                                         <input type="text" name="DropOffPoint" placeholder="VD: 22/1 Đồng Đen,Phường 5, Quận Tân Bình, TPHCM" value={formData.DropOffPoint} onChange={handleInputChange} className="p-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" required />
                                     </div>
-                                    
+
                                 </div>
                                 <div className="flex gap-4 mt-6">
-                                    <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '',routeID:'' }); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
+                                    <button onClick={() => { setShowAddModal(false); setShowEditModal(false); setSelectedStudent(null); setFormData({ FullName: "", ParentID: "", DateOfBirth: '', PickUpPoint: '', DropOffPoint: '', routeID: '' }); }} className="flex-1 px-4 py-3 rounded-lg border border-gray-300 font-medium cursor-pointer transition duration-200 text-gray-700 hover:bg-gray-50">Hủy</button>
                                     <button
                                         type="submit"
                                         onClick={showAddModal ? handleAddStudent : handleEditStudent}

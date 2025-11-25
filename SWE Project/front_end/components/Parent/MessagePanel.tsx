@@ -52,12 +52,12 @@ const MessagePanel: React.FC<MessagePanelProps> = ({
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('🔄 Loading messages between:', { parentId, receiverId });
-      
+
       // 🔧 Lấy tin nhắn giữa 2 người (API tự động lấy cả 2 chiều)
       const data = await fetchMessages(parentId, receiverId);
-      
+
       console.log(' Messages loaded:', data);
       setMessages(data);
     } catch (err: any) {
@@ -75,22 +75,22 @@ const MessagePanel: React.FC<MessagePanelProps> = ({
     try {
       setSending(true);
       setError(null);
-      
+
       console.log('📤 Sending message:', {
         senderId: parentId,
         receiverId: receiverId,
         content: newMessage.trim()
       });
-      
+
       await sendMessage({
         senderId: parentId,
         receiverId: receiverId,
         content: newMessage.trim(),
       });
-      
+
       setNewMessage('');
       await loadMessages();
-      
+
       console.log(' Message sent successfully');
     } catch (err: any) {
       console.error(' Lỗi khi gửi tin nhắn:', err);
@@ -247,11 +247,11 @@ const MessagePanel: React.FC<MessagePanelProps> = ({
             {messages.map((message, index) => {
               // 🔧 Kiểm tra xem tin nhắn từ người gửi hay người nhận
               const isFromSender = message.senderId === parentId;
-              
+
               // Hiển thị date divider
-              const showDateDivider = index === 0 || 
+              const showDateDivider = index === 0 ||
                 formatDate(messages[index - 1].createdAt) !== formatDate(message.createdAt);
-              
+
               return (
                 <React.Fragment key={message.id}>
                   {showDateDivider && (
@@ -273,7 +273,7 @@ const MessagePanel: React.FC<MessagePanelProps> = ({
                       </span>
                     </div>
                   )}
-                  
+
                   <div
                     style={{
                       display: 'flex',
@@ -335,7 +335,7 @@ const MessagePanel: React.FC<MessagePanelProps> = ({
             <span>{error}</span>
           </div>
         )}
-        
+
         <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.75rem' }}>
           <input
             type="text"
@@ -410,7 +410,7 @@ const MessagePanel: React.FC<MessagePanelProps> = ({
             )}
           </button>
         </form>
-        
+
         <p style={{
           margin: '0.5rem 0 0 0',
           fontSize: '0.75rem',

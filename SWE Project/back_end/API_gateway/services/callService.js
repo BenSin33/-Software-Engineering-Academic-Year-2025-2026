@@ -1,9 +1,9 @@
 const SERVICE_URLS = {
   student_service: "http://student_service:5001",
-  parent_service: "http://localhost:5002",
-  messaging_service: "http://localhost:5002",
+  parent_service: "http://user_service:5012",
+  messaging_service: "http://messaging_service:5002",
   route_service: "http://route_service:5003",
-  driver_service: "http://localhost:5004",
+  driver_service: "http://user_service:5012",
   schedule_service: "http://schedule_service:5005",
   location_service: "http://location_service:5009"
 };

@@ -4,6 +4,9 @@ const authorize = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
+// Admin (R001) có thể xem thống kê tài xế
+router.get("/drivers/stats", authorize(["R001"]), controller.getDriverStats);
+
 // Chỉ cho phép tài xế (R002) xem thông tin của chính họ
 router.get("/drivers/user/:userId", authorize(["R002"]), controller.getDriverByUserId);
 
@@ -14,9 +17,9 @@ router.put("/drivers/user/:userId", authorize(["R002"]), controller.updateDriver
 router.get("/drivers", authorize(["R001"]), controller.getAllDrivers);
 
 // CRUD routes cho Admin
-router.post('/', authorize(["R001"]), controller.createDriver);
-router.get('/:id', authorize(["R001"]), controller.getDriverById);
-router.put('/:id', authorize(["R001"]), controller.updateDriver);
-router.delete('/:id', authorize(["R001"]), controller.deleteDriver);
+router.post('/drivers', authorize(["R001"]), controller.createDriver);
+router.get('/drivers/:id', authorize(["R001"]), controller.getDriverById);
+router.put('/drivers/:id', authorize(["R001"]), controller.updateDriver);
+router.delete('/drivers/:id', authorize(["R001"]), controller.deleteDriver);
 
 module.exports = router;
