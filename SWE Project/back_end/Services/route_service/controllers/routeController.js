@@ -1,92 +1,94 @@
-const queries= require('../db/queries')
+const queries = require('../db/queries');
 
-async function getAllRoutes(req,res){
-  try{
+async function getAllRoutes(req, res) {
+  try {
     const routes = await queries.getRoutes();
-    if(!routes || routes.length === 0){
-      return res.status(404).json({message:'không có dữ liệu tuyến đường'})
+    if (!routes || routes.length === 0) {
+      return res.status(200).json({ message: 'Không có dữ liệu tuyến đường', routes: [] });
     }
-    return res.status(200).json(routes);
-  }catch(err){
-    console.error('server bị lỗi ',err);
-    return res.status(500).json({message:'server lỗi'});
+    return res.status(200).json({ routes });
+  } catch (err) {
+    console.error('❌ Server error:', err);
+    return res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 }
+
 async function getRoute(req, res) {
   try {
     const { RouteID } = req.params;
 
-    // 1️⃣ Kiểm tra đầu vào
     if (!RouteID) {
       return res.status(400).json({ message: "RouteID is required" });
     }
 
-    // 2️⃣ Gọi service (phải có await)
     const route = await queries.getRouteByID(RouteID);
 
-    // 3️⃣ Kiểm tra kết quả
-    if (!route) {
+    if (!route || route.length === 0) {
       return res.status(404).json({ message: "Route not found" });
     }
 
-    // 4️⃣ Trả kết quả thành công
-    return res.status(200).json(route);
+    return res.status(200).json(route[0]);
 
   } catch (error) {
-    console.error("Error fetching route:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("❌ Error fetching route:", error);
+    return res.status(500).json({ message: "Internal server error", error: error.message });
   }
 }
 
 async function addNewRoute(req, res) {
   try {
-    const {driverID,busID,routeName,startLocation,endLocation } = req.body;
-    const RouteID=await queries.addRoute(driverID,busID,routeName,startLocation,endLocation);
-    // Trả về dữ liệu luôn, không cần if(!updatedData)
-    res.status(201).json(RouteID);
+    const { driverID, busID, routeName, startLocation, endLocation } = req.body;
+    
+    if (!routeName || !startLocation || !endLocation) {
+      return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
+    }
+
+    const RouteID = await queries.addRoute(driverID, busID, routeName, startLocation, endLocation);
+    
+    res.status(201).json({
+      message: "Thêm tuyến thành công",
+      RouteID,
+      data: { driverID, busID, routeName, startLocation, endLocation }
+    });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).send("Error adding route: " + error);
+    console.error("❌ Error adding route:", error);
+    res.status(500).json({ message: "Error adding route", error: error.message });
   }
 }
 
-async function updateCurrentRoute(req,res){
-  try{
-    const {routeID}=req.params;
-    const {driverID,busID,routeName,startLocation,endLocation } = req.body;
-    await queries.updateCurrentRoute(routeID,driverID,busID,routeName,startLocation,endLocation)
-    res.status(201).json({message: 'update route thành công',route: {driverID,busID,routeName,startLocation,endLocation}});
-  }catch(error){
-    console.error(error);
-    res.status(500).send("error updating student: ",error)
+async function updateCurrentRoute(req, res) {
+  try {
+    const { routeID } = req.params;
+    const { driverID, busID, routeName, startLocation, endLocation } = req.body;
+    
+    await queries.updateCurrentRoute(routeID, driverID, busID, routeName, startLocation, endLocation);
+    
+    res.status(200).json({
+      message: 'Cập nhật tuyến thành công',
+      route: { driverID, busID, routeName, startLocation, endLocation }
+    });
+  } catch (error) {
+    console.error("❌ Error updating route:", error);
+    res.status(500).json({ message: "Error updating route", error: error.message });
   }
 }
 
-async function deleteRoute(req,res){
-  try{
-  const {routeID}=req.params;
-  await queries.deleteRoute(routeID);
-  res.status(201).json({message:'xóa thành công'})
-  }catch(err){
-    console.error(err);
-    res.status(501).send('error: ',err)
+async function deleteRoute(req, res) {
+  try {
+    const { routeID } = req.params;
+    await queries.deleteRoute(routeID);
+    res.status(200).json({ message: 'Xóa tuyến thành công' });
+  } catch (err) {
+    console.error("❌ Error deleting route:", err);
+    res.status(500).json({ message: 'Error deleting route', error: err.message });
   }
-  
 }
 
-// async function updatetudent(req,res){
-//     try{
-//         const {name,className,age} = req.body;
-//         await queries.updateStudent(name,className,age);
-//         res.status(201).send("student updated succesfully");
-//     }catch{
-//         res.status(500).send("error update student: ",+ error)
-//     }
-// }
-
-module.exports={
+module.exports = {
   getAllRoutes,
   addNewRoute,
-  updateCurrentRoute,deleteRoute,getRoute
-}
+  updateCurrentRoute,
+  deleteRoute,
+  getRoute
+};

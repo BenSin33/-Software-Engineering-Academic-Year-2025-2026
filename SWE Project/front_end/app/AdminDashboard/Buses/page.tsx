@@ -33,7 +33,7 @@ export default function BusesPage() {
   const [drivers, setDrivers] = useState<any[]>([]); // [{id, name,...}]
   const [routes, setRoutes] = useState<any[]>([]);   // [{RouteID, RouteName,...}]
   // Dùng DriverID, RouteID chứ không lưu tên để liên kết chắc chắn
-  const [driverMap, setDriverMap] = useState<{ [key: number]: any }>({})
+  const [driverMap, setDriverMap] = useState<{ [key: string]: any }>({})
 
   const initialFormData: Partial<BusFrontend> = {
     id: "",
@@ -59,7 +59,7 @@ export default function BusesPage() {
   });
 
   const itemsPerPage = 4;
-  const LOCATION_SERVICE_URL = "http://localhost:5010/api";
+  const LOCATION_SERVICE_URL = "http://localhost:5009/api";
 
   //  Sử dụng API service để fetch buses
   const loadBuses = async () => {
@@ -112,13 +112,44 @@ export default function BusesPage() {
   useEffect(() => {
     (async () => {
       try {
-        const driverData = await fetchAllDrivers({ status: "active" });
+        // Fetch ALL drivers to ensure we can map names for everyone, even if not active
+        const driverData = await fetchAllDrivers();
+        console.log("DEBUG: fetchAllDrivers result:", driverData); // Log raw driver data
         setDrivers(driverData);
+
+        // Create a map for quick lookup: DriverID -> DriverName
+        const map: { [key: string]: string } = {};
+        driverData.forEach((d) => {
+          if (d.id) {
+            // Normalize ID: trim and uppercase to ensure matching
+            const key = String(d.id).trim().toUpperCase();
+            map[key] = d.name;
+          } else {
+            console.warn("DEBUG: Driver missing ID:", d);
+          }
+        });
+        console.log("DEBUG: Generated Driver Map Keys:", Object.keys(map)); // Log map keys
+        setDriverMap(map);
+
         const routeRes = await fetchRouteService();
         if (Array.isArray(routeRes?.routes)) setRoutes(routeRes.routes);
       } catch (error) { console.error(error); }
     })();
   }, []);
+
+  // Debug logs
+  useEffect(() => {
+    if (buses.length > 0 && Object.keys(driverMap).length > 0) {
+      console.log("Debug Driver Mapping:");
+      buses.forEach(b => {
+        if (b.driver_id) {
+          const lookupKey = String(b.driver_id).trim().toUpperCase();
+          const name = driverMap[lookupKey];
+          console.log(`Bus ${b.id} | DriverID (raw): '${b.driver_id}' | LookupKey: '${lookupKey}' | Found Name: '${name}'`);
+        }
+      });
+    }
+  }, [buses, driverMap]);
 
   const stats = useMemo(() => {
     return {
@@ -208,9 +239,9 @@ export default function BusesPage() {
   const startIndex = (currentPage - 1) * itemsPerPage;
 
   const availableDrivers = useMemo(() => {
-    // lọc driver chưa bị gán xe khác (hoặc là driver của bus đang sửa)
+    // lọc driver chưa bị gán xe khác (hoặc là driver của bus đang sửa) VÀ phải đang active
     return drivers.filter(d =>
-      !buses.some(b => b.driver_id === d.id && b.id !== formData.id)
+      d.status === "active" && !buses.some(b => b.driver_id === d.id && b.id !== formData.id)
     );
   }, [drivers, buses, formData.id]);
 
@@ -230,7 +261,7 @@ export default function BusesPage() {
       Location: formData.location || null,
       PickUpLocation: formData.PickUpLocation || null,
       DropOffLocation: formData.DropOffLocation || null,
-      DriverID: formData.driver_id ? Number(formData.driver_id) : null,
+      DriverID: formData.driver_id || null,
       RouteID: formData.route_id && formData.route_id !== "N/A" ? formData.route_id : null,
     };
 
@@ -551,6 +582,10 @@ export default function BusesPage() {
       <div className="bus-cards-grid">
         {paginatedBuses.map((bus) => {
           const statusBadge = getStatusBadge(bus.status);
+          const driverName = (bus.driver_id && driverMap[String(bus.driver_id).trim().toUpperCase()])
+            ? driverMap[String(bus.driver_id).trim().toUpperCase()]
+            : (bus.driver_name || "N/A");
+
           return (
             <div key={bus.id} className="bus-card">
               <div className="bus-card-header">
@@ -599,7 +634,7 @@ export default function BusesPage() {
               <div className="bus-info-grid">
                 <div className="bus-info-item">
                   <div className="info-label">TÀI XẾ</div>
-                  <div className="info-value">{bus.driver_name || "N/A"}</div>
+                  <div className="info-value">{driverName}</div>
                 </div>
                 <div className="bus-info-item">
                   <div className="info-label">TUYẾN ĐƯỜNG</div>
@@ -613,12 +648,12 @@ export default function BusesPage() {
                   <div className="info-label">ĐIỂM ĐẾN</div>
                   <div className="info-value">{bus.DropOffLocation || "N/A"}</div>
                 </div>
-              </div>
+              </div >
 
               <div className="bus-location">
                 <span className="location-icon">📍</span>
                 <div>
-                  <div className="location-label">VỊ TRÍ HIỆN TẠI</div>
+                  <div className="location-label">VỊ TRÍ THƯỜNG TRÚ</div>
                   <div className="location-value">{bus.location || "N/A"}</div>
                 </div>
               </div>
@@ -641,134 +676,355 @@ export default function BusesPage() {
                   <span>🗑️</span>
                 </button>
               </div>
-            </div>
+            </div >
           );
         })}
-      </div>
+      </div >
 
       {/* No results message */}
-      {filteredBuses.length === 0 && (
-        <div style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
-          <p style={{ fontSize: "18px", fontWeight: 600 }}>Không tìm thấy xe nào</p>
-          <p style={{ fontSize: "14px" }}>Thử điều chỉnh bộ lọc hoặc tìm kiếm của bạn</p>
-        </div>
-      )}
+      {
+        filteredBuses.length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
+            <p style={{ fontSize: "18px", fontWeight: 600 }}>Không tìm thấy xe nào</p>
+            <p style={{ fontSize: "14px" }}>Thử điều chỉnh bộ lọc hoặc tìm kiếm của bạn</p>
+          </div>
+        )
+      }
 
       {/* Pagination */}
-      {filteredBuses.length > 0 && totalPages > 1 && (
-        <div className="pagination">
-          <span className="pagination-info">
-            Hiển thị {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredBuses.length)} trong tổng số{" "}
-            {filteredBuses.length} xe
-          </span>
-          <div className="pagination-controls">
-            <button
-              className="pagination-btn"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(currentPage - 1)}
-            >
-              ‹ Trước
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+      {
+        filteredBuses.length > 0 && totalPages > 1 && (
+          <div className="pagination">
+            <span className="pagination-info">
+              Hiển thị {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredBuses.length)} trong tổng số{" "}
+              {filteredBuses.length} xe
+            </span>
+            <div className="pagination-controls">
               <button
-                key={page}
-                className={`pagination-btn ${currentPage === page ? "pagination-btn-active" : ""}`}
-                onClick={() => setCurrentPage(page)}
+                className="pagination-btn"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
               >
-                {page}
+                ‹ Trước
               </button>
-            ))}
-            <button
-              className="pagination-btn"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(currentPage + 1)}
-            >
-              Sau ›
-            </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  className={`pagination-btn ${currentPage === page ? "pagination-btn-active" : ""}`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                className="pagination-btn"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+              >
+                Sau ›
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Add Bus Modal */}
-      {showAddModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={handleCloseAddModal}
-        >
+      {
+        showAddModal && (
           <div
             style={{
-              background: "white",
-              borderRadius: "16px",
-              padding: "32px",
-              maxWidth: "600px",
-              width: "90%",
-              maxHeight: "90vh",
-              overflow: "auto",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={handleCloseAddModal}
           >
-            <h2 style={{ marginTop: 0, marginBottom: "24px", fontSize: "24px", fontWeight: 700 }}>
-              Thêm xe mới
-            </h2>
-            <div style={{ display: "grid", gap: "16px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Mã xe *
-                </label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value.toUpperCase() })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="VD: BUS-08"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Biển số *
-                </label>
-                <input
-                  type="text"
-                  value={formData.license_plate}
-                  onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="VD: 51A-12345"
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div
+              style={{
+                background: "white",
+                borderRadius: "16px",
+                padding: "32px",
+                maxWidth: "600px",
+                width: "90%",
+                maxHeight: "90vh",
+                overflow: "auto",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginTop: 0, marginBottom: "24px", fontSize: "24px", fontWeight: 700 }}>
+                Thêm xe mới
+              </h2>
+              <div style={{ display: "grid", gap: "16px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Sức chứa *
+                    Mã xe *
                   </label>
                   <input
-                    type="number"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                    type="text"
+                    value={formData.id}
+                    onChange={(e) => setFormData({ ...formData, id: e.target.value.toUpperCase() })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                    placeholder="VD: BUS-08"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Biển số *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.license_plate}
+                    onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                    placeholder="VD: 51A-12345"
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                      Sức chứa *
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.capacity}
+                      onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        border: "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                      Trạng thái
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as BusFrontend["status"] })}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        border: "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                      }}
+                    >
+                      <option value="ready">Sẵn sàng</option>
+                      <option value="running">Đang chạy</option>
+                      <option value="waiting">Đang chờ</option>
+                      <option value="maintenance">Bảo trì</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Tài xế *
+                  </label>
+                  <select
+                    value={formData.driver_id || ""}
+                    onChange={e => setFormData({ ...formData, driver_id: e.target.value || null })}
+                    style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
+                  >
+                    <option value="">-- Chọn tài xế --</option>
+                    {availableDrivers.map(driver => (
+                      <option value={driver.id} key={driver.id}>
+                        {driver.name} / {driver.phone}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Tuyến đường *
+                  </label>
+                  <select
+                    value={formData.route_id || ""}
+                    onChange={e => {
+                      const selectedRouteId = e.target.value;
+                      const selectedRoute = routes.find(r => String(r.RouteID) === selectedRouteId);
+                      setFormData({
+                        ...formData,
+                        route_id: selectedRouteId,
+                        PickUpLocation: selectedRoute ? selectedRoute.StartLocation : formData.PickUpLocation,
+                        DropOffLocation: selectedRoute ? selectedRoute.EndLocation : formData.DropOffLocation
+                      });
+                    }}
+                    style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
+                  >
+                    <option value="">-- Chọn tuyến --</option>
+                    {routes.map(route => (
+                      <option value={route.RouteID} key={route.RouteID}>
+                        {route.RouteName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Điểm đi
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.PickUpLocation}
+                    onChange={(e) => setFormData({ ...formData, PickUpLocation: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                    placeholder="VD: 227 Nguyễn Văn Cừ, P4, Q5"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Điểm đến
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.DropOffLocation}
+                    onChange={(e) => setFormData({ ...formData, DropOffLocation: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                    placeholder="VD: Trường THPT Năng khiếu"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Vị trí
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                    placeholder="VD: Bãi đỗ trường"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+                <button
+                  onClick={handleAddBus}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#FFAC50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Thêm xe
+                </button>
+                <button
+                  onClick={handleCloseAddModal}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#f3f4f6",
+                    color: "#374151",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Edit Bus Modal */}
+      {
+        showEditModal && selectedBus && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+            }}
+            onClick={handleCloseEditModal}
+          >
+            <div
+              style={{
+                background: "white",
+                borderRadius: "16px",
+                padding: "32px",
+                maxWidth: "600px",
+                width: "90%",
+                maxHeight: "90vh",
+                overflow: "auto",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 style={{ marginTop: 0, marginBottom: "24px", fontSize: "24px", fontWeight: 700 }}>
+                Chỉnh sửa xe {selectedBus.id}
+              </h2>
+
+              <div style={{ display: "grid", gap: "16px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Biển số *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.license_plate}
+                    onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
                     style={{
                       width: "100%",
                       padding: "12px",
@@ -778,6 +1034,63 @@ export default function BusesPage() {
                     }}
                   />
                 </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                      Sức chứa *
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.capacity}
+                      onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        border: "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                      Hiện tại
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.current_load}
+                      onChange={(e) => setFormData({ ...formData, current_load: parseInt(e.target.value) })}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        border: "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                      Nhiên liệu (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.fuel_level}
+                      onChange={(e) => setFormData({ ...formData, fuel_level: parseInt(e.target.value) })}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        border: "2px solid #e5e7eb",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
                     Trạng thái
@@ -799,708 +1112,440 @@ export default function BusesPage() {
                     <option value="maintenance">Bảo trì</option>
                   </select>
                 </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Tài xế
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.driver_name}
+                    onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Tuyến đường
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.route_id}
+                    onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Điểm đi
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.PickUpLocation}
+                    onChange={(e) => setFormData({ ...formData, PickUpLocation: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Điểm đến
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.DropOffLocation}
+                    onChange={(e) => setFormData({ ...formData, DropOffLocation: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
+                    Vị trí
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      border: "2px solid #e5e7eb",
+                      borderRadius: "8px",
+                      fontSize: "14px",
+                    }}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Tài xế *
-                </label>
-                <select
-                  value={formData.driver_id || ""}
-                  onChange={e => setFormData({ ...formData, driver_id: e.target.value ? Number(e.target.value) : undefined })}
-                  style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
+              <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+                <button
+                  onClick={handleEditBus}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#FFAC50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
                 >
-                  <option value="">-- Chọn tài xế --</option>
-                  {availableDrivers.map(driver => (
-                    <option value={driver.id} key={driver.id}>
-                      {driver.name} / {driver.phone}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Tuyến đường *
-                </label>
-                <select
-                  value={formData.route_id || ""}
-                  onChange={e => {
-                    const selectedRouteId = e.target.value;
-                    const selectedRoute = routes.find(r => String(r.RouteID) === selectedRouteId);
-                    setFormData({
-                      ...formData,
-                      route_id: selectedRouteId,
-                      PickUpLocation: selectedRoute ? selectedRoute.StartLocation : formData.PickUpLocation,
-                      DropOffLocation: selectedRoute ? selectedRoute.EndLocation : formData.DropOffLocation
-                    });
+                  Cập nhật
+                </button>
+                <button
+                  onClick={handleCloseEditModal}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#f3f4f6",
+                    color: "#374151",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    cursor: "pointer",
                   }}
-                  style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
                 >
-                  <option value="">-- Chọn tuyến --</option>
-                  {routes.map(route => (
-                    <option value={route.RouteID} key={route.RouteID}>
-                      {route.RouteName}
-                    </option>
-                  ))}
-                </select>
+                  Hủy
+                </button>
               </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Điểm đi
-                </label>
-                <input
-                  type="text"
-                  value={formData.PickUpLocation}
-                  onChange={(e) => setFormData({ ...formData, PickUpLocation: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="VD: 227 Nguyễn Văn Cừ, P4, Q5"
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Điểm đến
-                </label>
-                <input
-                  type="text"
-                  value={formData.DropOffLocation}
-                  onChange={(e) => setFormData({ ...formData, DropOffLocation: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="VD: Trường THPT Năng khiếu"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Vị trí
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                  placeholder="VD: Bãi đỗ trường"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
-              <button
-                onClick={handleAddBus}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#FFAC50",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Thêm xe
-              </button>
-              <button
-                onClick={handleCloseAddModal}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#f3f4f6",
-                  color: "#374151",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Hủy
-              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Edit Bus Modal */}
-      {showEditModal && selectedBus && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={handleCloseEditModal}
-        >
-          <div
-            style={{
-              background: "white",
-              borderRadius: "16px",
-              padding: "32px",
-              maxWidth: "600px",
-              width: "90%",
-              maxHeight: "90vh",
-              overflow: "auto",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginTop: 0, marginBottom: "24px", fontSize: "24px", fontWeight: 700 }}>
-              Chỉnh sửa xe {selectedBus.id}
-            </h2>
-
-            <div style={{ display: "grid", gap: "16px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Biển số *
-                </label>
-                <input
-                  type="text"
-                  value={formData.license_plate}
-                  onChange={(e) => setFormData({ ...formData, license_plate: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Sức chứa *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Hiện tại
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.current_load}
-                    onChange={(e) => setFormData({ ...formData, current_load: parseInt(e.target.value) })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                    Nhiên liệu (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.fuel_level}
-                    onChange={(e) => setFormData({ ...formData, fuel_level: parseInt(e.target.value) })}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      border: "2px solid #e5e7eb",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Trạng thái
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as BusFrontend["status"] })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                >
-                  <option value="ready">Sẵn sàng</option>
-                  <option value="running">Đang chạy</option>
-                  <option value="waiting">Đang chờ</option>
-                  <option value="maintenance">Bảo trì</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Tài xế
-                </label>
-                <input
-                  type="text"
-                  value={formData.driver_name}
-                  onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Tuyến đường
-                </label>
-                <input
-                  type="text"
-                  value={formData.route_id}
-                  onChange={(e) => setFormData({ ...formData, route_id: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Điểm đi
-                </label>
-                <input
-                  type="text"
-                  value={formData.PickUpLocation}
-                  onChange={(e) => setFormData({ ...formData, PickUpLocation: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Điểm đến
-                </label>
-                <input
-                  type="text"
-                  value={formData.DropOffLocation}
-                  onChange={(e) => setFormData({ ...formData, DropOffLocation: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
-                  Vị trí
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  style={{
-                    width: "100%",
-                    padding: "12px",
-                    border: "2px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
-              <button
-                onClick={handleEditBus}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#FFAC50",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Cập nhật
-              </button>
-              <button
-                onClick={handleCloseEditModal}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#f3f4f6",
-                  color: "#374151",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Detail Modal */}
-      {showDetailModal && selectedBus && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={handleCloseDetailModal}
-        >
+      {
+        showDetailModal && selectedBus && (
           <div
             style={{
-              background: "white",
-              borderRadius: "16px",
-              padding: "32px",
-              maxWidth: "700px",
-              width: "90%",
-              maxHeight: "90vh",
-              overflow: "auto",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={handleCloseDetailModal}
           >
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "24px",
+                background: "white",
+                borderRadius: "16px",
+                padding: "32px",
+                maxWidth: "700px",
+                width: "90%",
+                maxHeight: "90vh",
+                overflow: "auto",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>
-                Chi tiết xe {selectedBus.id}
-              </h2>
-              <span className={`status-badge ${getStatusBadge(selectedBus.status).class}`}>
-                <span className="status-dot"></span>
-                {getStatusBadge(selectedBus.status).text}
-              </span>
-            </div>
-
-            <div style={{ display: "grid", gap: "24px" }}>
-              <div>
-                <h3
-                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
-                >
-                  Thông tin cơ bản
-                </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      BIỂN SỐ
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.license_plate}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      SỨC CHỨA
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.capacity} người
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3
-                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
-                >
-                  Trạng thái hiện tại
-                </h3>
-                <div style={{ display: "grid", gap: "12px" }}>
-                  <div style={{ padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#6b7280",
-                        marginBottom: "8px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Số hành khách: {selectedBus.current_load}/{selectedBus.capacity}
-                    </div>
-                    <div
-                      style={{
-                        height: "8px",
-                        background: "#e5e7eb",
-                        borderRadius: "10px",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: "100%",
-                          width: `${selectedBus.capacity > 0 ? (selectedBus.current_load / selectedBus.capacity) * 100 : 0}%`,
-                          background: "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)",
-                          borderRadius: "10px",
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#6b7280",
-                        marginBottom: "8px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Nhiên liệu: {selectedBus.fuel_level}%
-                    </div>
-                    <div
-                      style={{
-                        height: "8px",
-                        background: "#e5e7eb",
-                        borderRadius: "10px",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: "100%",
-                          width: `${selectedBus.fuel_level}%`,
-                          background: "linear-gradient(90deg, #10b981 0%, #059669 100%)",
-                          borderRadius: "10px",
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3
-                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
-                >
-                  Thông tin vận hành
-                </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      TÀI XẾ
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.driver_name || "N/A"}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      TUYẾN ĐƯỜNG
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.route_id || "N/A"}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      ĐIỂM ĐI
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.PickUpLocation || "N/A"}
-                    </div>
-                  </div>
-                  <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      ĐIỂM ĐẾN
-                    </div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
-                      {selectedBus.DropOffLocation || "N/A"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3
-                  style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
-                >
-                  Vị trí
-                </h3>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "12px",
-                    padding: "16px",
-                    background: "#f9fafb",
-                    borderRadius: "8px",
-                    marginBottom: "12px",
-                  }}
-                >
-                  <span style={{ fontSize: "20px" }}>📍</span>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        color: "#9ca3af",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      VỊ TRÍ HIỆN TẠI
-                    </div>
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#111827" }}>
-                      {selectedBus.location || "N/A"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
-              <button
-                onClick={() => {
-                  setShowDetailModal(false);
-                  openEditModal(selectedBus);
-                }}
+              <div
                 style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#FFAC50",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}>
-                Chỉnh sửa
-              </button>
-              <button
-                onClick={handleCloseDetailModal}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#f3f4f6",
-                  color: "#374151",
-                  border: "none",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "24px",
                 }}
               >
-                Đóng
-              </button>
+                <h2 style={{ margin: 0, fontSize: "24px", fontWeight: 700 }}>
+                  Chi tiết xe {selectedBus.id}
+                </h2>
+                <span className={`status-badge ${getStatusBadge(selectedBus.status).class}`}>
+                  <span className="status-dot"></span>
+                  {getStatusBadge(selectedBus.status).text}
+                </span>
+              </div>
+
+              <div style={{ display: "grid", gap: "24px" }}>
+                <div>
+                  <h3
+                    style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                  >
+                    Thông tin cơ bản
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        BIỂN SỐ
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                        {selectedBus.license_plate}
+                      </div>
+                    </div>
+                    <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        SỨC CHỨA
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                        {selectedBus.capacity} người
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3
+                    style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                  >
+                    Trạng thái hiện tại
+                  </h3>
+                  <div style={{ display: "grid", gap: "12px" }}>
+                    <div style={{ padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "#6b7280",
+                          marginBottom: "8px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Số hành khách: {selectedBus.current_load}/{selectedBus.capacity}
+                      </div>
+                      <div
+                        style={{
+                          height: "8px",
+                          background: "#e5e7eb",
+                          borderRadius: "10px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${selectedBus.capacity > 0 ? (selectedBus.current_load / selectedBus.capacity) * 100 : 0}%`,
+                            background: "linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)",
+                            borderRadius: "10px",
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "#6b7280",
+                          marginBottom: "8px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Nhiên liệu: {selectedBus.fuel_level}%
+                      </div>
+                      <div
+                        style={{
+                          height: "8px",
+                          background: "#e5e7eb",
+                          borderRadius: "10px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${selectedBus.fuel_level}%`,
+                            background: "linear-gradient(90deg, #10b981 0%, #059669 100%)",
+                            borderRadius: "10px",
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3
+                    style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                  >
+                    Thông tin vận hành
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        TÀI XẾ
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                        {selectedBus.driver_name || "N/A"}
+                      </div>
+                    </div>
+                    <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        TUYẾN ĐƯỜNG
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                        {selectedBus.route_id || "N/A"}
+                      </div>
+                    </div>
+                    <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        ĐIỂM ĐI
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                        {selectedBus.PickUpLocation || "N/A"}
+                      </div>
+                    </div>
+                    <div style={{ padding: "12px", background: "#f9fafb", borderRadius: "8px" }}>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        ĐIỂM ĐẾN
+                      </div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                        {selectedBus.DropOffLocation || "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3
+                    style={{ fontSize: "16px", fontWeight: 600, marginBottom: "12px", color: "#111827" }}
+                  >
+                    Vị trí
+                  </h3>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "12px",
+                      padding: "16px",
+                      background: "#f9fafb",
+                      borderRadius: "8px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span style={{ fontSize: "20px" }}>📍</span>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: "#9ca3af",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        VỊ TRÍ HIỆN TẠI
+                      </div>
+                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#111827" }}>
+                        {selectedBus.location || "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    openEditModal(selectedBus);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#FFAC50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}>
+                  Chỉnh sửa
+                </button>
+                <button
+                  onClick={handleCloseDetailModal}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: "#f3f4f6",
+                    color: "#374151",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "15px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
