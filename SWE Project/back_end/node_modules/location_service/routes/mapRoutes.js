@@ -1,33 +1,23 @@
-const { Router } = require('express');
+
+const express = require('express');
+const router = express.Router();
 const mapController = require('../controllers/mapController');
-const mapRouter = Router();
 
-// ===================================
-// MAP & ROUTING ROUTES
-// ===================================
+// Route calculation
+router.get('/route', mapController.calculateRoute);
+router.post('/route/optimize', mapController.optimizeRoute);
 
-// Get map configuration
-mapRouter.get('/config', mapController.getMapConfig);
+// Geocoding
+router.get('/geocode', mapController.geocodeAddress);
+router.get('/reverse-geocode', mapController.reverseGeocode);
 
-// Calculate route between 2 points
-mapRouter.post('/route', mapController.calculateRoute);
+// Distance calculation
+router.post('/distance', mapController.calculateDistance);
 
-// Calculate route through multiple waypoints
-mapRouter.post('/route/multi-point', mapController.calculateMultiPointRoute);
+// Geofence check
+router.get('/geofence/check', mapController.checkGeofence);
 
-// Calculate distance matrix
-mapRouter.post('/distance-matrix', mapController.calculateDistanceMatrix);
+// Map tiles
+router.get('/tiles', mapController.getMapTileUrl);
 
-// Optimize route (TSP)
-mapRouter.post('/route/optimize', mapController.optimizeRoute);
-
-// Geocoding - address to coordinates
-mapRouter.get('/geocode', mapController.geocodeAddress);
-
-// Reverse geocoding - coordinates to address
-mapRouter.get('/reverse-geocode', mapController.reverseGeocode);
-
-// Calculate isochrone (reachable area)
-mapRouter.post('/isochrone', mapController.calculateIsochrone);
-
-module.exports = mapRouter;
+module.exports = router;

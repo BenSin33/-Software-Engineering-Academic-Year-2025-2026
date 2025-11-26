@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const { callService } = require('../services/callService');
 
 router.post('/login', async (req, res) => {
   try {
-    const response = await axios.post('http://localhost:3019/api/auth/login', req.body);
+    const response = await axios.post('http://auth_service:5010/api/auth/login', req.body);
     res.json(response.data);
   } catch (err) {
     const status = err.response?.status || 500;
@@ -12,6 +13,7 @@ router.post('/login', async (req, res) => {
     res.status(status).json({ error: message });
   }
 });
+
 
 
 module.exports = router;

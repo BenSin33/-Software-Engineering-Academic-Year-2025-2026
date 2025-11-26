@@ -1,29 +1,155 @@
 const { v4: uuidv4 } = require('uuid');
 const pool = require('./pool');
 
+// ============================
+// CREATE USER + PARENT (Sequential IDs, Transaction)
+// ============================
+const createUserAndParent = async (username, password, fullName, phoneNumber, email, address) => {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Generate next UserID (U001, U002…)
+    const [userRows] = await connection.query("SELECT UserID FROM users ORDER BY UserID DESC LIMIT 1");
+    let nextUserNumber = 1;
+    if (userRows.length > 0) {
+      const lastUserId = userRows[0].UserID;
+      const match = lastUserId.match(/\d+/);
+      if (match) nextUserNumber = parseInt(match[0]) + 1;
+    }
+    const userId = `U${String(nextUserNumber).padStart(3, '0')}`;
+
+    // 2. Insert User (RoleID = R003 - Parent)
+    await connection.query(
+      'INSERT INTO users (UserID, RoleID, UserName, Password) VALUES (?, ?, ?, ?)',
+      [userId, 'R003', username, password]
+    );
+
+    // 3. Generate next ParentID (P001, P002…)
+    const [parentRows] = await connection.query("SELECT ParentID FROM parents ORDER BY ParentID DESC LIMIT 1");
+    let nextParentNumber = 1;
+    if (parentRows.length > 0) {
+      const lastParentId = parentRows[0].ParentID;
+      const match = lastParentId.match(/\d+/);
+      if (match) nextParentNumber = parseInt(match[0]) + 1;
+    }
+    const parentId = `P${String(nextParentNumber).padStart(3, '0')}`;
+
+    // 4. Generate TrackingID
+    const trackingId = `TRK${String(nextParentNumber).padStart(3, '0')}`;
+
+    // 5. Insert Parent
+    await connection.query(
+      'INSERT INTO parents (ParentID, UserID, TrackingID, FullName, PhoneNumber, Email, Address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [parentId, userId, trackingId, fullName, phoneNumber, email, address]
+    );
+
+    await connection.commit();
+    console.log('✅ Created user and parent successfully:', { userId, parentId });
+
+    return { userId, parentId, trackingId };
+  } catch (error) {
+    await connection.rollback();
+    console.error('❌ Error creating user and parent, transaction rolled back:', error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+// ============================
+// CREATE PARENT (UUID)
+// ============================
 const createParent = async (userId, trackingId, fullName, phoneNumber, email, address) => {
   const parentId = uuidv4();
-  await pool.query(
-    'INSERT INTO parents (ParentID, UserID, TrackingID, FullName, PhoneNumber, Email, Address) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [parentId, userId, trackingId, fullName, phoneNumber, email, address]
-  );
-  return parentId;
+  try {
+    await pool.query(
+      'INSERT INTO parents (ParentID, UserID, TrackingID, FullName, PhoneNumber, Email, Address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [parentId, userId, trackingId, fullName, phoneNumber, email, address]
+    );
+    return parentId;
+  } catch (error) {
+    console.error('Error creating parent:', error);
+    throw error;
+  }
 };
 
+// ============================
+// GET PARENT BY ID
+// ============================
 const getParentById = async (parentId) => {
-  const [rows] = await pool.query('SELECT * FROM parents WHERE ParentID = ?', [parentId]);
-  return rows[0];
+  try {
+    const [rows] = await pool.query('SELECT * FROM parents WHERE ParentID = ?', [parentId]);
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error fetching parent by ID:', error);
+    throw error;
+  }
 };
 
+// ============================
+// GET PARENT BY USER ID
+// ============================
+const getParentByUserId = async (userId) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM parents WHERE UserID = ?', [userId]);
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Error fetching parent by UserID:', error);
+    throw error;
+  }
+};
+
+// ============================
+// GET ALL PARENTS
+// ============================
+const getAllParents = async () => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM parents ORDER BY CreatedAt DESC');
+    return rows;
+  } catch (error) {
+    console.error('Error fetching all parents:', error);
+    throw error;
+  }
+};
+
+// ============================
+// UPDATE PARENT
+// ============================
 const updateParent = async (parentId, trackingId, fullName, phoneNumber, email, address) => {
-  await pool.query(
-    'UPDATE parents SET TrackingID = ?, FullName = ?, PhoneNumber = ?, Email = ?, Address = ? WHERE ParentID = ?',
-    [trackingId, fullName, phoneNumber, email, address, parentId]
-  );
+  try {
+    await pool.query(
+      'UPDATE parents SET TrackingID = ?, FullName = ?, PhoneNumber = ?, Email = ?, Address = ? WHERE ParentID = ?',
+      [trackingId, fullName, phoneNumber, email, address, parentId]
+    );
+  } catch (error) {
+    console.error('Error updating parent:', error);
+    throw error;
+  }
 };
 
+// ============================
+// DELETE PARENT
+// ============================
 const deleteParent = async (parentId) => {
-  await pool.query('DELETE FROM parents WHERE ParentID = ?', [parentId]);
+  try {
+    await pool.query('DELETE FROM parents WHERE ParentID = ?', [parentId]);
+  } catch (error) {
+    console.error('Error deleting parent:', error);
+    throw error;
+  }
 };
 
-module.exports = { createParent, getParentById, updateParent, deleteParent };
+// ============================
+// EXPORT
+// ============================
+module.exports = {
+  createUserAndParent, // Transaction + sequential IDs
+  createParent,        // UUID
+  getParentById,
+  getParentByUserId,
+  getAllParents,
+  updateParent,
+  deleteParent
+};

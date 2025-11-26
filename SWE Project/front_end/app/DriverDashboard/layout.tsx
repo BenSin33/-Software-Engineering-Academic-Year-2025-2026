@@ -1,33 +1,78 @@
 'use client';
-
+import { useEffect, useState } from 'react';
 import { Layout } from '../../components/Layouts/Layout';
-import { HiUserCircle, HiBell, HiChat, HiExclamationCircle, HiDocument, HiDocumentReport } from 'react-icons/hi';
+import { API } from '../API/userService';
+import { 
+  HiUserCircle, 
+  HiBell, 
+  HiChat, 
+  HiDocument, 
+  HiDocumentReport, 
+  HiMap 
+} from 'react-icons/hi';
 
-export default function ParentDashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = {
-    name: 'Admin',
-  };
+interface AccountDetails {
+  FullName: string;
+  // các trường khác nếu cần
+}
+
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: AccountDetails;
+}
+
+export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<{ name: string }>({ name: 'Driver' });
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      try {
+        const response = await API.getMyProfile() as ApiResponse;
+        setUser({ name: response.data.FullName || 'Driver' });
+      } catch (error) {
+        console.error('Lỗi khi lấy tên tài xế:', error);
+      }
+    };
+
+    fetchUserName();
+  }, []);
 
   const navItems = [
     {
-      text: 'Alert',
-      url: '/DriverDashboard/Alert',
-      icon: HiExclamationCircle,
+      text: 'Overview',
+      url: '/DriverDashboard/Overview',
+      icon: HiDocument,
     },
     {
-      text: 'Pickup reports',
-      url: '/DriverDashboard/Tracking',
+      text: 'Schedule',
+      url: '/DriverDashboard/Schedule',
       icon: HiDocumentReport,
     },
     {
+      text: 'My Students',
+      url: '/DriverDashboard/MyStudents',
+      icon: HiUserCircle,
+    },
+    {
+      text: 'Tracking',
+      url: '/DriverDashboard/Tracking',
+      icon: HiMap,
+    },
+    {
+      text: 'Messages',
+      url: '/DriverDashboard/Message',
+      icon: HiChat,
+    },
+    {
       text: 'Notifications',
-      url: '/DriverDashboard/Schedule',
+      url: '/DriverDashboard/Notifications',
       icon: HiBell,
     },
   ];
 
   return (
-    <Layout list={navItems} user={user} >
+    <Layout list={navItems} user={user}>
       {children}
     </Layout>
   );

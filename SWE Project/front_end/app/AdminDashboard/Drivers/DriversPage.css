@@ -395,6 +395,14 @@
   background-color: #dcfce7;
 }
 
+.messageButton {
+  color: #9333ea;
+}
+
+.messageButton:hover {
+  background-color: #f3e8ff;
+}
+
 .deleteButton {
   color: #dc2626;
 }

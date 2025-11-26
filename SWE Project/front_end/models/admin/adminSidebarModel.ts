@@ -15,6 +15,11 @@ export const adminSidebarModel = [
         
     },
     {
+        text: 'Users',
+        url: '/AdminDashboard/Users',
+        icon: BsFillPersonVcardFill
+    },
+    {
         text: 'Drivers',
         url: '/AdminDashboard/Drivers',
         icon: BsFillPersonVcardFill
@@ -38,6 +43,11 @@ export const adminSidebarModel = [
                 text:'Routes',
                 url:'/AdminDashboard/Routes',
                 icon: ImRoad
+            },
+            {
+                text:'Schedules',
+                url:'/AdminDashboard/Schedules',
+                icon: ImRoad,
             },
             {
                 text:'Buses',

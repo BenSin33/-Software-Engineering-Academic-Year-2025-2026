@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { AlertTriangle, Bus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Bus, MessageSquare } from 'lucide-react';
 import MapView from '@/components/Layouts/MapView';
+import MessagePanel from '@/components/Driver/MessagePanel';
+import { userIdToMessageId } from '@/utils/idConverter';
 import './DriverJourney.css';
 
 type ToggleSwitchProps = {
@@ -20,16 +22,37 @@ const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onChange }) => (
 export default function DriverJourneyPage() {
   const initialStudents = [
     { id: 1, name: 'Nguyễn Văn A', status: 'Chưa đón' },
-    { id: 2, name: 'Nguyễn Văn/Trà', status: 'Đã đón' },
-    { id: 3, name: 'Điểm đón/Trà', status: 'Đã đón' },
+    { id: 2, name: 'Nguyễn Văn/Trả', status: 'Đã đón' },
+    { id: 3, name: 'Điểm đón/Trả', status: 'Đã đón' },
     { id: 4, name: 'Nguyễn Văn A', status: 'Đã đón' },
-    { id: 5, name: 'Druyền số 10', status: 'Đã đón' },
+    { id: 5, name: 'Druyên số 10', status: 'Đã đón' },
     { id: 6, name: 'Nguyễn Văn A', status: 'Đã đón' },
     { id: 7, name: 'Nguyễn Văn A', status: 'Đã đón' },
-    { id: 8, name: 'Druyền số 10', status: 'Đã đón' },
+    { id: 8, name: 'Druyên số 10', status: 'Đã đón' },
   ];
 
   const [students, setStudents] = useState(initialStudents);
+  const [showMessagePanel, setShowMessagePanel] = useState(false);
+  const [driverId, setDriverId] = useState<number | null>(null);
+
+  // 🔧 Lấy driver ID khi component mount
+  useEffect(() => {
+    // CÁCH 1: Hardcode cho demo - Driver UserID "U002" → Numeric ID 2
+    // Trong production, lấy từ localStorage hoặc context sau khi login
+    const driverUserIdString = 'U002'; // Hoặc lấy từ localStorage.getItem('userId')
+    const numericDriverId = userIdToMessageId(driverUserIdString);
+
+    console.log(`🔧 Driver UserID: ${driverUserIdString} → Numeric Message ID: ${numericDriverId}`);
+    setDriverId(numericDriverId);
+
+    // CÁCH 2: Lấy từ localStorage (nếu đã lưu khi login)
+    // const storedUserId = localStorage.getItem('userId'); // e.g., "U002"
+    // if (storedUserId) {
+    //   setDriverId(userIdToMessageId(storedUserId));
+    // } else {
+    //   setDriverId(userIdToMessageId('U002')); // fallback
+    // }
+  }, []);
 
   const handleToggle = (id: number) => {
     setStudents(students.map(student =>
@@ -44,6 +67,15 @@ export default function DriverJourneyPage() {
       {/* Header */}
       <div className="page-main-header">
         <div className="user-actions">
+          <button
+            className="report-button"
+            onClick={() => setShowMessagePanel(true)}
+            style={{ marginRight: '12px' }}
+            disabled={!driverId}
+          >
+            <MessageSquare size={16} />
+            TIN NHẮN
+          </button>
           <button className="report-button">
             <AlertTriangle size={16} />
             BÁO CÁO SỰ CỐ
@@ -104,6 +136,49 @@ export default function DriverJourneyPage() {
           </div>
         </div>
       </div>
+
+      {/* Message Panel Modal */}
+      {showMessagePanel && driverId && (
+        <div className="message-modal-overlay" onClick={() => setShowMessagePanel(false)}>
+          <div className="message-modal-content" onClick={(e) => e.stopPropagation()}>
+            <MessagePanel
+              driverId={driverId}
+              adminId={1}
+              onClose={() => setShowMessagePanel(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .message-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 20px;
+        }
+
+        .message-modal-content {
+          background: transparent;
+          border-radius: 12px;
+          width: 100%;
+          max-width: 600px;
+          height: 600px;
+          max-height: 90vh;
+          min-height: 500px;
+          display: flex;
+          flex-direction: column;
+          overflow: visible;
+          position: relative;
+        }
+      `}</style>
     </div>
   );
 }

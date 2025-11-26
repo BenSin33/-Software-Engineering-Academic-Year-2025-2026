@@ -1,77 +1,135 @@
 'use client';
+import { useEffect, useState, useMemo } from 'react';
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
+import { v4 as uuidv4 } from 'uuid';
+import polylineDecode from '@mapbox/polyline';
 
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import { useEffect, useState } from 'react';
+type Coordinate = { lat: number; lng: number };
+type BusState = { id: string; routeKey: string; position: Coordinate; stepIndex: number };
+type MapViewProps = { coordinates?: Coordinate[] | Coordinate[][]; showBuses?: boolean };
 
-// Sửa lỗi icon mặc định
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '12px' };
+const defaultCenter = { lat: 10.77653, lng: 106.700981 };
+const updateInterval = 200; // 0.2s để mượt
 
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x.src,
-  iconUrl: markerIcon.src,
-  shadowUrl: markerShadow.src,
-});
+// Hàm hash tuyến để nhận diện duy nhất
+function hashRoute(route: Coordinate[]) {
+  return route.map(p => `${p.lat.toFixed(6)}_${p.lng.toFixed(6)}`).join('|');
+}
 
-type Coordinate = {
-  lat: number;
-  lng: number;
-};
+// Sinh màu theo index
+function getColor(index: number) {
+  const colors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF5722', '#9C27B0'];
+  return colors[index % colors.length];
+}
 
-export default function MapView({ coordinates }: { coordinates: Coordinate[] }) {
-  const [route, setRoute] = useState<L.LatLngExpression[]>([]);
+export default function MapView({ coordinates = [], showBuses = true }: MapViewProps) {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+  });
 
-  const orsApiKey = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxZTJkMDY4NjI0ODQ1NjZiNTdkNTU5ZmQ0OGRlMWY2IiwiaCI6Im11cm11cjY0In0='; // ✅ OpenRouteService key
+  const [routes, setRoutes] = useState<{ key: string; path: Coordinate[] }[]>([]);
+  const [busStates, setBusStates] = useState<BusState[]>([]);
 
-  useEffect(() => {
-    if (coordinates.length < 2) return;
+  const normalizedRoutes: Coordinate[][] = Array.isArray(coordinates[0])
+    ? (coordinates as Coordinate[][])
+    : [coordinates as Coordinate[]];
 
-    async function fetchRoute() {
+  const busIcon = useMemo(() => {
+    if (!isLoaded) return undefined;
+    return {
+      url: '/bus.svg',
+      scaledSize: new window.google.maps.Size(40, 40),
+      anchor: new window.google.maps.Point(20, 20),
+    };
+  }, [isLoaded]);
+
+  /** Fetch geometry từ ORS */
+  const fetchRoutesFromAPI = async () => {
+    const newRoutes: { key: string; path: Coordinate[] }[] = [];
+
+    for (const route of normalizedRoutes) {
+      if (route.length < 2) continue;
       try {
-        // Tạo chuỗi tọa độ [lng,lat] (ORS yêu cầu theo thứ tự này)
-        const coordsString = coordinates.map(c => `${c.lng},${c.lat}`).join('|');
+        const res = await fetch('http://localhost:5000/ORS/drivingCar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coordinates: route.map(p => [p.lng, p.lat]) }),
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
 
-        const response = await fetch(
-          `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${orsApiKey}&start=${coordinates[0].lng},${coordinates[0].lat}&end=${coordinates[coordinates.length - 1].lng},${coordinates[coordinates.length - 1].lat}`
-        );
-
-        if (!response.ok) {
-          console.error('Lỗi khi gọi ORS API:', await response.text());
-          return;
+        let line: Coordinate[] = [];
+        if (typeof data.routes[0].geometry === 'string') {
+          line = polylineDecode.decode(data.routes[0].geometry).map(([lat, lng]) => ({ lat, lng }));
+        } else if (data.routes[0].geometry?.coordinates) {
+          line = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
         }
 
-        const data = await response.json();
-        const line = data.features[0].geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
-        setRoute(line);
-      } catch (error) {
-        console.error('Lỗi lấy định tuyến:', error);
+        newRoutes.push({ key: hashRoute(line), path: line });
+      } catch (err) {
+        console.error('Fetch route error:', err);
       }
     }
 
-    fetchRoute();
-  }, [coordinates]);
+    // Chỉ cập nhật nếu tuyến thay đổi
+    const isSame =
+      routes.length === newRoutes.length &&
+      routes.every((r, i) => r.key === newRoutes[i].key);
 
-  const center = coordinates.length > 0 ? [coordinates[0].lat, coordinates[0].lng] : [10.77653, 106.700981];
+    if (!isSame) {
+      setRoutes(newRoutes);
+      setBusStates(prevBus => {
+        const busMap = new Map(prevBus.map(b => [b.routeKey, b]));
+        return newRoutes.map(r => {
+          const oldBus = busMap.get(r.key);
+          return oldBus
+            ? { ...oldBus }
+            : { id: uuidv4(), routeKey: r.key, position: r.path[0], stepIndex: 0 };
+        });
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (normalizedRoutes.length === 0) return;
+    fetchRoutesFromAPI();
+    const interval = setInterval(fetchRoutesFromAPI, 15000);
+    return () => clearInterval(interval);
+  }, [normalizedRoutes]);
+
+  /** Di chuyển bus */
+  useEffect(() => {
+    if (!showBuses || routes.length === 0 || busStates.length === 0) return;
+    const interval = setInterval(() => {
+      setBusStates(prev =>
+        prev.map(bus => {
+          const route = routes.find(r => r.key === bus.routeKey);
+          if (!route || route.path.length < 2) return bus;
+          const nextStep = (bus.stepIndex + 1) % route.path.length;
+          return { ...bus, stepIndex: nextStep, position: route.path[nextStep] };
+        })
+      );
+    }, updateInterval);
+    return () => clearInterval(interval);
+  }, [routes, busStates, showBuses]);
+
+  if (!isLoaded) return <div>Loading map...</div>;
+  const center = routes[0]?.path[0] || defaultCenter;
 
   return (
-    <MapContainer center={center as L.LatLngExpression} zoom={10} style={{ height: '100%',zIndex:'0', width: '100%', borderRadius: '12px' }}>
-      <TileLayer
-        attribution='&copy; <a href="https://www.maptiler.com/">MapTiler</a> & <a href="https://www.openstreetmap.org/">OSM</a>'
-        url={`https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=KVeN2HZJbhgfyv2ekxLj`}
-      />
-
-      {/* Marker cho từng tọa độ */}
-      {coordinates.map((pos, idx) => (
-        <Marker key={idx} position={[pos.lat, pos.lng]}>
-          <Popup>Điểm {idx + 1}</Popup>
-        </Marker>
+    <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13}>
+      {/* markers */}
+      {normalizedRoutes.map((route, i) =>
+        route.map((pos, j) => <Marker key={`marker-${i}-${j}`} position={pos} />)
+      )}
+      {/* polylines */}
+      {routes.map((r, i) => (
+        <Polyline key={`route-${i}`} path={r.path} options={{ strokeColor: getColor(i), strokeWeight: 5 }} />
       ))}
-
-      {/* Đường định tuyến thật */}
-      {route.length > 0 && <Polyline positions={route} color="#4285F4" weight={5} />}
-    </MapContainer>
+      {/* buses */}
+      {showBuses &&
+        busStates.map(bus => <Marker key={bus.id} position={bus.position} icon={busIcon} />)}
+    </GoogleMap>
   );
 }

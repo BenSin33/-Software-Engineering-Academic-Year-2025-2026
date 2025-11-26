@@ -1,12 +1,28 @@
 const express = require('express');
-const ctrl = require('./log.controller');
 const router = express.Router();
+const logController = require('../controllers/log.controller');
 
-router.get('/', ctrl.find);             // GET /logs
-router.post('/', ctrl.createBatch);     // POST /logs
-router.post('/single', ctrl.create);    // POST /logs/single
-router.post('/login', ctrl.logLogin);   // POST /logs/login
-router.post('/logout', ctrl.logLogout); // POST /logs/logout
-router.post('/user-update', ctrl.logUserUpdate); // POST /logs/user-update
+// Ghi log
+router.post('/logs', logController.create);
+router.post('/logs/batch', logController.createBatch);
+
+// Tìm kiếm log
+router.get('/logs', logController.find);
+
+// Thống kê
+router.get('/logs/stats', logController.getStats);
+router.get('/logs/error-rate', logController.getErrorRate);
+router.get('/logs/services', logController.getServices);
+router.get('/logs/hourly', logController.getHourlyDistribution);
+router.get('/logs/top-errors', logController.getTopErrors);
+
+// Quản lý dữ liệu
+router.delete('/logs/cleanup', logController.cleanup);
+router.get('/logs/export', logController.exportLogs);
+
+// Log sự kiện người dùng
+router.post('/logs/login', logController.logLogin);
+router.post('/logs/logout', logController.logLogout);
+router.post('/logs/user-update', logController.logUserUpdate);
 
 module.exports = router;

@@ -12,4 +12,4 @@ app.use(express.json());
 app.use("/routes", routeRoutes);
 
 const PORT = process.env.PORT || 4002;
-app.listen(PORT, () => console.log(`✅ route_service running on port ${PORT}`));
+app.listen(PORT, () => console.log(` route_service running on port ${PORT}`));

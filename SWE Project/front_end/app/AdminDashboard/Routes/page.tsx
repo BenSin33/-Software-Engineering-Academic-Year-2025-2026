@@ -132,7 +132,6 @@ export default function RoutesPage() {
 
 
     const itemsPerPage = 6;
-    console.log('routes: ', routes)
     // --- Filtering Logic ---
     const filteredRoutes = routes.filter(route => {
         const searchTermLower = searchTerm.toLowerCase();
@@ -213,7 +212,7 @@ export default function RoutesPage() {
         }
     };
     const displayRouteOnMap = async (route: any) => {
-        console.log('kaka: ', route);
+    
         setMapError('');
         setMapLoading(true);
 
@@ -227,6 +226,7 @@ export default function RoutesPage() {
             if (!response.ok) throw new Error('Lỗi server khi fetch tọa độ');
 
             const data = await response.json();
+            console.log('[DEBUG] Dữ liệu trả về từ API:', data);
 
             if (!data?.coordinates?.length) throw new Error('Tọa độ trống');
 
@@ -255,7 +255,7 @@ export default function RoutesPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('đii: ', data.updatedRoute);
+              
                 if (data) {
                     setRoutes((prevRoute) =>
                         prevRoute.map((route) => route.RouteID.toString() === selectedRoute.RouteID.toString() ? data.updatedRoute : route)
@@ -527,7 +527,7 @@ export default function RoutesPage() {
                             <p className="text-gray-700 text-lg font-medium">Đang lấy dữ liệu tuyến đường...</p>
                         </div>
                     ) : (
-                        <MapView coordinates={coordinates} />
+                        <MapView coordinates={coordinates} showBuses={false} />
                     )}
                 </div>
 
