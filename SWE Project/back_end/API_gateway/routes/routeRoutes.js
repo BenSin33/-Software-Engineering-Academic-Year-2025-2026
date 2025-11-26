@@ -1,13 +1,13 @@
 const express = require("express");
 const { callService } = require("../services/callService.js");
+const { routeController } = require('../controllers/routeController.js');
 
 const router = express.Router();
-const {routeController} = require('../controllers/routeController.js')
+
 /**
  * 🟢 GET /routes
  * Lấy danh sách tuyến và gộp tên tài xế (fail-safe)
  */
-
 router.get("/", routeController);
 
 /**
@@ -31,19 +31,26 @@ router.post("/add", async (req, res) => {
     // --- Lấy tên tài xế (fail-safe) ---
     let DriverName = "Không có dữ liệu tài xế";
     try {
-      const driverResponse = await callService("driver_service", `/drivers/${driverID}`, "GET");
-      DriverName = driverResponse.fullName || DriverName;
+      const driverResponse = await callService("user_service", `/drivers/${driverID}`, "GET");
+      DriverName = driverResponse.fullName || driverResponse.FullName || DriverName;
     } catch (err) {
       console.warn("⚠️ Không thể lấy tên tài xế:", err.message);
     }
 
     return res.status(200).json({
       message: "Thêm tuyến mới thành công",
-      newRoute: { DriverID:driverID,BusID:busID,RouteID: response,RouteName:routeName,StartLocation: startLocation,EndLocation: endLocation, DriverName },
-      response,
+      newRoute: { 
+        DriverID: driverID, 
+        BusID: busID, 
+        RouteID: response, 
+        RouteName: routeName, 
+        StartLocation: startLocation, 
+        EndLocation: endLocation, 
+        DriverName 
+      }
     });
   } catch (err) {
-    console.error(" Lỗi không mong muốn khi thêm tuyến:", err);
+    console.error("❌ Lỗi không mong muốn khi thêm tuyến:", err);
     return res.status(500).json({ message: "Lỗi server khi thêm tuyến mới" });
   }
 });
@@ -68,25 +75,32 @@ router.post("/edit/:id", async (req, res) => {
 
     let DriverName = "Không có dữ liệu tài xế";
     try {
-      const driverResponse = await callService("driver_service", `/drivers/${driverID}`, "GET");
-      DriverName = driverResponse.fullName || DriverName;
+      const driverResponse = await callService("user_service", `/drivers/${driverID}`, "GET");
+      DriverName = driverResponse.fullName || driverResponse.FullName || DriverName;
     } catch (err) {
       console.warn("⚠️ Không thể lấy tên tài xế:", err.message);
     }
 
     return res.status(200).json({
       message: "Cập nhật tuyến thành công",
-      updatedRoute: { BusID:busID, RouteName:routeName, StartLocation:startLocation, EndLocation:endLocation,DriverID:driverID, DriverName,RouteID:id },
-      response,
+      updatedRoute: { 
+        BusID: busID, 
+        RouteName: routeName, 
+        StartLocation: startLocation, 
+        EndLocation: endLocation, 
+        DriverID: driverID, 
+        DriverName, 
+        RouteID: id 
+      }
     });
   } catch (err) {
-    console.error(" Lỗi không mong muốn khi cập nhật tuyến:", err);
+    console.error("❌ Lỗi không mong muốn khi cập nhật tuyến:", err);
     return res.status(500).json({ message: "Lỗi server khi cập nhật tuyến" });
   }
 });
 
 /**
- *  POST /routes/delete/:id
+ * 🗑️ POST /routes/delete/:id
  * Xóa tuyến (fail-safe)
  */
 router.post("/delete/:id", async (req, res) => {
@@ -95,7 +109,7 @@ router.post("/delete/:id", async (req, res) => {
     const response = await callService("route_service", `/Routes/delete/${id}`, "POST");
     return res.status(200).json({
       message: "Xóa tuyến thành công",
-      response,
+      response
     });
   } catch (err) {
     console.warn("⚠️ Không thể xóa tuyến:", err.message);

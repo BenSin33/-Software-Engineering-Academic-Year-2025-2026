@@ -13,7 +13,7 @@ export interface BusBackend {
     Location: string | null;
     PickUpLocation: string | null;
     DropOffLocation: string | null;
-    DriverID: number | null;
+    DriverID: string | null;
     RouteID: string | null;
     CreatedAt?: string;
     UpdatedAt?: string;
@@ -27,7 +27,7 @@ export interface BusFrontend {
     capacity: number;
     current_load: number;
     fuel_level: number;
-    driver_id: number | null; // thêm để liên kết chuẩn
+    driver_id: string | null; // thêm để liên kết chuẩn
     driver_name: string;
     route_id: string;
     location: string;
@@ -46,7 +46,7 @@ export interface BusCreateRequest {
     Location?: string | null;
     PickUpLocation?: string | null;
     DropOffLocation?: string | null;
-    DriverID?: number | null;
+    DriverID?: string | null;
     RouteID?: string | null;
 }
 
@@ -59,7 +59,7 @@ export interface BusUpdateRequest {
     Location?: string | null;
     PickUpLocation?: string | null;
     DropOffLocation?: string | null;
-    DriverID?: number | null;
+    DriverID?: string | null;
     RouteID?: string | null;
 }
 

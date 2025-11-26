@@ -14,13 +14,15 @@ import MessagePanelToDriver from "@/components/Admin/MessagePanelToDriver";
 import { userIdToMessageId } from "@/utils/idConverter";
 
 interface Driver {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   name: string;
   phone: string;
   email: string;
-  bus: string;
-  route: string;
+  busId: string;
+  busName: string;
+  routeId: string;
+  routeName: string;
   status: "active" | "rest";
   avatar: string;
 }
@@ -35,8 +37,8 @@ interface FormData {
 }
 
 interface ApiDriver {
-  DriverID: number;
-  UserID: number;
+  DriverID: string;
+  UserID: string;
   FullName: string;
   PhoneNumber: string;
   Email: string;
@@ -46,7 +48,8 @@ interface ApiDriver {
 interface ApiBus {
   BusID: string;
   RouteID: string | null;
-  DriverID: number | null;
+  DriverID: string | null;
+  [key: string]: any; // Allow other properties for loose casing check
 }
 
 interface ApiDriverStats {
@@ -69,7 +72,7 @@ export default function DriversPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletingDriverId, setDeletingDriverId] = useState<number | null>(null);
+  const [deletingDriverId, setDeletingDriverId] = useState<string | null>(null);
 
   // 🔧 State cho MessagePanel
   const [showMessagePanel, setShowMessagePanel] = useState(false);
@@ -98,72 +101,122 @@ export default function DriversPage() {
   });
 
   const itemsPerPage = 5;
-  const API_URL = "http://localhost:5000/api/bus-drivers";
+  const API_URL = "http://localhost:5000/api/drivers";
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [statsRes, driversRes, busesRes] = await Promise.all([
+      const [statsRes, driversRes, busesRes, routesData] = await Promise.all([
         fetch(`${API_URL}/stats`),
         fetch(`${API_URL}?limit=1000`),
-        fetch(`http://localhost:5000/api/buses?limit=1000`)
+        fetch(`http://localhost:5000/api/buses?limit=1000`),
+        fetchRouteService()
       ]);
-  
+
       if (!statsRes.ok) throw new Error("Không thể tải thống kê tài xế");
       if (!driversRes.ok) throw new Error("Không thể tải danh sách tài xế");
       if (!busesRes.ok) throw new Error("Không thể tải danh sách xe");
-  
+
       const statsData = await statsRes.json();
       const driversData = await driversRes.json();
       const busesData = await busesRes.json();
-  
+      // const routesData = routesRes; // Removed, already destructured
+
       // 👉 Log để kiểm tra dữ liệu thực tế
       console.log("Stats data:", statsData);
       console.log("Drivers data:", driversData);
       console.log("Buses data:", busesData);
-  
+
       if (statsData.success) {
         setDriverStats(statsData.data);
       }
-  
+
       if (driversData.success && busesData.success) {
-        const busMap = new Map<number, { busId: string; routeId: string }>();
+        console.log("DEBUG: Drivers Data Sample:", driversData.data.slice(0, 3));
+        console.log("DEBUG: Buses Data Sample:", busesData.data.slice(0, 3));
+        if (routesData?.routes) {
+          console.log("DEBUG: Routes Data Sample:", routesData.routes.slice(0, 3));
+        }
+
+        // 1. Create Bus Map (ID -> { Plate, RouteID })
+        const busDetailsMap = new Map<string, { id: string; plate: string; routeId: string }>();
+        // Also keep the assignment map
+        const busAssignmentMap = new Map<string, { busId: string; routeId: string }>();
+
         if (Array.isArray(busesData.data)) {
           busesData.data.forEach((bus: ApiBus) => {
-            if (bus.DriverID) {
-              busMap.set(bus.DriverID, {
-                busId: bus.BusID,
-                routeId: bus.RouteID || "N/A"
+            const bId = bus.BusID || bus.busID || bus.busId;
+            const rId = bus.RouteID || bus.routeID || bus.routeId;
+            const plate = bus.PlateNumber || bus.plateNumber || bId; // Fallback to ID if no plate
+
+            if (bId) {
+              busDetailsMap.set(String(bId).toLowerCase(), { id: bId, plate, routeId: rId });
+            }
+
+            // Handle driver assignment
+            let driverId = bus.DriverID || bus.driverID || bus.driverId;
+            if (driverId) {
+              driverId = String(driverId);
+              busAssignmentMap.set(driverId.toLowerCase(), {
+                busId: bId,
+                routeId: rId || "N/A"
               });
             }
           });
         }
-  
+        console.log("DEBUG: Bus Assignment Map Keys:", Array.from(busAssignmentMap.keys()));
+
+        // 2. Create Route Map (ID -> Name)
+        const routeDetailsMap = new Map<string, string>();
+        if (routesData && Array.isArray(routesData.routes)) {
+          routesData.routes.forEach((route: any) => {
+            const rId = route.RouteID || route.routeID;
+            const rName = route.RouteName || route.routeName;
+            if (rId) {
+              routeDetailsMap.set(String(rId).toLowerCase(), rName);
+            }
+          });
+        }
+
         const mappedDrivers = driversData.data.map((driver: any): Driver => {
-          console.log("Driver record:", driver); // 👉 log từng driver
-  
-          const assignedBus = busMap.get(driver.DriverID);
-  
+          // Case-insensitive lookup in busAssignmentMap
+          let assignedBus = busAssignmentMap.get(String(driver.DriverID).toLowerCase());
+
+          // Determine Bus ID and Route ID
+          // Priority: Assigned via Bus Service > Assigned via Driver Service
+          const busId = assignedBus ? assignedBus.busId : (driver.BusID || driver.busID || "");
+          const routeId = assignedBus ? assignedBus.routeId : (driver.RouteID || driver.routeID || "");
+
+          // Resolve Names
+          const busInfo = busDetailsMap.get(String(busId).toLowerCase());
+          const busName = busInfo ? busInfo.id : (busId || "-");
+
+          // If routeId is missing from assignment, try to get it from the bus info
+          const finalRouteId = routeId || (busInfo ? busInfo.routeId : "");
+          const routeName = routeDetailsMap.get(String(finalRouteId).toLowerCase()) || finalRouteId || "-";
+
           // Convert database status to frontend format
           const status = driver.Status?.toLowerCase() === "active" ? "active" : "rest";
-  
-          // ⚠️ Chỉnh lại key: nếu backend trả về fullName thì dùng driver.fullName
-          const fullName = driver.Fullname || driver.fullName || "Unknown";
-  
+          const fullName = driver.FullName || driver.fullName || "Unknown";
+          const phoneNumber = driver.PhoneNumber || driver.phone || "";
+          const email = driver.Email || driver.email || "";
+
           return {
             id: driver.DriverID,
             userId: driver.UserID,
             name: fullName,
-            phone: driver.PhoneNumber || driver.phone || "",
-            email: driver.Email || driver.email || "",
+            phone: phoneNumber,
+            email: email,
             status: status,
-            bus: assignedBus ? assignedBus.busId : "-",
-            route: assignedBus ? assignedBus.routeId : "-",
+            busId: busId || "",
+            busName: busName,
+            routeId: finalRouteId || "",
+            routeName: routeName,
             avatar: fullName !== "Unknown" ? fullName.charAt(0).toUpperCase() : "?"
           };
         });
-  
+
         setDrivers(mappedDrivers);
       } else {
         throw new Error(driversData.message || busesData.message || "Lỗi tải dữ liệu");
@@ -175,7 +228,7 @@ export default function DriversPage() {
       setLoading(false);
     }
   };
-  
+
 
   useEffect(() => {
     fetchData();
@@ -210,9 +263,9 @@ export default function DriversPage() {
       const matchesEmail = !advancedFilters.email ||
         driver.email.toLowerCase().includes(advancedFilters.email.toLowerCase());
       const matchesBus = !advancedFilters.bus ||
-        driver.bus.toLowerCase().includes(advancedFilters.bus.toLowerCase());
+        driver.busName.toLowerCase().includes(advancedFilters.bus.toLowerCase());
       const matchesRoute = !advancedFilters.route ||
-        driver.route.toLowerCase().includes(advancedFilters.route.toLowerCase());
+        driver.routeName.toLowerCase().includes(advancedFilters.route.toLowerCase());
 
       return matchesBasicSearch && matchesStatus && matchesName &&
         matchesPhone && matchesEmail && matchesBus && matchesRoute;
@@ -322,8 +375,8 @@ export default function DriversPage() {
       phone: driver.phone,
       email: driver.email,
       status: driver.status,
-      bus: driver.bus !== "-" ? driver.bus : "",
-      route: driver.route !== "-" ? driver.route : "",
+      bus: driver.busId,
+      route: driver.routeId,
     });
     setShowEditModal(true);
   };
@@ -369,7 +422,7 @@ export default function DriversPage() {
       }
 
       // Assign Bus if changed
-      if (formData.bus && formData.bus !== editingDriver.bus) {
+      if (formData.bus && formData.bus !== editingDriver.busId) {
         try {
           await fetch(`http://localhost:5000/api/buses/${formData.bus}/driver`, {
             method: 'PUT',
@@ -400,7 +453,7 @@ export default function DriversPage() {
     }
   };
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = (id: string) => {
     setDeletingDriverId(id);
     setShowDeleteConfirm(true);
   };
@@ -644,8 +697,8 @@ export default function DriversPage() {
                     </td>
                     <td>
                       <div style={{ fontSize: '0.875rem' }}>
-                        <div style={{ fontWeight: '500', color: '#1f2937' }}>{driver.bus}</div>
-                        <div style={{ color: '#6b7280' }}>{driver.route}</div>
+                        <div style={{ fontWeight: '500', color: '#1f2937' }}>{driver.busName}</div>
+                        <div style={{ color: '#6b7280' }}>{driver.routeName}</div>
                       </div>
                     </td>
                     <td>{getStatusBadge(driver.status)}</td>
@@ -813,11 +866,11 @@ export default function DriversPage() {
                 </div>
                 <div className="detailItem">
                   <label>Xe buýt</label>
-                  <div className="value">{selectedDriver.bus}</div>
+                  <div className="value">{selectedDriver.busName}</div>
                 </div>
                 <div className="detailItem">
                   <label>Tuyến đường</label>
-                  <div className="value">{selectedDriver.route}</div>
+                  <div className="value">{selectedDriver.routeName}</div>
                 </div>
                 <div className="detailItem">
                   <label>Trạng thái</label>

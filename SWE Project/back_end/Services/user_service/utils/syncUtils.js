@@ -34,7 +34,7 @@ const syncDriverToService = async (driverData) => {
       Email: driverData.email,
       Status: driverData.status
     };
-    await axios.post('http://user_service:5012/api/drivers', payload);
+    await axios.post('http://bus_service:5011/api/drivers', payload);
     console.log(`Đồng bộ tài xế ${driverData.fullName} sang user_service`);
   } catch (err) {
     console.error('Lỗi đồng bộ tài xế sang user_service:', err.message);
@@ -43,7 +43,7 @@ const syncDriverToService = async (driverData) => {
 
 const deleteDriverFromService = async (driverId) => {
   try {
-    await axios.delete(`http://user_service:5012/api/drivers/${driverId}`);
+    await axios.delete(`http://bus_service:5011/api/drivers/${driverId}`);
     console.log(`Đã đồng bộ xóa tài xế ${driverId} sang user_service`);
   } catch (err) {
     console.error('Lỗi xóa tài xế ở user_service:', err.message);
