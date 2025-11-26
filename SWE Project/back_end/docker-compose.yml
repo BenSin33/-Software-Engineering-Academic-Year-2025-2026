@@ -29,6 +29,8 @@ services:
     ports:
       - "5010:5010"
     command: ["node", "Services/auth_service/app.js"]
+    env_file:
+      - Services/auth_service/.env
     environment:
       - PORT=5010
     volumes:

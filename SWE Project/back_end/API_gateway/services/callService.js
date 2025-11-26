@@ -1,4 +1,5 @@
 const SERVICE_URLS = {
+  auth_service: "http://auth_service:5010",
   student_service: "http://student_service:5001",
   parent_service: "http://localhost:5002",
   messaging_service: "http://localhost:5002",
