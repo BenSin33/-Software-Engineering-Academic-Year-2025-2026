@@ -1,19 +1,19 @@
-const MessageService=require('../services/message.service')
+const MessageService = require('../services/message.service')
 
-exports.messageHistory = async function(req,res){
-   const {senderID,receiverID}=req.params;
-   const messages = await MessageService.getMessages(senderID,receiverID);
+exports.messageHistory = async function (req, res) {
+   const { senderID, receiverID } = req.params;
+   const messages = await MessageService.getMessages(senderID, receiverID);
    res.json(messages)
 }
 
-exports.sendMessage = async function(req,res){
+exports.sendMessage = async function (req, res) {
    try {
-      const {senderId, receiverId, content} = req.body;
-      
+      const { senderId, receiverId, content } = req.body;
+
       if (!senderId || !receiverId || !content) {
-         return res.status(400).json({ 
-            success: false, 
-            message: 'Thiếu thông tin senderId, receiverId hoặc content' 
+         return res.status(400).json({
+            success: false,
+            message: 'Thiếu thông tin senderId, receiverId hoặc content'
          });
       }
 
@@ -24,16 +24,16 @@ exports.sendMessage = async function(req,res){
       };
 
       const savedMessage = await MessageService.saveMessage(messageData);
-      res.status(201).json({ 
-         success: true, 
-         data: savedMessage 
+      res.status(201).json({
+         success: true,
+         data: savedMessage
       });
    } catch (error) {
       console.error('Lỗi khi gửi tin nhắn:', error);
-      
+
       // Trả về error message chi tiết
       let errorMessage = 'Lỗi server khi gửi tin nhắn';
-      
+
       // Kiểm tra các lỗi phổ biến
       if (error.code === 'ER_NO_SUCH_TABLE') {
          errorMessage = 'Bảng messages không tồn tại. Vui lòng tạo database và bảng messages.';
@@ -44,9 +44,9 @@ exports.sendMessage = async function(req,res){
       } else if (error.message) {
          errorMessage = error.message;
       }
-      
-      res.status(500).json({ 
-         success: false, 
+
+      res.status(500).json({
+         success: false,
          message: errorMessage,
          errorCode: error.code || 'UNKNOWN_ERROR'
       });

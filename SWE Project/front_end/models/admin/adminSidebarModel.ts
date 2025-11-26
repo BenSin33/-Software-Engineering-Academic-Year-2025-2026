@@ -15,6 +15,11 @@ export const adminSidebarModel = [
         
     },
     {
+        text: 'Users',
+        url: '/AdminDashboard/Users',
+        icon: BsFillPersonVcardFill
+    },
+    {
         text: 'Drivers',
         url: '/AdminDashboard/Drivers',
         icon: BsFillPersonVcardFill
