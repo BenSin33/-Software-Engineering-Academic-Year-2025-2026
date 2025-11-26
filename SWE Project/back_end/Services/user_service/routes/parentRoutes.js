@@ -1,20 +1,22 @@
 const express = require('express');
-const parentController = require('../controllers/parentController'); // ✅ import đúng tên
+const parentController = require('../controllers/parentController');
 const router = express.Router();
 const authorize = require('../middleware/auth.middleware');
 
-// Chỉ cho phép phụ huynh truy cập thông tin của chính họ
-router.get("/parents/user/:userId", authorize(["R003"]), parentController.getParentByUserId);
+// GET thông tin 1 phụ huynh theo UserID
+router.get("/user/:userId", authorize(["R003"]), parentController.getParentByUserId);
 
-// Admin có thể xem tất cả phụ huynh
-router.get("/parents", authorize(["R001"]), parentController.getAllParents);
+// Lấy tất cả phụ huynh
+router.get("/", parentController.getAllParents);
 
-// CRUD routes
+// CRUD
 router.post('/', parentController.createParent);
-router.get('/', parentController.getAllParents);
 router.get('/:id', parentController.getParentById);
-router.get('/user/:userId', parentController.getParentByUserId);
 router.put('/:id', parentController.updateParent);
 router.delete('/:id', parentController.deleteParent);
+
+//THÊM 2 ROUTE NHẬN ĐỒNG BỘ
+router.post("/sync", parentController.syncParent);
+router.delete("/sync/:id", parentController.syncDeleteParent);
 
 module.exports = router;

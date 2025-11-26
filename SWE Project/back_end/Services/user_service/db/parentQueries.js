@@ -1,55 +1,122 @@
 const { v4: uuidv4 } = require('uuid');
 const pool = require('./pool');
 
-// Tạo parent mới trong cơ sở dữ liệu
+// ============================
+// CREATE USER + PARENT (Sequential IDs, Transaction)
+// ============================
+const createUserAndParent = async (username, password, fullName, phoneNumber, email, address) => {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Generate next UserID (U001, U002…)
+    const [userRows] = await connection.query("SELECT UserID FROM users ORDER BY UserID DESC LIMIT 1");
+    let nextUserNumber = 1;
+    if (userRows.length > 0) {
+      const lastUserId = userRows[0].UserID;
+      const match = lastUserId.match(/\d+/);
+      if (match) nextUserNumber = parseInt(match[0]) + 1;
+    }
+    const userId = `U${String(nextUserNumber).padStart(3, '0')}`;
+
+    // 2. Insert User (RoleID = R003 - Parent)
+    await connection.query(
+      'INSERT INTO users (UserID, RoleID, UserName, Password) VALUES (?, ?, ?, ?)',
+      [userId, 'R003', username, password]
+    );
+
+    // 3. Generate next ParentID (P001, P002…)
+    const [parentRows] = await connection.query("SELECT ParentID FROM parents ORDER BY ParentID DESC LIMIT 1");
+    let nextParentNumber = 1;
+    if (parentRows.length > 0) {
+      const lastParentId = parentRows[0].ParentID;
+      const match = lastParentId.match(/\d+/);
+      if (match) nextParentNumber = parseInt(match[0]) + 1;
+    }
+    const parentId = `P${String(nextParentNumber).padStart(3, '0')}`;
+
+    // 4. Generate TrackingID
+    const trackingId = `TRK${String(nextParentNumber).padStart(3, '0')}`;
+
+    // 5. Insert Parent
+    await connection.query(
+      'INSERT INTO parents (ParentID, UserID, TrackingID, FullName, PhoneNumber, Email, Address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [parentId, userId, trackingId, fullName, phoneNumber, email, address]
+    );
+
+    await connection.commit();
+    console.log('✅ Created user and parent successfully:', { userId, parentId });
+
+    return { userId, parentId, trackingId };
+  } catch (error) {
+    await connection.rollback();
+    console.error('❌ Error creating user and parent, transaction rolled back:', error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+// ============================
+// CREATE PARENT (UUID)
+// ============================
 const createParent = async (userId, trackingId, fullName, phoneNumber, email, address) => {
-  const parentId = uuidv4(); // Tạo mã định danh duy nhất cho parent
+  const parentId = uuidv4();
   try {
     await pool.query(
       'INSERT INTO parents (ParentID, UserID, TrackingID, FullName, PhoneNumber, Email, Address) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [parentId, userId, trackingId, fullName, phoneNumber, email, address]
     );
-    return parentId; // Trả về mã ParentID vừa tạo
+    return parentId;
   } catch (error) {
-    console.error('Error creating parent:', error); // Ghi log lỗi nếu có
-    throw error; // Ném lỗi ra ngoài để xử lý tiếp
+    console.error('Error creating parent:', error);
+    throw error;
   }
 };
 
-// Lấy thông tin parent theo ParentID
+// ============================
+// GET PARENT BY ID
+// ============================
 const getParentById = async (parentId) => {
   try {
     const [rows] = await pool.query('SELECT * FROM parents WHERE ParentID = ?', [parentId]);
-    return rows[0]; // Trả về dòng đầu tiên nếu có
+    return rows[0] || null;
   } catch (error) {
     console.error('Error fetching parent by ID:', error);
     throw error;
   }
 };
 
-// Lấy thông tin parent theo UserID
+// ============================
+// GET PARENT BY USER ID
+// ============================
 const getParentByUserId = async (userId) => {
   try {
     const [rows] = await pool.query('SELECT * FROM parents WHERE UserID = ?', [userId]);
-    return rows[0]; // Trả về dòng đầu tiên nếu có
+    return rows[0] || null;
   } catch (error) {
     console.error('Error fetching parent by UserID:', error);
     throw error;
   }
 };
 
-// Lấy danh sách tất cả các parent, sắp xếp theo thời gian tạo giảm dần
+// ============================
+// GET ALL PARENTS
+// ============================
 const getAllParents = async () => {
   try {
     const [rows] = await pool.query('SELECT * FROM parents ORDER BY CreatedAt DESC');
-    return rows; // Trả về toàn bộ danh sách
+    return rows;
   } catch (error) {
     console.error('Error fetching all parents:', error);
     throw error;
   }
 };
 
-// Cập nhật thông tin parent theo ParentID
+// ============================
+// UPDATE PARENT
+// ============================
 const updateParent = async (parentId, trackingId, fullName, phoneNumber, email, address) => {
   try {
     await pool.query(
@@ -62,7 +129,9 @@ const updateParent = async (parentId, trackingId, fullName, phoneNumber, email, 
   }
 };
 
-// Xóa parent khỏi cơ sở dữ liệu theo ParentID
+// ============================
+// DELETE PARENT
+// ============================
 const deleteParent = async (parentId) => {
   try {
     await pool.query('DELETE FROM parents WHERE ParentID = ?', [parentId]);
@@ -72,12 +141,15 @@ const deleteParent = async (parentId) => {
   }
 };
 
-// Xuất các hàm để sử dụng ở các module khác
-module.exports = { 
-  createParent, 
-  getParentById, 
-  getParentByUserId, 
+// ============================
+// EXPORT
+// ============================
+module.exports = {
+  createUserAndParent, // Transaction + sequential IDs
+  createParent,        // UUID
+  getParentById,
+  getParentByUserId,
   getAllParents,
-  updateParent, 
-  deleteParent 
+  updateParent,
+  deleteParent
 };

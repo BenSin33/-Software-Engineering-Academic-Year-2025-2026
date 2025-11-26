@@ -131,6 +131,7 @@ class DriverQueries {
   // Tạo tài xế mới
   async create(driverData) {
     const {
+      DriverID, // Optional, from user_service
       UserID,
       Fullname,
       PhoneNumber,
@@ -138,13 +139,17 @@ class DriverQueries {
       Status = 'active'
     } = driverData;
 
-    const [result] = await pool.query(
-      `INSERT INTO Drivers (UserID, Fullname, PhoneNumber, Email, Status)
-       VALUES (?, ?, ?, ?, ?)`,
-      [UserID, Fullname, PhoneNumber, Email, Status]
-    );
-
-    return result;
+    if (DriverID) {
+      const [result] = await pool.query(
+        `INSERT INTO Drivers (DriverID, UserID, Fullname, PhoneNumber, Email, Status)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [DriverID, UserID, Fullname, PhoneNumber, Email, Status]
+      );
+      return result;
+    } else {
+      // Fallback for legacy or direct creation without ID (should not happen with sync)
+      throw new Error("DriverID is required for creation");
+    }
   }
 
   // Cập nhật tài xế
@@ -166,7 +171,7 @@ class DriverQueries {
 
     values.push(driverId);
     const query = `UPDATE Drivers SET ${updateFields.join(', ')} WHERE DriverID = ?`;
-    
+
     const [result] = await pool.query(query, values);
     return result;
   }

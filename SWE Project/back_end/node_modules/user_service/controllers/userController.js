@@ -1,61 +1,24 @@
 const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const queries = require('../db/userQueries');
 const { success, error } = require('../utils/response');
+const { 
+  syncUserToService, 
+  deleteUserFromService,
+  syncUserToAuth,
+  deleteUserFromAuth
+} = require('../utils/syncUtils');
 
-// Đồng bộ tạo/cập nhật user sang auth_service
-async function syncToAuthService({ userID, username, password, roleID }) {
-  try {
-    await axios.post('http://localhost:3019/api/auth/sync', {
-      userID,
-      username,
-      password,
-      roleID
-    });
-    console.log(` Đồng bộ user ${username} sang auth_service thành công`);
-  } catch (err) {
-    console.error(` Lỗi đồng bộ user ${username}:`, err.message);
-  }
-}
-
-// Đồng bộ xóa user sang auth_service
-async function deleteFromAuthService(userID) {
-  try {
-    await axios.delete(`http://localhost:3019/api/auth/sync/${userID}`);
-    console.log(`🗑️ Đã đồng bộ xóa user ${userID} sang auth_service`);
-  } catch (err) {
-    console.error(` Lỗi xóa user ${userID} ở auth_service:`, err.message);
-  }
-}
-
-const getAllUsers = async (req, res) => {
-  try {
-    const users = await queries.getAllUsers();
-    success(res, users, 'Lấy danh sách người dùng thành công');
-  } catch (err) {
-    console.error(err);
-    error(res);
-  }
-};
-
-const getUserById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return error(res, 'UserID không hợp lệ', 400);
-    }
-    const user = await queries.getUserById(id);
-    if (!user) return error(res, 'Không tìm thấy người dùng', 404);
-    success(res, user);
-  } catch (err) {
-    error(res);
-  }
-};
-
+// =============================================
+// TẠO USER
+// =============================================
 const createUser = async (req, res) => {
   try {
     const { username, password, roleId, fullName, phoneNumber, email } = req.body;
+
+    if (!username || !password) {
+      return error(res, 'Thiếu thông tin bắt buộc (username, password)', 400);
+    }
 
     const existing = await queries.getUserByUsername(username);
     if (existing) return error(res, 'Tên đăng nhập đã tồn tại', 400);
@@ -67,28 +30,54 @@ const createUser = async (req, res) => {
       await queries.createAdminProfile(userId, fullName, phoneNumber, email);
     }
 
-    await syncToAuthService({
-      userID: userId,
-      username,
-      password, // gửi mật khẩu gốc để auth_service tự hash nếu cần
-      roleID: roleId || null
-    });
+    // Đồng bộ sang service chính
+    await syncUserToService({ userId, username, roleId, fullName, phoneNumber, email });
+
+    // Đồng bộ sang AuthService
+    await syncUserToAuth({ userID: userId, username, password, roleID: roleId });
 
     success(res, { UserID: userId, UserName: username }, 'Tạo người dùng thành công', 201);
   } catch (err) {
-    console.error(err);
-    error(res);
+    console.error('❌ Error creating user:', err);
+    error(res, err.message);
   }
 };
 
+// =============================================
+// GET ALL
+// =============================================
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await queries.getAllUsers();
+    success(res, users, 'Lấy danh sách người dùng thành công');
+  } catch (err) {
+    console.error('Error getting all users:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// GET BY ID
+// =============================================
+const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await queries.getUserById(id);
+    if (!user) return error(res, 'Không tìm thấy người dùng', 404);
+    success(res, user);
+  } catch (err) {
+    console.error('Error getting user:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// UPDATE
+// =============================================
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const { username, roleId, fullName, phoneNumber, email } = req.body;
-
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return error(res, 'UserID không hợp lệ', 400);
-    }
 
     const user = await queries.getUserById(id);
     if (!user) return error(res, 'Không tìm thấy người dùng', 404);
@@ -98,58 +87,97 @@ const updateUser = async (req, res) => {
       if (existing) return error(res, 'Tên đăng nhập đã tồn tại', 400);
     }
 
-    await queries.updateUser(
-      id,
-      username || user.UserName,
-      roleId !== undefined ? roleId : user.RoleID
-    );
+    await queries.updateUser(id, username || user.UserName, roleId || user.RoleID);
 
-    if (fullName || phoneNumber || email || Object.keys(req.body).some(k => ['fullName', 'phoneNumber', 'email'].includes(k))) {
-      await queries.updateAdminProfile(
-        id,
-        fullName || user.FullName || '',
-        phoneNumber || user.PhoneNumber || '',
-        email || user.Email || ''
-      );
+    if (fullName || phoneNumber || email) {
+      await queries.updateAdminProfile(id, fullName, phoneNumber, email);
     }
 
-    await syncToAuthService({
-      userID: id,
-      username: username || user.UserName,
-      password: user.Password, // giữ nguyên mật khẩu đã mã hóa
-      roleID: roleId !== undefined ? roleId : user.RoleID
-    });
+    // Đồng bộ sang service chính
+    await syncUserToService({ userId: id, username, roleId, fullName, phoneNumber, email });
 
-    success(res, null, 'Cập nhật thành công');
+    // Đồng bộ sang AuthService
+    await syncUserToAuth({ userID: id, username: username || user.UserName, password: user.Password, roleID: roleId });
+
+    success(res, null, 'Cập nhật người dùng thành công');
   } catch (err) {
-    console.error(err);
-    error(res);
+    console.error('Error updating user:', err);
+    error(res, err.message);
   }
 };
 
+// =============================================
+// DELETE
+// =============================================
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return error(res, 'UserID không hợp lệ', 400);
-    }
 
     const user = await queries.getUserById(id);
     if (!user) return error(res, 'Không tìm thấy người dùng', 404);
 
     await queries.deleteUser(id);
-    await deleteFromAuthService(id);
 
-    success(res, null, 'Xóa thành công');
+    // Đồng bộ xóa sang service chính
+    await deleteUserFromService(id);
+
+    // Đồng bộ xóa sang AuthService
+    await deleteUserFromAuth(user.UserID);
+
+    success(res, null, 'Xóa người dùng thành công');
   } catch (err) {
-    error(res);
+    console.error('Error deleting user:', err);
+    error(res, err.message);
+  }
+};
+
+// ========================================================
+// ⭐⭐⭐ THÊM 2 HÀM ĐỂ NHẬN ĐỒNG BỘ TỪ SERVICE KHÁC ⭐⭐⭐
+// ========================================================
+
+// SYNC CREATE / UPDATE
+const syncUser = async (req, res) => {
+  try {
+    const { userId, username, roleId, fullName, phoneNumber, email } = req.body;
+
+    const existing = await queries.getUserById(userId);
+
+    if (existing) {
+      await queries.updateUser(userId, username, roleId);
+      await queries.updateAdminProfile(userId, fullName, phoneNumber, email);
+      console.log(`🔄 [SYNC] Updated user ${userId}`);
+      return success(res, null, "User updated via sync");
+    }
+
+    await queries.insertUserFromSync(userId, username, roleId, fullName, phoneNumber, email);
+    console.log(`🆕 [SYNC] Inserted user ${userId}`);
+    return success(res, null, "User created via sync");
+
+  } catch (err) {
+    console.error("❌ Sync user error:", err.message);
+    return error(res, err.message);
+  }
+};
+
+// SYNC DELETE
+const syncDeleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await queries.deleteUser(id);
+    console.log(`🗑️ [SYNC] Deleted user ${id}`);
+    return success(res, null, "User deleted via sync");
+  } catch (err) {
+    console.error("❌ Sync delete user error:", err.message);
+    return error(res, err.message);
   }
 };
 
 module.exports = {
+  createUser,
   getAllUsers,
   getUserById,
-  createUser,
   updateUser,
   deleteUser,
+  syncUser,
+  syncDeleteUser
 };

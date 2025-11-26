@@ -3,7 +3,8 @@
 import React, { useState, useEffect, ReactElement } from "react";
 import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, MessageSquare, Bell, BellOff, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter, Loader, AlertCircle, RefreshCw } from "lucide-react";
 import MessagePanel from "@/components/Parent/MessagePanel";
-import { getAllParents, deleteParent, createParent, updateParent, Parent as APIParent } from "@/app/API/parentService";
+import { getAllParents, deleteParent, createParent, updateParent, searchStudents, assignStudentToParent, Parent as APIParent } from "@/app/API/parentService";
+import { studentService } from "@/app/API/studentService";
 import "@/app/AdminDashboard/Parents/ParentsPage.css";
 
 interface Student {
@@ -53,14 +54,14 @@ export default function ParentsPage() {
     bus: "",
     grade: ""
   });
-  
+
   const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [parentToDelete, setParentToDelete] = useState<Parent | null>(null);
-  
+
   // Message Panel States
   const [showMessagePanel, setShowMessagePanel] = useState(false);
   const [messageParent, setMessageParent] = useState<Parent | null>(null);
@@ -81,6 +82,12 @@ export default function ParentsPage() {
     notification: true
   });
 
+  // Student Search State
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [studentSuggestions, setStudentSuggestions] = useState<any[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
+  const [isSearchingStudent, setIsSearchingStudent] = useState(false);
+
   const itemsPerPage = 6;
 
   // 🔥 Load parents từ API khi component mount
@@ -88,36 +95,70 @@ export default function ParentsPage() {
     loadParents();
   }, []);
 
-  const loadParents = async () => {
+  // Handle Student Search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (studentSearchTerm.trim()) {
+        setIsSearchingStudent(true);
+        const results = await searchStudents(studentSearchTerm);
+        setStudentSuggestions(results);
+        setIsSearchingStudent(false);
+      } else {
+        setStudentSuggestions([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [studentSearchTerm]);
+
+  async function loadParents() {
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log('📥 Loading parents from API...');
       const apiParents = await getAllParents();
-      
-      console.log(' Parents loaded:', apiParents);
-      
+
+      console.log('✅ Parents loaded:', apiParents);
+
+      // Fetch all students
+      let allStudents: any[] = [];
+      try {
+        allStudents = (await studentService.getAll()) as any[];
+        console.log('✅ Students loaded:', allStudents);
+      } catch (studentErr) {
+        console.error('⚠️ Error loading students:', studentErr);
+      }
+
       // Convert API data sang format của component
-      const formattedParents: Parent[] = apiParents.map((p: APIParent) => ({
-        id: p.ParentID,
-        userId: p.UserID,
-        name: p.FullName,
-        phone: p.PhoneNumber,
-        email: p.Email,
-        address: p.Address || '',
-        students: [], // TODO: Lấy từ student service nếu có
-        status: 'active', // Mặc định active
-        notification: true, // Mặc định bật
-        registeredDate: p.CreatedAt 
-          ? new Date(p.CreatedAt).toLocaleDateString('vi-VN')
-          : new Date().toLocaleDateString('vi-VN'),
-        avatar: p.FullName.charAt(0).toUpperCase()
-      }));
-      
+      const formattedParents: Parent[] = apiParents.map((p: APIParent) => {
+        const parentStudents = allStudents.filter((s: any) => s.ParentID == p.ParentID).map((s: any) => ({
+          id: s.StudentID || s.id,
+          name: s.FullName,
+          grade: "N/A",
+          bus: s.routeID ? `Route ${s.routeID}` : "Chưa xếp xe"
+        }));
+
+        return {
+          id: p.ParentID,
+          userId: p.UserID,
+          name: p.FullName,
+          phone: p.PhoneNumber,
+          email: p.Email,
+          address: p.Address || '',
+          students: parentStudents,
+          status: 'active',
+          notification: true,
+          registeredDate: p.CreatedAt
+            ? new Date(p.CreatedAt).toLocaleDateString('vi-VN')
+            : new Date().toLocaleDateString('vi-VN'),
+          avatar: p.FullName.charAt(0).toUpperCase()
+        };
+      });
+
       setParents(formattedParents);
     } catch (err: any) {
-      console.error(' Error loading parents:', err);
+      console.error('❌ Error loading parents:', err);
       setError(err.message || 'Không thể tải danh sách phụ huynh');
     } finally {
       setLoading(false);
@@ -126,30 +167,30 @@ export default function ParentsPage() {
 
   const filteredParents = parents.filter(parent => {
     const matchesSearch = parent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         parent.phone.includes(searchTerm) ||
-                         parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         parent.students.some(student => 
-                           student.name.toLowerCase().includes(searchTerm.toLowerCase())
-                         );
-    
-    const matchesPhone = advancedFilters.phone === "" || 
-                         parent.phone.includes(advancedFilters.phone);
-    
-    const matchesAddress = advancedFilters.address === "" || 
-                          parent.address.toLowerCase().includes(advancedFilters.address.toLowerCase());
-    
+      parent.phone.includes(searchTerm) ||
+      parent.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      parent.students.some(student =>
+        student.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+    const matchesPhone = advancedFilters.phone === "" ||
+      parent.phone.includes(advancedFilters.phone);
+
+    const matchesAddress = advancedFilters.address === "" ||
+      parent.address.toLowerCase().includes(advancedFilters.address.toLowerCase());
+
     const matchesBus = advancedFilters.bus === "" ||
-                       parent.students.some(student => 
-                         student.bus.toLowerCase().includes(advancedFilters.bus.toLowerCase())
-                       );
-    
+      parent.students.some(student =>
+        student.bus.toLowerCase().includes(advancedFilters.bus.toLowerCase())
+      );
+
     const matchesGrade = advancedFilters.grade === "" ||
-                        parent.students.some(student => 
-                          student.grade.toLowerCase().includes(advancedFilters.grade.toLowerCase())
-                        );
-    
+      parent.students.some(student =>
+        student.grade.toLowerCase().includes(advancedFilters.grade.toLowerCase())
+      );
+
     const matchesFilter = filterStatus === "all" || parent.status === filterStatus;
-    
+
     return matchesSearch && matchesFilter && matchesPhone && matchesAddress && matchesBus && matchesGrade;
   });
 
@@ -188,23 +229,25 @@ export default function ParentsPage() {
     try {
       setDeleteLoading(true);
       console.log('🗑️ Deleting parent:', parentToDelete.id);
-      
+
       await deleteParent(parentToDelete.id);
-      
-      // Reload danh sách sau khi xóa
+
+      console.log('✅ Parent deleted successfully');
+
+      // Reload data từ database
       await loadParents();
-      
       setShowDeleteConfirm(false);
       setParentToDelete(null);
       alert("Xóa phụ huynh thành công!");
     } catch (err: any) {
-      console.error(' Error deleting parent:', err);
+      console.error('❌ Error deleting parent:', err);
       alert(`Lỗi khi xóa: ${err.message}`);
     } finally {
       setDeleteLoading(false);
     }
   };
 
+  // 1. openEditModal
   const openEditModal = (parent: Parent) => {
     setSelectedParent(parent);
     setFormData({
@@ -214,9 +257,14 @@ export default function ParentsPage() {
       address: parent.address,
       notification: parent.notification
     });
+    // Reset student selection
+    setStudentSearchTerm("");
+    setStudentSuggestions([]);
+    setSelectedStudent(null);
     setShowEditModal(true);
   };
 
+  // 2. handleAddParent
   const handleAddParent = async () => {
     if (!formData.name || !formData.phone || !formData.email) {
       alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
@@ -227,35 +275,38 @@ export default function ParentsPage() {
       setSaveLoading(true);
       console.log('➕ Adding new parent:', formData);
 
-      // 🔥 Tạo UserID tự động (lấy từ số lượng parents hiện tại + 1)
-      const nextUserNumber = parents.length + 4; // Bắt đầu từ U004
-      const newUserId = `U${String(nextUserNumber).padStart(3, '0')}`; // U004, U005, ...
-
       // 🔥 Gọi API create parent
-      await createParent({
-        userId: newUserId,
+      const result = await createParent({
         fullName: formData.name,
         phoneNumber: formData.phone,
         email: formData.email,
         address: formData.address || ''
       });
 
-      console.log(' Parent created with UserID:', newUserId);
+      console.log('✅ Parent created successfully, ID:', result.parentId);
+
+      // Nếu có chọn học sinh, gán học sinh cho phụ huynh
+      if (selectedStudent) {
+        console.log('🔗 Assigning student to parent:', selectedStudent.StudentID, result.parentId);
+        await assignStudentToParent(selectedStudent.StudentID, result.parentId);
+      }
 
       // Reload data từ database
       await loadParents();
-      
       setShowAddModal(false);
       setFormData({ name: "", phone: "", email: "", address: "", notification: true });
+      setSelectedStudent(null);
+      setStudentSearchTerm("");
       alert("Thêm phụ huynh thành công!");
     } catch (err: any) {
-      console.error(' Error adding parent:', err);
+      console.error('❌ Error adding parent:', err);
       alert(`Lỗi khi thêm: ${err.message}`);
     } finally {
       setSaveLoading(false);
     }
   };
 
+  // 3. handleEditParent
   const handleEditParent = async () => {
     if (!selectedParent) return;
 
@@ -276,35 +327,43 @@ export default function ParentsPage() {
         address: formData.address
       });
 
-      console.log(' Parent updated successfully');
+      // Nếu có chọn học sinh mới, gán học sinh cho phụ huynh
+      if (selectedStudent) {
+        console.log('🔗 Assigning student to parent:', selectedStudent.StudentID, selectedParent.id);
+        await assignStudentToParent(selectedStudent.StudentID, selectedParent.id);
+      }
+
+      console.log('✅ Parent updated successfully');
 
       // Reload data từ database
       await loadParents();
-      
       setShowEditModal(false);
       setSelectedParent(null);
       setFormData({ name: "", phone: "", email: "", address: "", notification: true });
+      setSelectedStudent(null);
+      setStudentSearchTerm("");
       alert("Cập nhật thông tin thành công!");
     } catch (err: any) {
-      console.error(' Error updating parent:', err);
+      console.error('❌ Error updating parent:', err);
       alert(`Lỗi khi cập nhật: ${err.message}`);
     } finally {
       setSaveLoading(false);
     }
   };
 
+  // 4. handleToggleNotification
   const handleToggleNotification = (parentId: string) => {
-    setParents(parents.map(p => 
+    setParents(parents.map(p =>
       p.id === parentId ? { ...p, notification: !p.notification } : p
     ));
   };
 
   const getStatusBadge = (status: string): ReactElement => {
-    switch(status) {
+    switch (status) {
       case "active":
         return (
           <span className="status-badge status-active">
-            <CheckCircle className="status-icon" /> Đang sử dụng
+            <CheckCircle className="status-icon" /> Hoạt động
           </span>
         );
       case "inactive":
@@ -457,7 +516,7 @@ export default function ParentsPage() {
                   type="text"
                   placeholder="VD: 0901234567"
                   value={advancedFilters.phone}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, phone: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, phone: e.target.value })}
                   className="form-input"
                 />
               </div>
@@ -467,7 +526,7 @@ export default function ParentsPage() {
                   type="text"
                   placeholder="VD: Q.1, Q.3, TP.HCM"
                   value={advancedFilters.address}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, address: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, address: e.target.value })}
                   className="form-input"
                 />
               </div>
@@ -477,7 +536,7 @@ export default function ParentsPage() {
                   type="text"
                   placeholder="VD: BUS-01"
                   value={advancedFilters.bus}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, bus: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, bus: e.target.value })}
                   className="form-input"
                 />
               </div>
@@ -487,7 +546,7 @@ export default function ParentsPage() {
                   type="text"
                   placeholder="VD: Lớp 3A"
                   value={advancedFilters.grade}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, grade: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, grade: e.target.value })}
                   className="form-input"
                 />
               </div>
@@ -611,7 +670,7 @@ export default function ParentsPage() {
                     </td>
                     <td>
                       <div className="action-buttons">
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedParent(parent);
@@ -622,33 +681,33 @@ export default function ParentsPage() {
                         >
                           <Eye className="action-icon" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openMessagePanel(parent);
                           }}
-                          className="action-btn message" 
+                          className="action-btn message"
                           title="Gửi tin nhắn đến phụ huynh"
                         >
                           <MessageSquare className="action-icon" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openEditModal(parent);
                           }}
-                          className="action-btn edit" 
+                          className="action-btn edit"
                           title="Chỉnh sửa"
                         >
                           <Edit className="action-icon" />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setParentToDelete(parent);
                             setShowDeleteConfirm(true);
                           }}
-                          className="action-btn delete" 
+                          className="action-btn delete"
                           title="Xóa"
                         >
                           <Trash2 className="action-icon" />
@@ -682,7 +741,7 @@ export default function ParentsPage() {
               >
                 <ChevronLeft className="page-icon" />
               </button>
-              
+
               {[...Array(totalPages)].map((_, index) => (
                 <button
                   key={index + 1}
@@ -692,7 +751,7 @@ export default function ParentsPage() {
                   {index + 1}
                 </button>
               ))}
-              
+
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
@@ -710,10 +769,8 @@ export default function ParentsPage() {
         <div className="message-modal-overlay" onClick={closeMessagePanel}>
           <div className="message-modal-content" onClick={(e) => e.stopPropagation()}>
             <MessagePanel
-              parentId={1} // Admin ID = 1
+              parentId={1}
               receiverId={(() => {
-                // 🔧 SỬA: Extract số từ UserID
-                // U004 -> 4, U005 -> 5, U010 -> 10
                 const match = messageParent.userId.match(/\d+/);
                 const id = match ? parseInt(match[0]) : 0;
                 console.log('🔍 Parent UserID:', messageParent.userId, '-> receiverId:', id);
@@ -768,7 +825,7 @@ export default function ParentsPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="info-section">
                 <h3 className="section-title">Thông tin khác</h3>
                 <div className="info-grid">
@@ -842,7 +899,7 @@ export default function ParentsPage() {
               )}
 
               <div className="modal-actions">
-                <button 
+                <button
                   onClick={() => {
                     setShowViewModal(false);
                     openMessagePanel(selectedParent);
@@ -852,7 +909,7 @@ export default function ParentsPage() {
                   <MessageSquare className="modal-btn-icon" />
                   Gửi tin nhắn
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setShowViewModal(false);
                     openEditModal(selectedParent);
@@ -874,8 +931,8 @@ export default function ParentsPage() {
           <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Xác nhận xóa</h2>
-              <button 
-                onClick={() => setShowDeleteConfirm(false)} 
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
                 className="modal-close"
                 disabled={deleteLoading}
               >
@@ -890,16 +947,16 @@ export default function ParentsPage() {
                 ⚠️ Hành động này không thể hoàn tác!
               </p>
               <div className="modal-actions">
-                <button 
-                  onClick={() => setShowDeleteConfirm(false)} 
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
                   className="modal-btn cancel"
                   disabled={deleteLoading}
                 >
                   <XCircle className="modal-btn-icon" />
                   Hủy
                 </button>
-                <button 
-                  onClick={handleDeleteParent} 
+                <button
+                  onClick={handleDeleteParent}
                   className="modal-btn delete"
                   disabled={deleteLoading}
                 >
@@ -927,8 +984,8 @@ export default function ParentsPage() {
           <div className="modal-content form-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Thêm phụ huynh mới</h2>
-              <button 
-                onClick={() => setShowAddModal(false)} 
+              <button
+                onClick={() => setShowAddModal(false)}
                 className="modal-close"
                 disabled={saveLoading}
               >
@@ -937,7 +994,7 @@ export default function ParentsPage() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label className="form-label">Họ và tên <span style={{color: 'red'}}>*</span></label>
+                <label className="form-label">Họ và tên <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="text"
                   value={formData.name}
@@ -948,7 +1005,7 @@ export default function ParentsPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Số điện thoại <span style={{color: 'red'}}>*</span></label>
+                <label className="form-label">Số điện thoại <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="tel"
                   value={formData.phone}
@@ -959,7 +1016,7 @@ export default function ParentsPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Email <span style={{color: 'red'}}>*</span></label>
+                <label className="form-label">Email <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="email"
                   value={formData.email}
@@ -980,17 +1037,64 @@ export default function ParentsPage() {
                   rows={3}
                 />
               </div>
+
+              {/* Student Search Field */}
+              <div className="form-group relative">
+                <label className="form-label">Học sinh (Tùy chọn)</label>
+                <input
+                  type="text"
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  className="form-input"
+                  placeholder="Tìm kiếm học sinh..."
+                  disabled={saveLoading}
+                />
+                {isSearchingStudent && <Loader size={16} className="absolute right-3 top-10 animate-spin" />}
+
+                {studentSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
+                    {studentSuggestions.map((student) => (
+                      <li
+                        key={student.StudentID}
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setSelectedStudent(student);
+                          setStudentSearchTerm(student.FullName);
+                          setStudentSuggestions([]);
+                        }}
+                      >
+                        {student.FullName}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {selectedStudent && (
+                  <div className="mt-2 p-2 bg-blue-50 text-blue-700 rounded flex justify-between items-center">
+                    <span>Đã chọn: {selectedStudent.FullName}</span>
+                    <button
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setStudentSearchTerm("");
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="modal-actions">
-                <button 
-                  onClick={() => setShowAddModal(false)} 
+                <button
+                  onClick={() => setShowAddModal(false)}
                   className="modal-btn cancel"
                   disabled={saveLoading}
                 >
                   <XCircle className="modal-btn-icon" />
                   Hủy
                 </button>
-                <button 
-                  onClick={handleAddParent} 
+                <button
+                  onClick={handleAddParent}
                   className="modal-btn submit"
                   disabled={saveLoading}
                 >
@@ -1018,8 +1122,8 @@ export default function ParentsPage() {
           <div className="modal-content form-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2 className="modal-title">Chỉnh sửa thông tin phụ huynh</h2>
-              <button 
-                onClick={() => setShowEditModal(false)} 
+              <button
+                onClick={() => setShowEditModal(false)}
                 className="modal-close"
                 disabled={saveLoading}
               >
@@ -1028,7 +1132,7 @@ export default function ParentsPage() {
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label className="form-label">Họ và tên <span style={{color: 'red'}}>*</span></label>
+                <label className="form-label">Họ và tên <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="text"
                   value={formData.name}
@@ -1039,7 +1143,7 @@ export default function ParentsPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Số điện thoại <span style={{color: 'red'}}>*</span></label>
+                <label className="form-label">Số điện thoại <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="tel"
                   value={formData.phone}
@@ -1050,7 +1154,7 @@ export default function ParentsPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Email <span style={{color: 'red'}}>*</span></label>
+                <label className="form-label">Email <span style={{ color: 'red' }}>*</span></label>
                 <input
                   type="email"
                   value={formData.email}
@@ -1071,17 +1175,64 @@ export default function ParentsPage() {
                   rows={3}
                 />
               </div>
+
+              {/* Student Search Field for Edit */}
+              <div className="form-group relative">
+                <label className="form-label">Thêm/Thay đổi học sinh</label>
+                <input
+                  type="text"
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  className="form-input"
+                  placeholder="Tìm kiếm học sinh..."
+                  disabled={saveLoading}
+                />
+                {isSearchingStudent && <Loader size={16} className="absolute right-3 top-10 animate-spin" />}
+
+                {studentSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto mt-1">
+                    {studentSuggestions.map((student) => (
+                      <li
+                        key={student.StudentID}
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setSelectedStudent(student);
+                          setStudentSearchTerm(student.FullName);
+                          setStudentSuggestions([]);
+                        }}
+                      >
+                        {student.FullName}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {selectedStudent && (
+                  <div className="mt-2 p-2 bg-blue-50 text-blue-700 rounded flex justify-between items-center">
+                    <span>Đã chọn: {selectedStudent.FullName}</span>
+                    <button
+                      onClick={() => {
+                        setSelectedStudent(null);
+                        setStudentSearchTerm("");
+                      }}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="modal-actions">
-                <button 
-                  onClick={() => setShowEditModal(false)} 
+                <button
+                  onClick={() => setShowEditModal(false)}
                   className="modal-btn cancel"
                   disabled={saveLoading}
                 >
                   <XCircle className="modal-btn-icon" />
                   Hủy
                 </button>
-                <button 
-                  onClick={handleEditParent} 
+                <button
+                  onClick={handleEditParent}
                   className="modal-btn submit"
                   disabled={saveLoading}
                 >
@@ -1102,41 +1253,6 @@ export default function ParentsPage() {
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .message-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-
-        .message-modal-content {
-          background: transparent;
-          border-radius: 12px;
-          width: 100%;
-          max-width: 600px;
-          height: 600px;
-          max-height: 90vh;
-          min-height: 500px;
-          display: flex;
-          flex-direction: column;
-          overflow: visible;
-          position: relative;
-        }
-
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

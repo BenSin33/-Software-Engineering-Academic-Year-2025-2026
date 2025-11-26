@@ -36,12 +36,20 @@ interface StudentResponse {
   students: Student[];
 }
 
+const getRoleName = (roleId: string) => {
+  switch (roleId) {
+    case 'R003':
+      return 'Phụ huynh';}
+}
+
 export default function ChildInfoPage() {
   const [userInfo, setUserInfo] = useState({
     userId: '',
     roleId: '',
     token: '',
   });
+
+
 
   const [accountInfo, setAccountInfo] = useState<AccountDetails | null>(null);
   const [studentList, setStudentList] = useState<Student[]>([]);
@@ -62,22 +70,42 @@ export default function ChildInfoPage() {
     setUserInfo({ userId, roleId: roleId || '', token });
 
     (API.getMyProfile() as Promise<ApiResponse>)
-      .then((response) => {
-        console.log('✅ [API SUCCESS] Phản hồi API đầy đủ:', response);
-        const accountData = response.data;
-        console.log('[DEBUG] Dữ liệu người dùng trích xuất:', accountData);
-        setAccountInfo(accountData);
+  .then((response) => {
+    // Log toàn bộ object trả về từ API
+    console.log('✅ [API SUCCESS] Phản hồi API đầy đủ:', response);
 
-        return studentService.getByParentID(accountData.ParentID) as Promise<StudentResponse>;
-      })
-      .then((response: StudentResponse) => {
-        console.log('✅ [STUDENT API SUCCESS] Dữ liệu học sinh trả về:', response);
-        setStudentList(response.students);
-      })
-      .catch((err) => {
-        console.error('❌ [API ERROR] Lỗi khi lấy thông tin:', err.response?.data || err.message || err);
-        setError('Không thể lấy thông tin tài khoản hoặc học sinh');
-      });
+    // Log các key có trong response
+    console.log('[DEBUG] Keys trong response:', Object.keys(response));
+
+    // Log chi tiết phần data
+    const accountData = response.data;
+    console.log('[DEBUG] Nội dung accountData:', accountData);
+    console.log('[DEBUG] Các field trong accountData:', Object.keys(accountData));
+
+    // Cập nhật state
+    setAccountInfo(accountData);
+
+    // Tiếp tục gọi API lấy danh sách học sinh
+    return studentService.getByParentID(accountData.ParentID) as Promise<StudentResponse>;
+  })
+  .then((response: StudentResponse) => {
+    console.log('✅ [STUDENT API SUCCESS] Dữ liệu học sinh trả về:', response);
+    console.log('[DEBUG] Keys trong StudentResponse:', Object.keys(response));
+    console.log('[DEBUG] Danh sách học sinh:', response.students);
+
+    // Nếu muốn log từng học sinh
+    response.students.forEach((s, idx) => {
+      console.log(`[DEBUG] Học sinh #${idx + 1}:`, s);
+    });
+
+    setStudentList(response.students);
+  })
+  .catch((err) => {
+    console.error('❌ [API ERROR] Lỗi khi lấy thông tin:', err.response?.data || err.message || err);
+    console.error('[DEBUG] Toàn bộ err object:', err);
+    setError('Không thể lấy thông tin tài khoản hoặc học sinh');
+  });
+
   }, []);
 
   return (
@@ -114,8 +142,9 @@ export default function ChildInfoPage() {
               <li className="listItem"><strong>Họ tên:</strong> {accountInfo.FullName || 'Không có'}</li>
               <li className="listItem"><strong>Email:</strong> {accountInfo.Email || 'Không có'}</li>
               <li className="listItem"><strong>Số điện thoại:</strong> {accountInfo.PhoneNumber || 'Không có'}</li>
-              <li className="listItem"><strong>Vai trò:</strong> {userInfo.roleId}</li>
+              <li className="listItem"><strong>Vai trò:</strong> {getRoleName(userInfo.roleId)}</li>
               <li className="listItem"><strong>User ID:</strong> {userInfo.userId}</li>
+              <li className="listItem"><strong>Địa Chỉ:</strong> {accountInfo.Address}</li>
             </ul>
           )}
         </div>

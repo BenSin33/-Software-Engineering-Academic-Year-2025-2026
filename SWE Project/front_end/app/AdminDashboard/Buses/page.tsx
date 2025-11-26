@@ -33,7 +33,7 @@ export default function BusesPage() {
   const [drivers, setDrivers] = useState<any[]>([]); // [{id, name,...}]
   const [routes, setRoutes] = useState<any[]>([]);   // [{RouteID, RouteName,...}]
   // Dùng DriverID, RouteID chứ không lưu tên để liên kết chắc chắn
-  const [driverMap, setDriverMap] = useState<{ [key: number]: any }>({});
+  const [driverMap, setDriverMap] = useState<{ [key: number]: any }>({})
 
   const initialFormData: Partial<BusFrontend> = {
     id: "",
@@ -216,8 +216,8 @@ export default function BusesPage() {
 
   //  Sử dụng API service để thêm bus
   const handleAddBus = async () => {
-    if (!formData.id || !formData.license_plate || !formData.capacity || !formData.driver_id || !formData.route_id) {
-      alert("Vui lòng điền đủ thông tin bắt buộc (bao gồm tài xế và tuyến)!");
+    if (!formData.id || !formData.license_plate || !formData.capacity) {
+      alert("Vui lòng điền đủ thông tin bắt buộc (Mã xe, Biển số, Sức chứa)!");
       return;
     }
     const newBusData: BusCreateRequest = {
@@ -230,8 +230,8 @@ export default function BusesPage() {
       Location: formData.location || null,
       PickUpLocation: formData.PickUpLocation || null,
       DropOffLocation: formData.DropOffLocation || null,
-      DriverID: Number(formData.driver_id),
-      RouteID: formData.route_id,
+      DriverID: formData.driver_id ? Number(formData.driver_id) : null,
+      RouteID: formData.route_id && formData.route_id !== "N/A" ? formData.route_id : null,
     };
 
     try {
@@ -778,7 +778,7 @@ export default function BusesPage() {
                     }}
                   />
                 </div>
-<div>
+                <div>
                   <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
                     Trạng thái
                   </label>
@@ -825,7 +825,16 @@ export default function BusesPage() {
                 </label>
                 <select
                   value={formData.route_id || ""}
-                  onChange={e => setFormData({ ...formData, route_id: e.target.value })}
+                  onChange={e => {
+                    const selectedRouteId = e.target.value;
+                    const selectedRoute = routes.find(r => String(r.RouteID) === selectedRouteId);
+                    setFormData({
+                      ...formData,
+                      route_id: selectedRouteId,
+                      PickUpLocation: selectedRoute ? selectedRoute.StartLocation : formData.PickUpLocation,
+                      DropOffLocation: selectedRoute ? selectedRoute.EndLocation : formData.DropOffLocation
+                    });
+                  }}
                   style={{ width: "100%", padding: "12px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }}
                 >
                   <option value="">-- Chọn tuyến --</option>
@@ -1097,7 +1106,7 @@ export default function BusesPage() {
                   }}
                 />
               </div>
-              
+
               <div>
                 <label style={{ display: "block", fontSize: "13px", marginBottom: "6px", color: "#6b7280", fontWeight: 600 }}>
                   Điểm đi

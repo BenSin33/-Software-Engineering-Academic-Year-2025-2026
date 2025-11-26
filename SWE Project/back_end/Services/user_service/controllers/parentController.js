@@ -1,29 +1,67 @@
 const queries = require('../db/parentQueries');
 const { success, error } = require('../utils/response');
-const { syncParentToService, deleteParentFromService } = require('../utils/syncUtils');
+const { 
+  syncParentToService, 
+  deleteParentFromService,
+  syncParentToAuth,
+  deleteParentFromAuth
+} = require('../utils/syncUtils');
 
-// Tạo parent mới
+// =============================================
+// TẠO PARENT
+// =============================================
 const createParent = async (req, res) => {
   try {
-    const { userId, trackingId, fullName, phoneNumber, email, address } = req.body;
+    const { fullName, phoneNumber, email, address } = req.body;
 
-    if (!userId || !fullName || !phoneNumber || !email) {
-      return error(res, 'Thiếu thông tin bắt buộc', 400);
+    if (!fullName || !phoneNumber || !email) {
+      return error(res, 'Thiếu thông tin bắt buộc (fullName, phoneNumber, email)', 400);
     }
 
-    const parentId = await queries.createParent(userId, trackingId, fullName, phoneNumber, email, address);
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const username = (email.split('@')[0] || phoneNumber) + randomSuffix;
+    const password = `Parent@${phoneNumber.slice(-4)}`;
 
-    //  Đồng bộ sang service khác
-    await syncParentToService({ parentId, userId, trackingId, fullName, phoneNumber, email, address });
+    console.log('📝 Creating parent with auto-generated credentials:', { username, fullName, phoneNumber });
 
-    success(res, { parentId }, 'Tạo phụ huynh thành công', 201);
+    const { userId, parentId, trackingId } = await queries.createUserAndParent(
+      username,
+      password,
+      fullName,
+      phoneNumber,
+      email,
+      address
+    );
+
+    // Đồng bộ sang service khác
+    await syncParentToService({
+      parentId,
+      userId,
+      trackingId,
+      fullName,
+      phoneNumber,
+      email,
+      address
+    });
+
+    // Đồng bộ sang AuthService
+    await syncParentToAuth({
+      userID: userId,
+      username,
+      password,
+      roleID: "R003" // role phụ huynh
+    });
+
+    success(res, { parentId, userId, trackingId, username }, 'Tạo phụ huynh thành công', 201);
   } catch (err) {
-    console.error('Error creating parent:', err);
+    console.error('❌ Error creating parent:', err);
     error(res, err.message);
   }
 };
 
-// Lấy tất cả phụ huynh
+// =============================================
+// GET ALL
+// =============================================
 const getAllParents = async (req, res) => {
   try {
     const parents = await queries.getAllParents();
@@ -34,7 +72,9 @@ const getAllParents = async (req, res) => {
   }
 };
 
-// Lấy phụ huynh theo ParentID
+// =============================================
+// GET BY PARENT ID
+// =============================================
 const getParentById = async (req, res) => {
   try {
     const parent = await queries.getParentById(req.params.id);
@@ -46,7 +86,9 @@ const getParentById = async (req, res) => {
   }
 };
 
-// Lấy phụ huynh theo UserID
+// =============================================
+// GET BY USER ID
+// =============================================
 const getParentByUserId = async (req, res) => {
   try {
     const parent = await queries.getParentByUserId(req.params.userId);
@@ -58,7 +100,9 @@ const getParentByUserId = async (req, res) => {
   }
 };
 
-// Cập nhật phụ huynh
+// =============================================
+// UPDATE
+// =============================================
 const updateParent = async (req, res) => {
   try {
     const { trackingId, fullName, phoneNumber, email, address } = req.body;
@@ -66,8 +110,25 @@ const updateParent = async (req, res) => {
 
     await queries.updateParent(parentId, trackingId, fullName, phoneNumber, email, address);
 
-    //  Đồng bộ sang service khác
-    await syncParentToService({ parentId, trackingId, fullName, phoneNumber, email, address });
+    await syncParentToService({
+      parentId,
+      trackingId,
+      fullName,
+      phoneNumber,
+      email,
+      address
+    });
+
+    // Đồng bộ sang AuthService (update user)
+    const parent = await queries.getParentById(parentId);
+    if (parent) {
+      await syncParentToAuth({
+        userID: parent.UserID,
+        username: parent.UserName,
+        password: parent.Password,
+        roleID: "R003"
+      });
+    }
 
     success(res, null, 'Cập nhật phụ huynh thành công');
   } catch (err) {
@@ -76,20 +137,79 @@ const updateParent = async (req, res) => {
   }
 };
 
-// Xóa phụ huynh
+// =============================================
+// DELETE
+// =============================================
 const deleteParent = async (req, res) => {
   try {
     const parentId = req.params.id;
 
-    await queries.deleteParent(parentId);
+    const parent = await queries.getParentById(parentId);
 
-    //  Đồng bộ xóa sang service khác
+    await queries.deleteParent(parentId);
     await deleteParentFromService(parentId);
+
+    // Đồng bộ xóa sang AuthService
+    if (parent) {
+      await deleteParentFromAuth(parent.UserID);
+    }
 
     success(res, null, 'Xóa phụ huynh thành công');
   } catch (err) {
     console.error('Error deleting parent:', err);
     error(res, err.message);
+  }
+};
+
+// ========================================================
+// ⭐⭐⭐ THÊM 2 HÀM ĐỂ NHẬN ĐỒNG BỘ TỪ SERVICE KHÁC ⭐⭐⭐
+// ========================================================
+
+// SYNC CREATE / UPDATE
+const syncParent = async (req, res) => {
+  try {
+    const { parentId, userId, trackingId, fullName, phoneNumber, email, address } = req.body;
+
+    const existing = await queries.getParentById(parentId);
+
+    if (existing) {
+      await queries.updateParent(parentId, trackingId, fullName, phoneNumber, email, address);
+      console.log(`🔄 [SYNC] Updated parent ${parentId}`);
+      return success(res, null, "Parent updated via sync");
+    }
+
+    await queries.insertParentFromSync(
+      parentId,
+      userId,
+      fullName,
+      phoneNumber,
+      email,
+      address,
+      trackingId
+    );
+
+    console.log(`🆕 [SYNC] Inserted parent ${parentId}`);
+    return success(res, null, "Parent created via sync");
+
+  } catch (err) {
+    console.error("❌ Sync parent error:", err.message);
+    return error(res, err.message);
+  }
+};
+
+// SYNC DELETE
+const syncDeleteParent = async (req, res) => {
+  try {
+    const parentId = req.params.id;
+
+    await queries.deleteParent(parentId);
+
+    console.log(`🗑️ [SYNC] Deleted parent ${parentId}`);
+    return success(res, null, "Parent deleted via sync");
+
+  } catch (err) {
+    console.error("❌ Sync delete parent error:", err.message);
+    return error(res, err.message);
   }
 };
 
@@ -99,5 +219,7 @@ module.exports = {
   getParentById,
   getParentByUserId,
   updateParent,
-  deleteParent
+  deleteParent,
+  syncParent,
+  syncDeleteParent
 };

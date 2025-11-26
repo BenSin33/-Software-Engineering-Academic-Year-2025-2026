@@ -88,10 +88,21 @@
   justify-content: center;
 }
 
-.parents-page .stat-purple { background-color: #FFAC50; }
-.parents-page .stat-green { background-color: #FFAC50; }
-.parents-page .stat-blue { background-color: #FFAC50; }
-.parents-page .stat-orange { background-color: #FFAC50; }
+.parents-page .stat-purple {
+  background-color: #FFAC50;
+}
+
+.parents-page .stat-green {
+  background-color: #FFAC50;
+}
+
+.parents-page .stat-blue {
+  background-color: #FFAC50;
+}
+
+.parents-page .stat-orange {
+  background-color: #FFAC50;
+}
 
 .parents-page .stat-icon {
   width: 1.5rem;
@@ -994,4 +1005,33 @@
     flex-direction: column;
     gap: 1rem;
   }
+}
+
+/* Message Modal Styles - Added to match Driver page */
+.parents-page .message-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.parents-page .message-modal-content {
+  background: transparent;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  height: 600px;
+  max-height: 90vh;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  position: relative;
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { 
-  UserCircle, Phone, Mail, CheckCircle, Clock, Search, 
-  Plus, Edit, Trash2, Eye, Filter, ChevronLeft, ChevronRight, 
+import {
+  UserCircle, Phone, Mail, CheckCircle, Clock, Search,
+  Plus, Edit, Trash2, Eye, Filter, ChevronLeft, ChevronRight,
   X, AlertTriangle, MessageSquare
 } from "lucide-react";
 import "./DriversPage.css";
@@ -11,10 +11,11 @@ import MessagePanel from "@/components/Driver/MessagePanel";
 import { fetchAllBuses } from "@/app/API/busService";
 import { fetchRouteService } from "@/app/API/routeService";
 import MessagePanelToDriver from "@/components/Admin/MessagePanelToDriver";
+import { userIdToMessageId } from "@/utils/idConverter";
 
 interface Driver {
   id: number;
-  userId: number; 
+  userId: number;
   name: string;
   phone: string;
   email: string;
@@ -25,7 +26,6 @@ interface Driver {
 }
 
 interface FormData {
-  userId: string;
   name: string;
   phone: string;
   email: string;
@@ -37,7 +37,7 @@ interface FormData {
 interface ApiDriver {
   DriverID: number;
   UserID: number;
-  Fullname: string;
+  FullName: string;
   PhoneNumber: string;
   Email: string;
   Status: "active" | "rest";
@@ -59,7 +59,7 @@ export default function DriversPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "rest">("all");
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
@@ -70,17 +70,16 @@ export default function DriversPage() {
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingDriverId, setDeletingDriverId] = useState<number | null>(null);
-  
+
   // 🔧 State cho MessagePanel
   const [showMessagePanel, setShowMessagePanel] = useState(false);
   const [messageDriver, setMessageDriver] = useState<Driver | null>(null);
-  
+
   const [driverStats, setDriverStats] = useState<ApiDriverStats>({ total: 0, active: 0, rest: 0 });
   const [busList, setBusList] = useState<any[]>([]);
   const [routeList, setRouteList] = useState<any[]>([]);
 
   const initialFormData: FormData = {
-    userId: "",
     name: "",
     phone: "",
     email: "",
@@ -99,30 +98,35 @@ export default function DriversPage() {
   });
 
   const itemsPerPage = 5;
-  const API_URL = "http://localhost:5000/api/bu";
+  const API_URL = "http://localhost:5000/api/bus-drivers";
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
       const [statsRes, driversRes, busesRes] = await Promise.all([
-        fetch(`${API_URL}/drivers/stats`),
-        fetch(`${API_URL}/drivers?limit=1000`),
-        fetch(`${API_URL}/buses?limit=1000`)
+        fetch(`${API_URL}/stats`),
+        fetch(`${API_URL}?limit=1000`),
+        fetch(`http://localhost:5000/api/buses?limit=1000`)
       ]);
-
+  
       if (!statsRes.ok) throw new Error("Không thể tải thống kê tài xế");
       if (!driversRes.ok) throw new Error("Không thể tải danh sách tài xế");
       if (!busesRes.ok) throw new Error("Không thể tải danh sách xe");
-
+  
       const statsData = await statsRes.json();
       const driversData = await driversRes.json();
       const busesData = await busesRes.json();
-
+  
+      // 👉 Log để kiểm tra dữ liệu thực tế
+      console.log("Stats data:", statsData);
+      console.log("Drivers data:", driversData);
+      console.log("Buses data:", busesData);
+  
       if (statsData.success) {
         setDriverStats(statsData.data);
       }
-
+  
       if (driversData.success && busesData.success) {
         const busMap = new Map<number, { busId: string; routeId: string }>();
         if (Array.isArray(busesData.data)) {
@@ -135,23 +139,31 @@ export default function DriversPage() {
             }
           });
         }
-
-        const mappedDrivers = driversData.data.map((driver: ApiDriver): Driver => {
+  
+        const mappedDrivers = driversData.data.map((driver: any): Driver => {
+          console.log("Driver record:", driver); // 👉 log từng driver
+  
           const assignedBus = busMap.get(driver.DriverID);
-          
+  
+          // Convert database status to frontend format
+          const status = driver.Status?.toLowerCase() === "active" ? "active" : "rest";
+  
+          // ⚠️ Chỉnh lại key: nếu backend trả về fullName thì dùng driver.fullName
+          const fullName = driver.Fullname || driver.fullName || "Unknown";
+  
           return {
             id: driver.DriverID,
             userId: driver.UserID,
-            name: driver.Fullname,
-            phone: driver.PhoneNumber,
-            email: driver.Email,
-            status: driver.Status,
+            name: fullName,
+            phone: driver.PhoneNumber || driver.phone || "",
+            email: driver.Email || driver.email || "",
+            status: status,
             bus: assignedBus ? assignedBus.busId : "-",
             route: assignedBus ? assignedBus.routeId : "-",
-            avatar: driver.Fullname.charAt(0).toUpperCase()
+            avatar: fullName !== "Unknown" ? fullName.charAt(0).toUpperCase() : "?"
           };
         });
-
+  
         setDrivers(mappedDrivers);
       } else {
         throw new Error(driversData.message || busesData.message || "Lỗi tải dữ liệu");
@@ -163,6 +175,7 @@ export default function DriversPage() {
       setLoading(false);
     }
   };
+  
 
   useEffect(() => {
     fetchData();
@@ -183,26 +196,26 @@ export default function DriversPage() {
 
   const filteredDrivers = useMemo(() => {
     return drivers.filter(driver => {
-      const matchesBasicSearch = 
+      const matchesBasicSearch =
         driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         driver.phone.includes(searchTerm) ||
         driver.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesStatus = filterStatus === "all" || driver.status === filterStatus;
-      
-      const matchesName = !advancedFilters.name || 
+
+      const matchesName = !advancedFilters.name ||
         driver.name.toLowerCase().includes(advancedFilters.name.toLowerCase());
-      const matchesPhone = !advancedFilters.phone || 
+      const matchesPhone = !advancedFilters.phone ||
         driver.phone.includes(advancedFilters.phone);
-      const matchesEmail = !advancedFilters.email || 
+      const matchesEmail = !advancedFilters.email ||
         driver.email.toLowerCase().includes(advancedFilters.email.toLowerCase());
-      const matchesBus = !advancedFilters.bus || 
+      const matchesBus = !advancedFilters.bus ||
         driver.bus.toLowerCase().includes(advancedFilters.bus.toLowerCase());
-      const matchesRoute = !advancedFilters.route || 
+      const matchesRoute = !advancedFilters.route ||
         driver.route.toLowerCase().includes(advancedFilters.route.toLowerCase());
 
-      return matchesBasicSearch && matchesStatus && matchesName && 
-             matchesPhone && matchesEmail && matchesBus && matchesRoute;
+      return matchesBasicSearch && matchesStatus && matchesName &&
+        matchesPhone && matchesEmail && matchesBus && matchesRoute;
     });
   }, [searchTerm, filterStatus, advancedFilters, drivers]);
 
@@ -243,23 +256,21 @@ export default function DriversPage() {
   };
 
   const handleAddDriver = async () => {
-    if (!formData.name || !formData.phone || !formData.email || !formData.userId || !formData.bus || !formData.route) {
+    if (!formData.name || !formData.phone || !formData.email) {
       alert("Vui lòng điền đủ các trường bắt buộc!");
       return;
     }
 
     const newDriverData = {
-      UserID: parseInt(formData.userId),
-      Fullname: formData.name,
-      PhoneNumber: formData.phone,
-      Email: formData.email,
-      Status: formData.status,
-      BusID: formData.bus,
-      RouteID: formData.route,
+      fullName: formData.name,
+      phoneNumber: formData.phone,
+      email: formData.email,
+      status: formData.status,
     };
 
     try {
-      const response = await fetch(`${API_URL}/drivers`, {
+      // 1. Create Driver (User Service -> Syncs to Bus Service)
+      const response = await fetch(`${API_URL}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newDriverData),
@@ -268,6 +279,30 @@ export default function DriversPage() {
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.message || "Lỗi khi thêm tài xế");
+      }
+
+      const newDriverId = result.data?.driverId;
+
+      // 2. Assign Bus (if selected)
+      if (newDriverId && formData.bus) {
+        try {
+          await fetch(`http://localhost:5000/api/buses/${formData.bus}/driver`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ driverId: newDriverId })
+          });
+
+          if (formData.route) {
+            await fetch(`http://localhost:5000/api/buses/${formData.bus}/route`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ routeId: formData.route })
+            });
+          }
+        } catch (assignErr) {
+          console.error("Failed to assign bus/route:", assignErr);
+          alert("Tạo tài xế thành công nhưng lỗi khi gán xe/tuyến. Vui lòng cập nhật lại.");
+        }
       }
 
       alert("Thêm tài xế thành công!");
@@ -283,13 +318,12 @@ export default function DriversPage() {
   const handleEditClick = (driver: Driver) => {
     setEditingDriver(driver);
     setFormData({
-      userId: driver.userId.toString(),
       name: driver.name,
       phone: driver.phone,
       email: driver.email,
       status: driver.status,
-      bus: driver.bus,
-      route: driver.route,
+      bus: driver.bus !== "-" ? driver.bus : "",
+      route: driver.route !== "-" ? driver.route : "",
     });
     setShowEditModal(true);
   };
@@ -308,16 +342,14 @@ export default function DriversPage() {
     if (!editingDriver) return;
 
     const updatedData = {
-      Fullname: formData.name,
-      PhoneNumber: formData.phone,
-      Email: formData.email,
-      Status: formData.status,
-      BusID: formData.bus,
-      RouteID: formData.route,
+      fullName: formData.name,
+      phoneNumber: formData.phone,
+      email: formData.email,
+      status: formData.status,
     };
 
     try {
-      const response = await fetch(`${API_URL}/drivers/${editingDriver.id}`, {
+      const response = await fetch(`${API_URL}/${editingDriver.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData),
@@ -329,11 +361,32 @@ export default function DriversPage() {
       }
 
       if (editingDriver.status !== formData.status) {
-        await fetch(`${API_URL}/drivers/${editingDriver.id}/status`, {
-           method: "PUT",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({ status: formData.status }),
+        await fetch(`${API_URL}/${editingDriver.id}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: formData.status }),
         });
+      }
+
+      // Assign Bus if changed
+      if (formData.bus && formData.bus !== editingDriver.bus) {
+        try {
+          await fetch(`http://localhost:5000/api/buses/${formData.bus}/driver`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ driverId: editingDriver.id })
+          });
+
+          if (formData.route) {
+            await fetch(`http://localhost:5000/api/buses/${formData.bus}/route`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ routeId: formData.route })
+            });
+          }
+        } catch (assignErr) {
+          console.error("Failed to update bus assignment:", assignErr);
+        }
       }
 
       alert("Cập nhật thông tin tài xế thành công!");
@@ -355,12 +408,12 @@ export default function DriversPage() {
   const handleConfirmDelete = async () => {
     if (deletingDriverId !== null) {
       try {
-        const response = await fetch(`${API_URL}/drivers/${deletingDriverId}`, {
+        const response = await fetch(`${API_URL}/${deletingDriverId}`, {
           method: "DELETE",
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok) {
           if (response.status === 400 && result.message) {
             throw new Error(result.message);
@@ -407,7 +460,7 @@ export default function DriversPage() {
           Thêm tài xế mới
         </button>
       </div>
-      
+
       {error && (
         <div style={{
           backgroundColor: "#fee2e2",
@@ -448,8 +501,8 @@ export default function DriversPage() {
               className="searchInput"
             />
           </div>
-          
-          <button 
+
+          <button
             className="advancedSearchToggle"
             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
           >
@@ -461,25 +514,22 @@ export default function DriversPage() {
         <div className="filterButtons">
           <button
             onClick={() => setFilterStatus("all")}
-            className={`filterButton ${
-              filterStatus === "all" ? "active bg-blue-600" : "inactive"
-            }`}
+            className={`filterButton ${filterStatus === "all" ? "active bg-blue-600" : "inactive"
+              }`}
           >
             Tất cả
           </button>
           <button
             onClick={() => setFilterStatus("active")}
-            className={`filterButton ${
-              filterStatus === "active" ? "active bg-green-600" : "inactive"
-            }`}
+            className={`filterButton ${filterStatus === "active" ? "active bg-green-600" : "inactive"
+              }`}
           >
             Hoạt động
           </button>
           <button
             onClick={() => setFilterStatus("rest")}
-            className={`filterButton ${
-              filterStatus === "rest" ? "active bg-yellow-600" : "inactive"
-            }`}
+            className={`filterButton ${filterStatus === "rest" ? "active bg-yellow-600" : "inactive"
+              }`}
           >
             Nghỉ
           </button>
@@ -494,7 +544,7 @@ export default function DriversPage() {
                   type="text"
                   placeholder="Nhập tên..."
                   value={advancedFilters.name}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, name: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, name: e.target.value })}
                 />
               </div>
               <div className="formGroup">
@@ -503,7 +553,7 @@ export default function DriversPage() {
                   type="text"
                   placeholder="Nhập số điện thoại..."
                   value={advancedFilters.phone}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, phone: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, phone: e.target.value })}
                 />
               </div>
               <div className="formGroup">
@@ -512,7 +562,7 @@ export default function DriversPage() {
                   type="text"
                   placeholder="Nhập email..."
                   value={advancedFilters.email}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, email: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, email: e.target.value })}
                 />
               </div>
               <div className="formGroup">
@@ -521,7 +571,7 @@ export default function DriversPage() {
                   type="text"
                   placeholder="VD: BUS-01"
                   value={advancedFilters.bus}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, bus: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, bus: e.target.value })}
                 />
               </div>
               <div className="formGroup">
@@ -530,18 +580,18 @@ export default function DriversPage() {
                   type="text"
                   placeholder="VD: ROUTE-01"
                   value={advancedFilters.route}
-                  onChange={(e) => setAdvancedFilters({...advancedFilters, route: e.target.value})}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, route: e.target.value })}
                 />
               </div>
             </div>
             <div className="advancedSearchActions">
-              <button 
+              <button
                 className="resetButton"
                 onClick={resetAdvancedFilters}
               >
                 Xóa bộ lọc
               </button>
-              <button 
+              <button
                 className="searchButton"
                 onClick={handleAdvancedSearch}
               >
@@ -601,28 +651,28 @@ export default function DriversPage() {
                     <td>{getStatusBadge(driver.status)}</td>
                     <td>
                       <div className="actionButtons">
-                        <button 
+                        <button
                           onClick={() => setSelectedDriver(driver)}
                           className="actionButton viewButton"
                           title="Xem chi tiết"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleOpenMessagePanel(driver)}
                           className="actionButton messageButton"
                           title="Gửi tin nhắn"
                         >
                           <MessageSquare className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleEditClick(driver)}
                           className="actionButton editButton"
                           title="Chỉnh sửa"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDeleteClick(driver.id)}
                           className="actionButton deleteButton"
                           title="Xóa"
@@ -659,7 +709,7 @@ export default function DriversPage() {
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            
+
             {[...Array(totalPages)].map((_, index) => {
               const pageNum = index + 1;
               if (
@@ -680,7 +730,7 @@ export default function DriversPage() {
               }
               return null;
             })}
-            
+
             <button
               className="pageButton"
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -692,49 +742,49 @@ export default function DriversPage() {
         </div>
       )}
 
-  {/* 🔧 MessagePanel Modal - SỬ DỤNG COMPONENT MỚI */}
-{showMessagePanel && messageDriver && (
-  <div 
-    style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }}
-    onClick={() => setShowMessagePanel(false)}
-  >
-    <div 
-      style={{
-        background: 'transparent',
-        borderRadius: '12px',
-        width: '100%',
-        maxWidth: '600px',
-        height: '600px',
-        maxHeight: '90vh',
-        minHeight: '500px',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'visible',
-        position: 'relative'
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <MessagePanelToDriver
-        adminId={1}
-        driverUserId={messageDriver.userId}
-        driverName={messageDriver.name}
-        onClose={() => setShowMessagePanel(false)}
-      />
-    </div>
-  </div>
-)}
+      {/* 🔧 MessagePanel Modal - SỬ DỤNG COMPONENT MỚI */}
+      {showMessagePanel && messageDriver && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+          onClick={() => setShowMessagePanel(false)}
+        >
+          <div
+            style={{
+              background: 'transparent',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '600px',
+              height: '600px',
+              maxHeight: '90vh',
+              minHeight: '500px',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'visible',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MessagePanelToDriver
+              adminId={1}
+              driverUserId={userIdToMessageId(messageDriver.userId)}
+              driverName={messageDriver.name}
+              onClose={() => setShowMessagePanel(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* View Modal - giữ nguyên */}
       {selectedDriver && (
@@ -750,7 +800,7 @@ export default function DriversPage() {
               </div>
               <button onClick={() => setSelectedDriver(null)} className="closeButton">×</button>
             </div>
-            
+
             <div className="modalBody">
               <div className="detailsGrid">
                 <div className="detailItem">
@@ -790,7 +840,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* Add Modal - giữ nguyên các modal khác */}
+      {/* Add Modal - Updated with Grid Layout and Fixed Dropdown */}
       {showAddModal && (
         <div className="modal" onClick={() => setShowAddModal(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
@@ -806,84 +856,121 @@ export default function DriversPage() {
               </div>
               <button onClick={() => { setShowAddModal(false); resetForm(); }} className="closeButton">×</button>
             </div>
-            
+
             <div className="modalBody">
-              <div className="detailsGrid">
+              <div className="formGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="formGroup">
-                  <label>UserID *</label>
-                  <input
-                    type="number"
-                    placeholder="VD: 101"
-                    value={formData.userId}
-                    onChange={(e) => setFormData({...formData, userId: e.target.value})}
-                  />
-                </div>
-                <div className="formGroup">
-                  <label>Tên tài xế *</label>
+                  <label>Họ và tên <span className="required">*</span></label>
                   <input
                     type="text"
-                    placeholder="Nhập tên..."
+                    placeholder="Nhập họ tên..."
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="formInput"
                   />
                 </div>
                 <div className="formGroup">
-                  <label>Số điện thoại *</label>
+                  <label>Số điện thoại <span className="required">*</span></label>
                   <input
                     type="text"
                     placeholder="Nhập số điện thoại..."
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="formInput"
                   />
                 </div>
                 <div className="formGroup">
-                  <label>Email *</label>
+                  <label>Email <span className="required">*</span></label>
                   <input
                     type="email"
                     placeholder="Nhập email..."
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="formInput"
                   />
-                </div>
-                <div className="formGroup">
-                  <label>Xe Buýt *</label>
-                  <select
-                    value={formData.bus || ''}
-                    onChange={e => setFormData({ ...formData, bus: e.target.value })}
-                  >
-                    <option value="">-- Chọn bus --</option>
-                    {busList.filter(b => !b.driver_name || b.driver_name === formData.name).map(bus => (
-                      <option value={bus.id} key={bus.id}>{bus.license_plate} ({bus.id})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="formGroup">
-                  <label>Tuyến đường *</label>
-                  <select
-                    value={formData.route || ''}
-                    onChange={e => setFormData({ ...formData, route: e.target.value })}
-                  >
-                    <option value="">-- Chọn tuyến đường --</option>
-                    {routeList.map(r => (
-                      <option value={r.RouteID} key={r.RouteID}>{r.RouteName}</option>
-                    ))}
-                  </select>
                 </div>
                 <div className="formGroup">
                   <label>Trạng thái</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "rest" })}
+                    className="formSelect"
                   >
                     <option value="active">Đang hoạt động</option>
                     <option value="rest">Đang nghỉ</option>
                   </select>
                 </div>
+                <div className="formGroup">
+                  <label>Chọn xe (Tùy chọn)</label>
+                  <select
+                    value={formData.bus}
+                    onChange={(e) => {
+                      // Fix: use bus.id instead of bus.BusID
+                      const selectedBus = busList.find(b => b.id === e.target.value);
+                      setFormData({
+                        ...formData,
+                        bus: e.target.value,
+                        route: selectedBus?.route_id || ""
+                      });
+                    }}
+                    className="formSelect"
+                  >
+                    <option value="">-- Chọn xe --</option>
+                    {busList
+                      .filter(bus => !bus.driver_id) // Only show buses without drivers
+                      .map(bus => (
+                        // Fix: use bus.id and bus.license_plate
+                        <option key={bus.id} value={bus.id}>
+                          {bus.id} - {bus.license_plate}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="formGroup">
+                  <label>Tuyến đường</label>
+                  <input
+                    type="text"
+                    value={formData.route}
+                    readOnly
+                    placeholder="Tự động theo xe..."
+                    className="formInput bg-gray-100"
+                  />
+                </div>
               </div>
-
-              <div className="modalActions">
-                <button onClick={handleAddDriver}>Thêm tài xế</button>
-                <button onClick={() => { setShowAddModal(false); resetForm(); }}>Hủy</button>
+              <div className="modalFooter" style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '30px' }}>
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="cancelButton"
+                  style={{
+                    padding: '0.75rem 2rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#f3f4f6',
+                    color: '#4b5563',
+                    fontWeight: 600,
+                    border: '1px solid #d1d5db',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAddDriver}
+                  className="submitButton"
+                  style={{
+                    padding: '0.75rem 2rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Thêm mới
+                </button>
               </div>
             </div>
           </div>
@@ -891,132 +978,228 @@ export default function DriversPage() {
       )}
 
       {/* Edit Modal */}
-      {showEditModal && editingDriver && (
+      {showEditModal && (
         <div className="modal" onClick={() => setShowEditModal(false)}>
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <div className="modalHeaderContent">
-                <div className="modalAvatar">{editingDriver.avatar}</div>
+                <div className="modalAvatar">
+                  <Edit className="w-8 h-8" />
+                </div>
                 <div>
                   <h2 className="modalTitle">Chỉnh sửa thông tin</h2>
-                  <p className="modalSubtitle">{editingDriver.name}</p>
+                  <p className="modalSubtitle">Cập nhật thông tin tài xế</p>
                 </div>
               </div>
-              <button onClick={() => { setShowEditModal(false); setEditingDriver(null); resetForm(); }} className="closeButton">×</button>
+              <button onClick={() => setShowEditModal(false)} className="closeButton">×</button>
             </div>
-            
+
             <div className="modalBody">
-              <div className="detailsGrid">
+              <div className="formGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="formGroup">
-                  <label>UserID (Không thể thay đổi)</label>
-                  <input
-                    type="number"
-                    value={formData.userId}
-                    readOnly
-                    disabled
-                    style={{ backgroundColor: "#f3f4f6" }}
-                  />
-                </div>
-                <div className="formGroup">
-                  <label>Tên tài xế *</label>
+                  <label>Họ và tên <span className="required">*</span></label>
                   <input
                     type="text"
-                    placeholder="Nhập tên..."
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="formInput"
                   />
                 </div>
                 <div className="formGroup">
-                  <label>Số điện thoại *</label>
+                  <label>Số điện thoại <span className="required">*</span></label>
                   <input
                     type="text"
-                    placeholder="Nhập số điện thoại..."
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="formInput"
                   />
                 </div>
                 <div className="formGroup">
-                  <label>Email *</label>
+                  <label>Email <span className="required">*</span></label>
                   <input
                     type="email"
-                    placeholder="Nhập email..."
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="formInput"
                   />
-                </div>
-                <div className="formGroup">
-                  <label>Xe Buýt *</label>
-                  <select
-                    value={formData.bus || ''}
-                    onChange={e => setFormData({ ...formData, bus: e.target.value })}
-                  >
-                    <option value="">-- Chọn bus --</option>
-                    {busList.filter(b => !b.driver_name || b.driver_name === formData.name).map(bus => (
-                      <option value={bus.id} key={bus.id}>{bus.license_plate} ({bus.id})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="formGroup">
-                  <label>Tuyến đường *</label>
-                  <select
-                    value={formData.route || ''}
-                    onChange={e => setFormData({ ...formData, route: e.target.value })}
-                  >
-                    <option value="">-- Chọn tuyến đường --</option>
-                    {routeList.map(r => (
-                      <option value={r.RouteID} key={r.RouteID}>{r.RouteName}</option>
-                    ))}
-                  </select>
                 </div>
                 <div className="formGroup">
                   <label>Trạng thái</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "rest" })}
+                    className="formSelect"
                   >
                     <option value="active">Đang hoạt động</option>
                     <option value="rest">Đang nghỉ</option>
                   </select>
                 </div>
+                <div className="formGroup">
+                  <label>Chọn xe (Tùy chọn)</label>
+                  <select
+                    value={formData.bus}
+                    onChange={(e) => {
+                      const selectedBus = busList.find(b => b.id === e.target.value);
+                      setFormData({
+                        ...formData,
+                        bus: e.target.value,
+                        route: selectedBus?.route_id || ""
+                      });
+                    }}
+                    className="formSelect"
+                  >
+                    <option value="">-- Chọn xe --</option>
+                    {busList
+                      .filter(bus => !bus.driver_id || (editingDriver && bus.driver_id === editingDriver.id))
+                      .map(bus => (
+                        <option key={bus.id} value={bus.id}>
+                          {bus.id} - {bus.license_plate}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="formGroup">
+                  <label>Tuyến đường</label>
+                  <input
+                    type="text"
+                    value={formData.route}
+                    readOnly
+                    placeholder="Tự động theo xe..."
+                    className="formInput bg-gray-100"
+                  />
+                </div>
               </div>
-
-              <div className="modalActions">
-                <button onClick={handleUpdateDriver}>Cập nhật</button>
-                <button onClick={() => { setShowEditModal(false); setEditingDriver(null); resetForm(); }}>Hủy</button>
+              <div className="modalFooter" style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '30px' }}>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="cancelButton"
+                  style={{
+                    padding: '0.75rem 2rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#f3f4f6',
+                    color: '#4b5563',
+                    fontWeight: 600,
+                    border: '1px solid #d1d5db',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleUpdateDriver}
+                  className="submitButton"
+                  style={{
+                    padding: '0.75rem 2rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Lưu thay đổi
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirm Modal - Redesigned */}
       {showDeleteConfirm && (
         <div className="modal" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '28rem' }}>
-            <div className="modalHeader">
-              <div className="modalHeaderContent">
-                <div className="modalAvatar" style={{ backgroundColor: '#dc2626' }}>
-                  <AlertTriangle className="w-8 h-8" />
-                </div>
-                <div>
-                  <h2 className="modalTitle">Xác nhận xóa</h2>
-                  <p className="modalSubtitle">Bạn có chắc chắn muốn xóa tài xế này?</p>
-                </div>
-              </div>
-              <button onClick={() => { setShowDeleteConfirm(false); setDeletingDriverId(null); }} className="closeButton">×</button>
+          <div
+            className="modalContent deleteModal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '400px',
+              padding: '2rem',
+              textAlign: 'center',
+              borderRadius: '1rem'
+            }}
+          >
+            <div
+              className="deleteIcon"
+              style={{
+                width: '80px',
+                height: '80px',
+                backgroundColor: '#fee2e2',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.5rem auto'
+              }}
+            >
+              <AlertTriangle className="w-10 h-10 text-red-500" />
             </div>
-            
-            <div className="modalBody">
-              <p style={{ marginBottom: '1.5rem', color: '#6b7280' }}>
-                Hành động này không thể hoàn tác. Tất cả thông tin của tài xế sẽ bị xóa.
-              </p>
-
-              <div className="modalActions">
-                <button onClick={handleConfirmDelete} style={{ backgroundColor: '#dc2626' }}>
-                  Xóa tài xế
-                </button>
-                <button onClick={() => { setShowDeleteConfirm(false); setDeletingDriverId(null); }}>Hủy</button>
-              </div>
+            <h2
+              className="deleteTitle"
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                color: '#1f2937',
+                marginBottom: '0.5rem'
+              }}
+            >
+              Xác nhận xóa
+            </h2>
+            <p
+              className="deleteMessage"
+              style={{
+                color: '#6b7280',
+                marginBottom: '2rem',
+                lineHeight: '1.5'
+              }}
+            >
+              Bạn có chắc chắn muốn xóa tài xế này? <br />
+              Hành động này không thể hoàn tác.
+            </p>
+            <div
+              className="deleteActions"
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '1rem'
+              }}
+            >
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="cancelButton"
+                style={{
+                  padding: '0.75rem 2rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#f3f4f6',
+                  color: '#4b5563',
+                  fontWeight: 600,
+                  border: '1px solid #d1d5db',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="deleteConfirmButton"
+                style={{
+                  padding: '0.75rem 2rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Xóa
+              </button>
             </div>
           </div>
         </div>

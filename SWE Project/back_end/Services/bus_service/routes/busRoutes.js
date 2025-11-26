@@ -1,4 +1,3 @@
-// bus_service/routes/busRoutes.js
 const express = require('express');
 const router = express.Router();
 const busController = require('../controllers/busController');
@@ -12,5 +11,9 @@ router.get('/:id', busController.getBusById);
 router.post('/', busController.createBus);
 router.put('/:id', busController.updateBus);
 router.delete('/:id', busController.deleteBus);
+
+// Assignment operations
+router.put('/:id/driver', busController.updateBusDriver);
+router.put('/:id/route', busController.updateBusRoute);
 
 module.exports = router;

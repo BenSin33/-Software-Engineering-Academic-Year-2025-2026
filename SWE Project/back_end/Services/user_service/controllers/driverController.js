@@ -1,19 +1,53 @@
 const queries = require('../db/driverQueries');
+const userQueries = require('../db/userQueries');
 const { success, error } = require('../utils/response');
 const { syncDriverToService, deleteDriverFromService } = require('../utils/syncUtils');
+const pool = require('../db/pool');
 
-// Tạo tài xế mới
+// Tạo tài xế mới (tự động tạo user account)
+const createDriverWithAccount = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    const { fullName, phoneNumber, email, status } = req.body;
+    if (!fullName || !phoneNumber || !email) {
+      return error(res, 'Thiếu thông tin bắt buộc', 400);
+    }
+
+    await connection.beginTransaction();
+
+    const username = phoneNumber ? `driver_${phoneNumber}` : `driver_${email.split('@')[0]}`;
+    const defaultPassword = phoneNumber || 'driver123';
+
+    const userId = await userQueries.createUser(username, defaultPassword, 'R002');
+    const driverId = await queries.createDriver(userId, fullName, phoneNumber, email, status, connection);
+
+    await connection.commit();
+
+    try {
+      await syncDriverToService({ driverId, userId, fullName, phoneNumber, email, status });
+    } catch (syncErr) {
+      console.error('Warning: Failed to sync driver to other services:', syncErr);
+    }
+
+    success(res, { driverId, userId, username }, 'Tạo tài xế thành công', 201);
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error creating driver:', err);
+    error(res, err.message);
+  } finally {
+    connection.release();
+  }
+};
+
+// Tạo tài xế mới (dùng userId có sẵn)
 const createDriver = async (req, res) => {
   try {
     const { userId, fullName, phoneNumber, email, status } = req.body;
-
     if (!userId || !fullName || !phoneNumber || !email) {
       return error(res, 'Thiếu thông tin bắt buộc', 400);
     }
 
     const driverId = await queries.createDriver(userId, fullName, phoneNumber, email, status);
-
-    // Đồng bộ sang service khác
     await syncDriverToService({ driverId, userId, fullName, phoneNumber, email, status });
 
     success(res, { driverId }, 'Tạo tài xế thành công', 201);
@@ -65,8 +99,6 @@ const updateDriver = async (req, res) => {
     const driverId = req.params.id;
 
     await queries.updateDriver(driverId, fullName, phoneNumber, email, status);
-
-    // Đồng bộ sang service khác
     await syncDriverToService({ driverId, fullName, phoneNumber, email, status });
 
     success(res, null, 'Cập nhật tài xế thành công');
@@ -80,12 +112,8 @@ const updateDriver = async (req, res) => {
 const deleteDriver = async (req, res) => {
   try {
     const driverId = req.params.id;
-
     await queries.deleteDriver(driverId);
-
-    // Đồng bộ xóa sang service khác
     await deleteDriverFromService(driverId);
-
     success(res, null, 'Xóa tài xế thành công');
   } catch (err) {
     console.error('Error deleting driver:', err);
@@ -93,11 +121,24 @@ const deleteDriver = async (req, res) => {
   }
 };
 
+// Lấy thống kê tài xế
+const getDriverStats = async (req, res) => {
+  try {
+    const stats = await queries.getDriverStats();
+    success(res, stats, 'Lấy thống kê tài xế thành công');
+  } catch (err) {
+    console.error('Error getting driver stats:', err);
+    error(res, err.message);
+  }
+};
+
 module.exports = {
-  createDriver,
+  createDriverWithAccount, // khi cần tạo cả user account
+  createDriver,            // khi đã có userId
   getAllDrivers,
   getDriverById,
   getDriverByUserId,
   updateDriver,
-  deleteDriver
+  deleteDriver,
+  getDriverStats
 };

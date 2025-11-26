@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://localhost:5000/students';
+const BASE_URL = 'http://localhost:5000/api/students';
 
 // Helper nội bộ để lấy token trực tiếp
 const getToken = (): string | null =>
