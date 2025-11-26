@@ -1,20 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { 
-  Bus, 
-  Users, 
-  UserCheck, 
-  Siren, 
-  Bell, 
-  AlertTriangle, 
-  CheckCircle, 
+import {
+  Bus,
+  Users,
+  UserCheck,
+  Siren,
+  Bell,
+  AlertTriangle,
+  CheckCircle,
   ArrowRight,
   Plus,
   UserPlus,
   Route
 } from "lucide-react";
-import "./DashboardPage.css"; 
+import "./DashboardPage.css";
+
 interface BusStats {
   total: number;
   running: number;
@@ -27,47 +28,51 @@ interface BusStats {
   lowFuel: number;
   highMileage: number;
 }
-interface LocationAlert {
-  id: number;
-  bus_id: string;
-  alert_type: "speeding" | "route_deviation" | "geofence_entry" | "geofence_exit" | "stopped_too_long";
-  severity: "low" | "medium" | "high" | "critical";
-  message: string;
-  created_at: string;
-  is_resolved: boolean;
-}
 
 interface Student {
   StudentID: number;
 }
+
 interface Driver {
   DriverID: number;
 }
-const BUS_SERVICE_URL = "http://localhost:3002/api";
-const LOCATION_SERVICE_URL = "http://localhost:5005";
-const STUDENT_SERVICE_URL = "http://localhost:5000";
-const DRIVER_SERVICE_URL = "http://localhost:5001/api"; 
 
+interface BusData {
+  BusID: string;
+  PlateNumber: string;
+  RouteID: string | null;
+  Status: string;
+}
+
+interface RouteData {
+  RouteID: number;
+  RouteName: string;
+}
+
+// All API calls should go through the API Gateway
+const API_GATEWAY_URL = "http://localhost:5000";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [busStats, setBusStats] = useState<BusStats | null>(null);
   const [studentCount, setStudentCount] = useState(0);
   const [driverCount, setDriverCount] = useState(0);
-  const [alerts, setAlerts] = useState<LocationAlert[]>([]);
+  const [runningBuses, setRunningBuses] = useState<BusData[]>([]);
+  const [routes, setRoutes] = useState<RouteData[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      
+
       const results = await Promise.allSettled([
-        fetch(`${BUS_SERVICE_URL}/buses/stats/summary`), // 1. Lấy thống kê xe
-        fetch(`${STUDENT_SERVICE_URL}/Students`),         // 2. Lấy số học sinh
-        fetch(`${LOCATION_SERVICE_URL}/locations/alerts?is_resolved=false&limit=5`), // 3. Lấy cảnh báo
-        fetch(`${DRIVER_SERVICE_URL}/drivers`)          // 4. Lấy số tài xế
+        fetch(`${API_GATEWAY_URL}/api/buses/stats`),
+        fetch(`${API_GATEWAY_URL}/api/students/`),
+        fetch(`${API_GATEWAY_URL}/api/drivers/stats`),
+        fetch(`${API_GATEWAY_URL}/api/buses?status=running`),
+        fetch(`${API_GATEWAY_URL}/routes`)
       ]);
 
-      // Xử lý kết quả
+      // Xử lý kết quả bus stats
       if (results[0].status === 'fulfilled') {
         const data = await results[0].value.json();
         if (data.success) {
@@ -77,39 +82,46 @@ export default function DashboardPage() {
         console.error("Lỗi tải thống kê xe:", results[0].reason);
       }
 
+      // Xử lý kết quả student count
       if (results[1].status === 'fulfilled') {
         const data = await results[1].value.json();
-        // Giả định API trả về một mảng
-        if (Array.isArray(data)) { 
+        if (Array.isArray(data)) {
           setStudentCount(data.length);
         } else if (data && typeof data.total === 'number') {
-          // Hoặc nếu API trả về object { total: ... }
           setStudentCount(data.total);
         }
       } else {
         console.error("Lỗi tải danh sách học sinh:", results[1].reason);
       }
 
-      if (results[2].status === 'fulfilled') {
-        const data = await results[2].value.json();
-         // Giả định API trả về mảng trong { data: [...] }
-        if (data.success && Array.isArray(data.data)) {
-          setAlerts(data.data);
-        } else if (Array.isArray(data)) {
-           // Hoặc trả về mảng trực tiếp
-          setAlerts(data);
+      // Xử lý kết quả driver stats
+      if (results[2].status === "fulfilled") {
+        const statsData = await results[2].value.json();
+        if (statsData.success && typeof statsData.data.total === "number") {
+          setDriverCount(statsData.data.total);
         }
       } else {
-        console.error("Lỗi tải cảnh báo:", results[2].reason);
+        console.error("Lỗi tải thống kê tài xế:", results[2].reason);
       }
 
-       if (results[3].status === 'fulfilled') {
+      // Xử lý kết quả running buses
+      if (results[3].status === 'fulfilled') {
         const data = await results[3].value.json();
-        if (Array.isArray(data)) { 
-          setDriverCount(data.length);
+        if (data.success && Array.isArray(data.data)) {
+          setRunningBuses(data.data);
         }
       } else {
-        console.error("Lỗi tải danh sách tài xế:", results[3].reason);
+        console.error("Lỗi tải danh sách xe đang chạy:", results[3].reason);
+      }
+
+      // Xử lý kết quả routes
+      if (results[4].status === 'fulfilled') {
+        const data = await results[4].value.json();
+        if (Array.isArray(data)) {
+          setRoutes(data);
+        }
+      } else {
+        console.error("Lỗi tải danh sách tuyến đường:", results[4].reason);
       }
 
       setLoading(false);
@@ -126,46 +138,10 @@ export default function DashboardPage() {
     return (statusCount / busStats.total) * 100;
   };
 
-  // Định dạng thời gian (ví dụ: "10 phút trước")
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " năm trước";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " tháng trước";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + " ngày trước";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + " giờ trước";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " phút trước";
-    return Math.floor(seconds) + " giây trước";
-  };
-
-  // Lấy icon và class cho cảnh báo
-  const getActivityIcon = (severity: LocationAlert['severity']) => {
-    switch (severity) {
-      case 'critical':
-      case 'high':
-        return { 
-          Icon: Siren, 
-          className: "alert" //
-        };
-      case 'medium':
-        return { 
-          Icon: AlertTriangle, 
-          className: "warning" //
-        };
-      case 'low':
-      default:
-        return { 
-          Icon: CheckCircle, 
-          className: "success" //
-        };
-    }
+  const getRouteName = (routeId: string | null) => {
+    if (!routeId) return "Chưa phân tuyến";
+    const route = routes.find(r => r.RouteID.toString() === routeId.toString());
+    return route ? route.RouteName : routeId;
   };
 
   if (loading) {
@@ -187,7 +163,6 @@ export default function DashboardPage() {
             <div className="stat-icon-wrapper stat-blue">
               <Bus className="stat-icon" />
             </div>
-            {/* <TrendingUp className="trending-icon" /> */}
           </div>
           <p className="stat-label">Tổng số xe</p>
           <p className="stat-value">{busStats?.total || 0}</p>
@@ -217,7 +192,7 @@ export default function DashboardPage() {
           </div>
           <p className="stat-label">Tổng số tài xế</p>
           <p className="stat-value">{driverCount}</p>
-           <p className="stat-change text-purple">
+          <p className="stat-change text-purple">
             Sẵn sàng
           </p>
         </div>
@@ -228,10 +203,10 @@ export default function DashboardPage() {
               <Siren className="stat-icon" />
             </div>
           </div>
-          <p className="stat-label">Cảnh báo (Chưa xử lý)</p>
-          <p className="stat-value">{alerts.length}</p>
+          <p className="stat-label">Thông báo hệ thống</p>
+          <p className="stat-value">0</p>
           <p className="stat-change text-orange">
-            Cần chú ý ngay
+            Không có cảnh báo
           </p>
         </div>
       </div>
@@ -240,29 +215,29 @@ export default function DashboardPage() {
       <div className="content-grid">
         {/* Cột trái: Hoạt động gần đây */}
         <div className="activities-section">
-          <h2 className="section-title">Cảnh báo & Hoạt động gần đây</h2>
+          <h2 className="section-title">Hoạt động gần đây</h2>
           <div className="activities-list">
-            {alerts.length > 0 ? (
-              alerts.map((alert) => {
-                const { Icon, className } = getActivityIcon(alert.severity);
-                return (
-                  <div key={alert.id} className="activity-item">
-                    <div className={`activity-icon-wrapper ${className}`}>
-                      <Icon className="activity-icon" />
+            {runningBuses.length > 0 ? (
+              <div className="running-buses-list">
+                {runningBuses.map((bus) => (
+                  <div key={bus.BusID} className="activity-item">
+                    <div className="activity-icon-wrapper">
+                      <Bus className="activity-icon" size={20} />
                     </div>
                     <div className="activity-content">
-                      <p className="activity-message">
-                        <strong>[{alert.bus_id}]</strong> {alert.message}
-                      </p>
-                      <p className="activity-time">
-                        {formatTimeAgo(alert.created_at)}
+                      <p className="activity-title">Xe {bus.PlateNumber}</p>
+                      <p className="activity-desc">
+                        Đang chạy trên tuyến: <strong>{getRouteName(bus.RouteID)}</strong>
                       </p>
                     </div>
+                    <div className="activity-status">
+                      <span className="status-badge status-green">Đang chạy</span>
+                    </div>
                   </div>
-                );
-              })
+                ))}
+              </div>
             ) : (
-              <p className="activity-time">Không có cảnh báo nào chưa xử lý.</p>
+              <p className="activity-time">Không có xe nào đang hoạt động.</p>
             )}
           </div>
         </div>
@@ -298,8 +273,8 @@ export default function DashboardPage() {
                     ></div>
                   </div>
                 </div>
-                 
-                 <div className="bus-status-item">
+
+                <div className="bus-status-item">
                   <div className="status-info">
                     <span className="status-label">Sẵn sàng</span>
                     <span className="status-count">{busStats.ready}</span>
@@ -338,7 +313,7 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="quick-actions-section">
-         <h2 className="section-title">Truy cập nhanh</h2>
+        <h2 className="section-title">Truy cập nhanh</h2>
         <div className="actions-grid">
           <a href="/AdminDashboard/Buses" className="action-card action-blue">
             <Bus className="action-icon" />
@@ -348,7 +323,7 @@ export default function DashboardPage() {
             <UserPlus className="action-icon" />
             <span className="action-text">Thêm Học sinh</span>
           </a>
-           <a href="/AdminDashboard/Drivers" className="action-card action-purple">
+          <a href="/AdminDashboard/Drivers" className="action-card action-purple">
             <UserCheck className="action-icon" />
             <span className="action-text">Quản lý Tài xế</span>
           </a>

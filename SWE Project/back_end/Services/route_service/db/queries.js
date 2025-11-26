@@ -4,7 +4,10 @@ async function getRoutes() {
   const [rows] = await pool.query('SELECT * FROM routes');
   return rows;
 }
-
+async function getRouteByID(RouteID){
+  const [rows] = await pool.query('SELECT * from routes where RouteID = ?',[RouteID])
+  return rows;
+}
 async function addRoute(driverID,busID,routeName,startLocation,endLocation) {
   const sql = `
     INSERT INTO routes
@@ -12,7 +15,8 @@ async function addRoute(driverID,busID,routeName,startLocation,endLocation) {
     VALUES (?, ?, ?, ?, ?)
   `;
 
-  await pool.query(sql, [driverID,busID,routeName,startLocation,endLocation]);
+ const [routeID] = await pool.query(sql, [driverID,busID,routeName,startLocation,endLocation]);
+ return routeID.insertId;
 }
 
 async function updateCurrentRoute(routeID,driverID,busID,routeName,startLocation,endLocation){
@@ -30,5 +34,5 @@ module.exports = {
   getRoutes,
   addRoute,
   updateCurrentRoute,
-  deleteRoute,
+  deleteRoute,getRouteByID
 };

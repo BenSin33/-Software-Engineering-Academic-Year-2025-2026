@@ -4,6 +4,17 @@ const { callService } = require("../services/callService.js");
 
 const router = express.Router();
 
+router.get("/search", async (req, res) => {
+  try {
+    const { name } = req.query;
+    const result = await callService("student_service", `/students/search?name=${name}`, "GET");
+    res.json({ students: result.students || [] });
+  } catch (error) {
+    console.error(" Lỗi khi tìm kiếm học sinh:", error.message);
+    res.status(500).json({ error: "Không thể tìm kiếm học sinh" });
+  }
+});
+
 router.get("/", async (req, res) => {
   try {
     const studentData = await callService("student_service", "/students", "GET");
@@ -26,15 +37,15 @@ router.get("/", async (req, res) => {
     res.json(mergedData);
 
   } catch (error) {
-    console.error("❌ Lỗi khi gọi service:", error.message);
+    console.error(" Lỗi khi gọi service:", error.message);
     res.status(500).json({ error: "Không thể lấy danh sách sinh viên" });
   }
 });
 
 router.post("/add", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
 
     // 🧩 Gọi student_service để thêm học sinh
     const addedStudent = await callService("student_service", "/students/add", "POST", formData);
@@ -58,7 +69,7 @@ router.post("/add", async (req, res) => {
       return res.status(201).json(addedStudent);
     }
   } catch (error) {
-    console.error("❌ Lỗi khi xử lý /students/add:", error.message);
+    console.error(" Lỗi khi xử lý /students/add:", error.message);
     return res.status(500).json({
       error: "Không thể tải dữ liệu để thêm học sinh",
     });
@@ -71,14 +82,14 @@ router.post("/delete/:id", async (req, res) => {
     const result = await callService("student_service", `/students/delete/${req.params.id}`, "POST");
     res.json({ message: "Xóa học sinh thành công" });
   } catch (error) {
-    console.error("❌ Lỗi khi xóa học sinh:", error.message);
+    console.error(" Lỗi khi xóa học sinh:", error.message);
     res.status(500).json({ error: "Không thể xóa học sinh" });
   }
 });
 router.post("/edit/:id", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
 
     // 🧩 Gọi student_service để cập nhật học sinh
     const result = await callService("student_service", `/students/edit/${req.params.id}`, "POST", formData);
@@ -94,7 +105,7 @@ router.post("/edit/:id", async (req, res) => {
         result.student.ParentName = parent.FullName;
       }
 
-      // ✅ Trả về dữ liệu hợp nhất
+      //  Trả về dữ liệu hợp nhất
       return res.status(200).json(result);
 
     } catch (err) {
@@ -105,29 +116,65 @@ router.post("/edit/:id", async (req, res) => {
     }
 
   } catch (error) {
-    console.error("❌ Lỗi khi update học sinh:", error.message);
+    console.error(" Lỗi khi update học sinh:", error.message);
     return res.status(500).json({ error: "Không thể update học sinh" });
   }
 });
 
-// Lấy chi tiết 1 sinh viên
-// router.get("/:id", async (req, res) => {
-//   try {
-//     const data = await callService("student_service", `/students/${req.params.id}`, "GET");
-//     res.json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: "Không thể lấy thông tin sinh viên" });
-//   }
-// });
+/*
+    Lấy chi tiết 1 sinh viên
+    router.get("/:id", async (req, res) => {
+      try {
+        const data = await callService("student_service", `/students/${req.params.id}`, "GET");
+        res.json(data);
+      } catch (error) {
+        res.status(500).json({ error: "Không thể lấy thông tin sinh viên" });
+      }
+    });
 
-// // Tạo mới sinh viên
-// router.post("/", async (req, res) => {
-//   try {
-//     const data = await callService("student_service", "/students", "POST", req.body);
-//     res.status(201).json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: "Không thể tạo sinh viên mới" });
-//   }
-// });
+    // Tạo mới sinh viên
+    router.post("/", async (req, res) => {
+      try {
+        const data = await callService("student_service", "/students", "POST", req.body);
+        res.status(201).json(data);
+      } catch (error) {
+        res.status(500).json({ error: "Không thể tạo sinh viên mới" });
+      }
+    });
+*/
+
+// Update student's parent
+router.patch("/update-parent/:studentID", async (req, res) => {
+  try {
+    const { studentID } = req.params;
+    const { parentID } = req.body;
+    const result = await callService("student_service", `/students/update-parent/${studentID}`, "PATCH", { parentID });
+    res.status(200).json(result);
+  } catch (error) {
+    console.error(" Lỗi khi cập nhật phụ huynh cho học sinh:", error.message);
+    res.status(500).json({ error: "Không thể cập nhật phụ huynh cho học sinh" });
+  }
+});
+
+// Lấy danh sách học sinh theo ParentID
+router.get("/by-parent/:parentID", async (req, res) => {
+  try {
+    const { parentID } = req.params;
+
+    // Gọi xuống student_service
+    const result = await callService(
+      "student_service",
+      `/students/by-parent/${parentID}`,
+      "GET"
+    );
+
+    // Trả về dữ liệu cho frontend
+    res.json(result);
+  } catch (error) {
+    console.error("Lỗi khi lấy học sinh theo ParentID:", error.message);
+    res.status(500).json({ error: "Không thể lấy học sinh theo ParentID" });
+  }
+});
+
 
 module.exports = router;

@@ -3,6 +3,7 @@
 import React, { useState, ReactElement, useEffect, FormEvent } from "react";
 import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, MessageSquare, Bell, BellOff, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter, Bus, School, Route as RouteIcon, UserCheck } from "lucide-react";
 import './routes.css'
+import MapView from "@/components/Layouts/MapView";
 
 // Interface for a single bus stop (Kept for potential future use, though not used in form/API)
 interface BusStop {
@@ -19,6 +20,7 @@ interface Route {
     DriverID: string;
     StartLocation: string;
     EndLocation: string;
+    DriverName: string;
     // Add 'status' here if the backend supports it, otherwise filtering by status won't work
 }
 
@@ -42,9 +44,14 @@ interface AdvancedFilters {
 const PRIMARY_COLOR = "#FFAC50";
 const PRIMARY_HOVER = "#E59B48";
 const PRIMARY_RING = "rgba(255, 172, 80, 0.3)";
-const API_BASE_URL = 'http://localhost:3005/routes'; // Centralize API URL
+const API_BASE_URL = 'http://localhost:5000/routes'; // Centralize API URL
 
 // Hàm khởi tạo form rỗng
+interface coordinates {
+    lng: number,
+    lat: number
+}
+
 const initialFormData: FormData = {
     routeName: '',
     driverID: '',
@@ -52,7 +59,12 @@ const initialFormData: FormData = {
     startLocation: '',
     endLocation: ''
 };
-
+const routePoints = [
+    [10.77653, 106.700981], // TP.HCM
+    [11.9404, 108.4583],    // Đà Lạt
+    [16.047079, 108.20623], // Đà Nẵng
+    [21.0245, 105.84117],   // Hà Nội
+];
 // =================================================================
 // ╔═╗┌─┐┬ ┬┌─┐┌┬┐┌─┐  Main Component
 // ╚═╗├┤ │ │├─┘ │ ├┤
@@ -64,6 +76,9 @@ export default function RoutesPage() {
     const [filterStatus, setFilterStatus] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+    const [coordinates, setCoordinates] = useState<coordinates[]>([]);
+    const [mapError, setMapError] = useState('')
+    const [mapLoading, setMapLoading] = useState(true)
     const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
         driverName: "",
         busNumber: "",
@@ -78,28 +93,52 @@ export default function RoutesPage() {
 
     const [routes, setRoutes] = useState<Route[]>([]);
     const [formData, setFormData] = useState<FormData>(initialFormData);
-
+    console.log('mapLoading: ', mapLoading)
+    console.log('mapError: ', mapError)
     // --- Data Fetching ---
     useEffect(() => {
-        fetch(API_BASE_URL)
-            .then((res) => res.json())
-            .then((data) => {
-                if (data) setRoutes(data);
-            })
-            .catch((err) => {
-                console.error('Error fetching route data:', err);
-            });
+        const fetchRoutesAndCoordinates = async () => {
+            try {
+                // --- Fetch routes ---
+                const resRoutes = await fetch(API_BASE_URL);
+                if (!resRoutes.ok) throw new Error("Lỗi fetch routes");
+                const data = await resRoutes.json();
+                if (!data?.routes?.length) return;
+
+                setRoutes(data.routes);
+
+                // --- Chọn route đầu tiên làm mặc định ---
+                const firstRoute = data.routes[0];
+                // --- Fetch coordinates của route đầu tiên ---
+                setMapLoading(true);
+                const resCoords = await fetch("http://localhost:5000/location/coordinates", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(firstRoute)
+                });
+                if (!resCoords.ok) throw new Error("Lỗi fetch coordinates");
+                const coordData = await resCoords.json();
+                setCoordinates(coordData.coordinates);
+            } catch (err) {
+                console.error(err);
+                setMapError("Không thể tải dữ liệu");
+            } finally {
+                setMapLoading(false);
+            }
+        };
+
+        fetchRoutesAndCoordinates();
     }, []);
 
-    const itemsPerPage = 6;
 
+    const itemsPerPage = 6;
     // --- Filtering Logic ---
     const filteredRoutes = routes.filter(route => {
         const searchTermLower = searchTerm.toLowerCase();
         // Check if route data is available before filtering
         if (routes.length === 0) return true;
 
-        const matchesSearch = route.RouteName.toLowerCase().includes(searchTermLower) ||
+        const matchesSearch = String(route.RouteName).toLowerCase().includes(searchTermLower) ||
             String(route.BusID).toLowerCase().includes(searchTermLower) ||
             String(route.DriverID).toLowerCase().includes(searchTermLower);
 
@@ -156,10 +195,12 @@ export default function RoutesPage() {
                 headers: { "Content-Type": 'application/json' },
                 body: JSON.stringify(formData)
             });
-
+            console.log('res: ', response)
             if (response.ok) {
                 const data = await response.json();
-                if (data) setRoutes(data);
+                if (data) {
+                    setRoutes((prevRoutes) => [...prevRoutes, data.newRoute])
+                }
                 alert('Thêm tuyến xe thành công!');
                 closeAllModals();
             } else {
@@ -168,6 +209,34 @@ export default function RoutesPage() {
         } catch (err) {
             console.error(err);
             alert('Lỗi kết nối hoặc hệ thống.');
+        }
+    };
+    const displayRouteOnMap = async (route: any) => {
+    
+        setMapError('');
+        setMapLoading(true);
+
+        try {
+            const response = await fetch('http://localhost:5000/location/coordinates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(route)
+            });
+
+            if (!response.ok) throw new Error('Lỗi server khi fetch tọa độ');
+
+            const data = await response.json();
+            console.log('[DEBUG] Dữ liệu trả về từ API:', data);
+
+            if (!data?.coordinates?.length) throw new Error('Tọa độ trống');
+
+            setCoordinates(data.coordinates);
+            console.log('coorss: ', data.coordinates);
+        } catch (err: any) {
+            console.error(err);
+            setMapError(err.message || 'Lỗi không lấy được dữ liệu');
+        } finally {
+            setMapLoading(false);
         }
     };
 
@@ -186,7 +255,12 @@ export default function RoutesPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                if (data) setRoutes(data);
+              
+                if (data) {
+                    setRoutes((prevRoute) =>
+                        prevRoute.map((route) => route.RouteID.toString() === selectedRoute.RouteID.toString() ? data.updatedRoute : route)
+                    )
+                }
                 alert('Cập nhật thông tin tuyến thành công!');
                 closeAllModals();
             } else {
@@ -208,7 +282,10 @@ export default function RoutesPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                if (data) setRoutes(data);
+                if (data) {
+                    const updatedRoutes = routes.filter((route) => route.RouteID != routeToDelete.RouteID);
+                    setRoutes(updatedRoutes)
+                };
                 alert("Xóa tuyến xe thành công!");
                 closeAllModals();
             } else {
@@ -268,7 +345,7 @@ export default function RoutesPage() {
                 <input type="text" value={formData.busID} onChange={(e) => setFormData({ ...formData, busID: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: 51F-123.45" />
             </div>
             <div className="flex flex-col">
-                <label className="text-sm text-gray-700 font-medium mb-1.5">Mã Tài xế *</label>
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Tài xế *</label>
                 <input type="text" value={formData.driverID} onChange={(e) => setFormData({ ...formData, driverID: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: DRV001" />
             </div>
             <div className="flex flex-col">
@@ -339,6 +416,7 @@ export default function RoutesPage() {
                             />
                         </div>
                         <button
+                            suppressHydrationWarning={true}
                             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
                             className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${showAdvancedSearch ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                             style={showAdvancedSearch ? { backgroundColor: PRIMARY_COLOR } : {}}
@@ -390,6 +468,7 @@ export default function RoutesPage() {
 
                     <div className="flex gap-2 flex-wrap mt-4">
                         <button
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('all')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'all' ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                             style={filterStatus === 'all' ? { backgroundColor: PRIMARY_COLOR } : {}}
@@ -398,18 +477,21 @@ export default function RoutesPage() {
                         </button>
                         {/* Note: Status filters below are non-functional until 'status' is added to Route interface/data */}
                         <button
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('active')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
                             Đang hoạt động
                         </button>
                         <button
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('inactive')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'inactive' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
                             Tạm ngưng
                         </button>
                         <button
+                            suppressHydrationWarning={true}
                             onClick={() => setFilterStatus('maintenance')}
                             className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'maintenance' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                         >
@@ -419,18 +501,36 @@ export default function RoutesPage() {
                 </div>
 
                 {/* Bản đồ Google */}
-                <div className="lg:w-1/2 h-[450px]">
-                    <iframe
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3393.984795413037!2d106.67968337428745!3d10.759922359499473!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1b7c3ed289%3A0xa06651894598e488!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBTw6BpIEfDsm4!5e1!3m2!1svi!2s!4v1760436694225!5m2!1svi!2s"
-                        width="100%"
-                        height="100%"
-                        className="rounded-xl shadow-md border-none"
-                        allowFullScreen
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                        title="Google Map Placeholder"
-                    ></iframe>
+                <div className="lg:w-1/2 h-[450px] flex items-center justify-center">
+                    {mapError ? (
+                        <div className="flex flex-col items-center justify-center bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-md space-y-2 w-full h-full">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-8 w-8"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 9v2m0 4h.01M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9z"
+                                />
+                            </svg>
+                            <p className="text-lg font-medium text-center">{mapError}</p>
+                            <p className="text-sm text-center text-red-600">Vui lòng thử lại sau</p>
+                        </div>
+                    ) : mapLoading ? (
+                        <div className="flex flex-col items-center space-y-4 h-full justify-center">
+                            <div className="w-16 h-16 border-4 border-[#FFAC50] border-t-transparent rounded-full animate-spin -mt-[5rem]"></div>
+                            <p className="text-gray-700 text-lg font-medium">Đang lấy dữ liệu tuyến đường...</p>
+                        </div>
+                    ) : (
+                        <MapView coordinates={coordinates} showBuses={false} />
+                    )}
                 </div>
+
             </div>
 
 
@@ -443,7 +543,7 @@ export default function RoutesPage() {
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên tuyến</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã tuyến</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã xe</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã tài xế</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">tài xế</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm bắt đầu</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm kết thúc</th>
                                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
@@ -452,7 +552,7 @@ export default function RoutesPage() {
                         <tbody>
                             {currentRoutes.length > 0 ? (
                                 currentRoutes.map((route) => (
-                                    <tr key={route.RouteID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
+                                    <tr onClick={() => { displayRouteOnMap(route) }} key={route.RouteID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div>
@@ -472,7 +572,7 @@ export default function RoutesPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">{route.DriverID}</div>
+                                                <div className="flex items-center gap-1.5 text-sm">{route.DriverName}</div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">

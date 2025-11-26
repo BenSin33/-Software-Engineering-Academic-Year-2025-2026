@@ -4,7 +4,7 @@
 // lucide-react icons
 import { LayoutDashboard, UserCircle, Users, HeartHandshake, Route, Bus, Calendar, Map, CheckSquare } from 'lucide-react';
 
-// ✅ 1. Import the new icons from react-icons
+//  1. Import the new icons from react-icons
 import { HiExclamationCircle, HiDocumentReport, HiBell } from 'react-icons/hi';
 
 export function IconMap({ name, ...props }) {
@@ -19,7 +19,7 @@ export function IconMap({ name, ...props }) {
       return <UserCircle {...props} />;
     // ... other lucide-react icons
 
-    // ✅ 2. Add new cases for the react-icons
+    //  2. Add new cases for the react-icons
     case 'HiExclamationCircle':
       return <HiExclamationCircle {...props} />;
     case 'HiDocumentReport':

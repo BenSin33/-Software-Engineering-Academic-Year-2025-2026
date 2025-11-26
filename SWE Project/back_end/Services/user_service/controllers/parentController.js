@@ -1,0 +1,225 @@
+const queries = require('../db/parentQueries');
+const { success, error } = require('../utils/response');
+const { 
+  syncParentToService, 
+  deleteParentFromService,
+  syncParentToAuth,
+  deleteParentFromAuth
+} = require('../utils/syncUtils');
+
+// =============================================
+// TẠO PARENT
+// =============================================
+const createParent = async (req, res) => {
+  try {
+    const { fullName, phoneNumber, email, address } = req.body;
+
+    if (!fullName || !phoneNumber || !email) {
+      return error(res, 'Thiếu thông tin bắt buộc (fullName, phoneNumber, email)', 400);
+    }
+
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const username = (email.split('@')[0] || phoneNumber) + randomSuffix;
+    const password = `Parent@${phoneNumber.slice(-4)}`;
+
+    console.log('📝 Creating parent with auto-generated credentials:', { username, fullName, phoneNumber });
+
+    const { userId, parentId, trackingId } = await queries.createUserAndParent(
+      username,
+      password,
+      fullName,
+      phoneNumber,
+      email,
+      address
+    );
+
+    // Đồng bộ sang service khác
+    await syncParentToService({
+      parentId,
+      userId,
+      trackingId,
+      fullName,
+      phoneNumber,
+      email,
+      address
+    });
+
+    // Đồng bộ sang AuthService
+    await syncParentToAuth({
+      userID: userId,
+      username,
+      password,
+      roleID: "R003" // role phụ huynh
+    });
+
+    success(res, { parentId, userId, trackingId, username }, 'Tạo phụ huynh thành công', 201);
+  } catch (err) {
+    console.error('❌ Error creating parent:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// GET ALL
+// =============================================
+const getAllParents = async (req, res) => {
+  try {
+    const parents = await queries.getAllParents();
+    success(res, parents, 'Lấy danh sách phụ huynh thành công');
+  } catch (err) {
+    console.error('Error getting all parents:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// GET BY PARENT ID
+// =============================================
+const getParentById = async (req, res) => {
+  try {
+    const parent = await queries.getParentById(req.params.id);
+    if (!parent) return error(res, 'Không tìm thấy phụ huynh', 404);
+    success(res, parent);
+  } catch (err) {
+    console.error('Error getting parent:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// GET BY USER ID
+// =============================================
+const getParentByUserId = async (req, res) => {
+  try {
+    const parent = await queries.getParentByUserId(req.params.userId);
+    if (!parent) return error(res, 'Không tìm thấy phụ huynh', 404);
+    success(res, parent);
+  } catch (err) {
+    console.error('Error getting parent by userId:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// UPDATE
+// =============================================
+const updateParent = async (req, res) => {
+  try {
+    const { trackingId, fullName, phoneNumber, email, address } = req.body;
+    const parentId = req.params.id;
+
+    await queries.updateParent(parentId, trackingId, fullName, phoneNumber, email, address);
+
+    await syncParentToService({
+      parentId,
+      trackingId,
+      fullName,
+      phoneNumber,
+      email,
+      address
+    });
+
+    // Đồng bộ sang AuthService (update user)
+    const parent = await queries.getParentById(parentId);
+    if (parent) {
+      await syncParentToAuth({
+        userID: parent.UserID,
+        username: parent.UserName,
+        password: parent.Password,
+        roleID: "R003"
+      });
+    }
+
+    success(res, null, 'Cập nhật phụ huynh thành công');
+  } catch (err) {
+    console.error('Error updating parent:', err);
+    error(res, err.message);
+  }
+};
+
+// =============================================
+// DELETE
+// =============================================
+const deleteParent = async (req, res) => {
+  try {
+    const parentId = req.params.id;
+
+    const parent = await queries.getParentById(parentId);
+
+    await queries.deleteParent(parentId);
+    await deleteParentFromService(parentId);
+
+    // Đồng bộ xóa sang AuthService
+    if (parent) {
+      await deleteParentFromAuth(parent.UserID);
+    }
+
+    success(res, null, 'Xóa phụ huynh thành công');
+  } catch (err) {
+    console.error('Error deleting parent:', err);
+    error(res, err.message);
+  }
+};
+
+// ========================================================
+// ⭐⭐⭐ THÊM 2 HÀM ĐỂ NHẬN ĐỒNG BỘ TỪ SERVICE KHÁC ⭐⭐⭐
+// ========================================================
+
+// SYNC CREATE / UPDATE
+const syncParent = async (req, res) => {
+  try {
+    const { parentId, userId, trackingId, fullName, phoneNumber, email, address } = req.body;
+
+    const existing = await queries.getParentById(parentId);
+
+    if (existing) {
+      await queries.updateParent(parentId, trackingId, fullName, phoneNumber, email, address);
+      console.log(`🔄 [SYNC] Updated parent ${parentId}`);
+      return success(res, null, "Parent updated via sync");
+    }
+
+    await queries.insertParentFromSync(
+      parentId,
+      userId,
+      fullName,
+      phoneNumber,
+      email,
+      address,
+      trackingId
+    );
+
+    console.log(`🆕 [SYNC] Inserted parent ${parentId}`);
+    return success(res, null, "Parent created via sync");
+
+  } catch (err) {
+    console.error("❌ Sync parent error:", err.message);
+    return error(res, err.message);
+  }
+};
+
+// SYNC DELETE
+const syncDeleteParent = async (req, res) => {
+  try {
+    const parentId = req.params.id;
+
+    await queries.deleteParent(parentId);
+
+    console.log(`🗑️ [SYNC] Deleted parent ${parentId}`);
+    return success(res, null, "Parent deleted via sync");
+
+  } catch (err) {
+    console.error("❌ Sync delete parent error:", err.message);
+    return error(res, err.message);
+  }
+};
+
+module.exports = {
+  createParent,
+  getAllParents,
+  getParentById,
+  getParentByUserId,
+  updateParent,
+  deleteParent,
+  syncParent,
+  syncDeleteParent
+};

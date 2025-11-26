@@ -1,23 +1,140 @@
-services:
-  mysql:
-    image: mysql:8.0
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: MYSQL_ROOT_PASSWORD
-      MYSQL_DATABASE: ssb_database
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
 
+services:
+  # 🌐 API Gateway
   api_gateway:
-    build:
-      context: .            # build từ thư mục back_end
-      dockerfile: ./API_gateway/Dockerfile   # chỉ định file Dockerfile nằm trong thư mục con
+    build: .
+    container_name: api_gateway
     ports:
       - "5000:5000"
+    command: [ "node", "API_gateway/server.js" ]
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     depends_on:
-      - mysql
+      - auth_service
+      - bus_service
+      - route_service
+      - student_service
 
-volumes:
-  mysql_data:
+  # 🔐 Auth Service
+  auth_service:
+    build: .
+    container_name: auth_service
+    ports:
+      - "5010:5010"
+    command: ["node", "Services/auth_service/app.js"]
+    env_file:
+      - Services/auth_service/.env
+    environment:
+      - PORT=5010
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 🚌 Bus Service
+  bus_service:
+    build: .
+    container_name: bus_service
+    ports:
+      - "5011:5011"
+    command: [ "node", "Services/bus_service/app.js" ]
+    environment:
+      - PORT=5011
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 🗺️ Route Service
+  route_service:
+    build: .
+    container_name: route_service
+    ports:
+      - "5003:5003"
+    command: [ "node", "Services/route_service/app.js" ]
+    environment:
+      - PORT=5003
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 🎓 Student Service
+  student_service:
+    build: .
+    container_name: student_service
+    ports:
+      - "5001:5001"
+    command: [ "node", "Services/student_service/app.js" ]
+    environment:
+      - PORT=5001
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 👤 User Service
+  user_service:
+    build: .
+    container_name: user_service
+    ports:
+      - "5012:5012"
+    command: [ "node", "Services/user_service/app.js" ]
+    environment:
+      - PORT=5012
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  schedule_service:
+    build: .
+    container_name: schedule_service
+    ports:
+      - "5005:5005"
+    command: [ "node", "Services/schedule_service/app.js" ]
+    environment:
+      - PORT=5005
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  location_service:
+    build: .
+    container_name: location_service
+    ports:
+      - "5009:5009"
+    command: [ "node", "Services/location_service/app.js" ]
+    environment:
+      - PORT=5009
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+  # 💬 Messaging Service
+  messaging_service:
+    build: .
+    container_name: messaging_service
+    ports:
+      - "5002:5002"
+    command: [ "node", "Services/messaging_service/index.js" ]
+    environment:
+      - PORT=5002
+      - DB_HOST=host.docker.internal
+      - DB_USER=root
+      - DB_PASSWORD=
+      - DB_NAME=messaging_db
+    volumes:
+      - .:/app
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
