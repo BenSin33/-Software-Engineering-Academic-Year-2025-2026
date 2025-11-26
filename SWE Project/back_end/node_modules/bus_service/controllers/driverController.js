@@ -194,15 +194,29 @@ module.exports = {
 
   async createDriver(req, res) {
     try {
-      const { UserID, Fullname, PhoneNumber, Email, Status = 'active' } = req.body || {};
+      // Accept both PascalCase (from sync) and camelCase (if any)
+      const { DriverID, UserID, Fullname, PhoneNumber, Email, Status = 'active' } = req.body || {};
+
       if (!UserID || !Fullname || !PhoneNumber || !Email) {
         return res.status(400).json({ success: false, message: 'Missing required fields: UserID, Fullname, PhoneNumber, Email' });
       }
-      const exists = await driverQueries.existsByUserId(UserID);
-      if (exists) {
+
+      // If DriverID is provided (sync from user_service), check if it exists
+      if (DriverID) {
+        const exists = await driverQueries.exists(DriverID);
+        if (exists) {
+          // Idempotency: if already exists, update it instead of failing
+          await driverQueries.update(DriverID, { Fullname, PhoneNumber, Email, Status });
+          return res.status(200).json({ success: true, message: 'Driver synced (updated) successfully' });
+        }
+      }
+
+      const existsUser = await driverQueries.existsByUserId(UserID);
+      if (existsUser) {
         return res.status(409).json({ success: false, message: 'Driver already exists for this UserID' });
       }
-      await driverQueries.create({ UserID, Fullname, PhoneNumber, Email, Status });
+
+      await driverQueries.create({ DriverID, UserID, Fullname, PhoneNumber, Email, Status });
       res.status(201).json({ success: true, message: 'Driver created successfully' });
     } catch (error) {
       console.error('Error creating driver:', error);

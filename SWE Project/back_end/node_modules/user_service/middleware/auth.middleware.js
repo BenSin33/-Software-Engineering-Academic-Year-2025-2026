@@ -1,8 +1,8 @@
 // middlewares/auth.middleware.js
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || "default-secret-key";
 
-module.exports = (allowedRoles) => {
+module.exports = (allowedRoles = []) => {
   return (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -14,13 +14,22 @@ module.exports = (allowedRoles) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
 
-      if (!allowedRoles.includes(decoded.roleID)) {
+      // Log để debug
+      console.log("👉 Decoded token:", decoded);
+      console.log("👉 Allowed roles:", allowedRoles);
+      console.log("👉 req.params.userId:", req.params.userId);
+
+      const role = decoded.roleID || decoded.RoleID;
+      if (allowedRoles.length && !allowedRoles.includes(role)) {
         return res.status(403).json({ error: "Access denied" });
       }
 
       next();
     } catch (err) {
-      return res.status(403).json({ error: "Token expired or invalid" });
+      if (err.name === "TokenExpiredError") {
+        return res.status(403).json({ error: "Token expired" });
+      }
+      return res.status(403).json({ error: "Token invalid" });
     }
   };
 };

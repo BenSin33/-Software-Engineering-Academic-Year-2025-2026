@@ -1,14 +1,20 @@
-const {Router} = require('express');
-const studentController= require('../controllers/studentController')
+const { Router } = require('express');
+const studentController = require('../controllers/studentController');
 const studentRouter = Router();
 
-// Các route khác
+// Các route chính
 studentRouter.get('/', studentController.getAllStudents);
-studentRouter.get('/route/:id/PickUpPoint',studentController.getPickUpPoint)
+studentRouter.get('/route/:id/PickUpPoint', studentController.getPickUpPoint);
 studentRouter.post('/add', studentController.addNewStudent);
-studentRouter.post('/edit/:studentID',studentController.updateCurrentStudent)
-studentRouter.post('/delete/:studentID',studentController.deleteStudent)
-studentRouter.post('/:studentID',studentController.getStudent)
-studentRouter.get('/by-parent/:parentID', studentController.getStudentsByParent);
-module.exports = studentRouter;
+studentRouter.post('/edit/:studentID', studentController.updateCurrentStudent);
+studentRouter.post('/delete/:studentID', studentController.deleteStudent);
 
+// Lấy chi tiết một học sinh (nên dùng GET thay vì POST)
+studentRouter.get('/:studentID', studentController.getStudent);
+
+// Các route bổ sung
+studentRouter.get('/by-parent/:parentID', studentController.getStudentsByParent);
+studentRouter.get('/search', studentController.searchStudents);
+studentRouter.patch('/update-parent/:studentID', studentController.updateStudentParent);
+
+module.exports = studentRouter;

@@ -13,6 +13,7 @@ router.get("/user/:userId", controller.getDriverByUserId);
 // Chỉ cho phép tài xế (R002) cập nhật thông tin của chính họ
 router.put("/user/:userId", controller.updateDriver);
 
+
 // Admin (R001) có thể xem tất cả tài xế
 router.get("/", controller.getAllDrivers);
 
