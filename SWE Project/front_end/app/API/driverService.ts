@@ -1,10 +1,11 @@
 // app/API/driverService.ts
 
-const API_URL = "http://localhost:5000/api/bus-drivers";
+const API_URL = "http://localhost:5000/api/drivers";
+
 // Interface định nghĩa cấu trúc dữ liệu Driver từ backend
 export interface DriverBackend {
-  DriverID: number;
-  UserID: number;
+  DriverID: string;
+  UserID: string;
   Fullname: string;
   PhoneNumber: string;
   Email: string;
@@ -15,8 +16,8 @@ export interface DriverBackend {
 
 // Interface định nghĩa cấu trúc dữ liệu Driver cho frontend
 export interface DriverFrontend {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   name: string;
   phone: string;
   email: string;
@@ -28,7 +29,7 @@ export interface DriverFrontend {
 
 // Interface cho request tạo/cập nhật driver
 export interface DriverCreateRequest {
-  UserID: number;
+  UserID: string;
   Fullname: string;
   PhoneNumber: string;
   Email: string;
@@ -58,15 +59,16 @@ export interface DriverStats {
 }
 
 // Hàm chuyển đổi từ backend format sang frontend format
-export function mapDriverBackendToFrontend(driver: DriverBackend): DriverFrontend {
+export function mapDriverBackendToFrontend(driver: any): DriverFrontend {
+  const fullname = driver.Fullname || driver.FullName || driver.fullName || driver.name || "Unknown";
   return {
-    id: driver.DriverID,
-    userId: driver.UserID,
-    name: driver.Fullname,
-    phone: driver.PhoneNumber,
-    email: driver.Email,
-    status: driver.Status,
-    avatar: driver.Fullname.charAt(0).toUpperCase(),
+    id: driver.DriverID || driver.driverID || driver.driver_id || driver.id || "",
+    userId: driver.UserID || driver.userID || driver.user_id || "",
+    name: fullname,
+    phone: driver.PhoneNumber || driver.phoneNumber || driver.phone || "",
+    email: driver.Email || driver.email || "",
+    status: driver.Status || driver.status || "active",
+    avatar: (fullname || "U").charAt(0).toUpperCase(),
   };
 }
 
@@ -137,8 +139,12 @@ export async function fetchAllDrivers(
     }
 
     const result: DriverApiResponse = await response.json();
+    console.log("DEBUG: fetchAllDrivers RAW API RESPONSE:", result); // Log raw response
 
     if (result.success && Array.isArray(result.data)) {
+      if (result.data.length > 0) {
+        console.log("DEBUG: Sample Raw Driver:", result.data[0]); // Log first driver raw
+      }
       return result.data.map(mapDriverBackendToFrontend);
     }
 
@@ -154,7 +160,7 @@ export async function fetchAllDrivers(
  * @param driverId - Mã tài xế (DriverID)
  * @returns Promise<DriverFrontend>
  */
-export async function fetchDriverById(driverId: number): Promise<DriverFrontend> {
+export async function fetchDriverById(driverId: string): Promise<DriverFrontend> {
   try {
     const response = await fetch(`${API_URL}/${driverId}`, {
       method: "GET",
@@ -185,7 +191,7 @@ export async function fetchDriverById(driverId: number): Promise<DriverFrontend>
  * @param userId - ID người dùng từ user_service
  * @returns Promise<DriverFrontend>
  */
-export async function fetchDriverByUserId(userId: number): Promise<DriverFrontend> {
+export async function fetchDriverByUserId(userId: string): Promise<DriverFrontend> {
   try {
     const response = await fetch(`${API_URL}/user/${userId}`, {
       method: "GET",
@@ -246,7 +252,7 @@ export async function createDriver(driverData: DriverCreateRequest): Promise<Dri
  * @returns Promise<DriverApiResponse>
  */
 export async function updateDriver(
-  driverId: number,
+  driverId: string,
   updateData: DriverUpdateRequest
 ): Promise<DriverApiResponse> {
   try {
@@ -278,7 +284,7 @@ export async function updateDriver(
  * @returns Promise<DriverApiResponse>
  */
 export async function updateDriverStatus(
-  driverId: number,
+  driverId: string,
   status: "active" | "rest"
 ): Promise<DriverApiResponse> {
   try {
@@ -308,7 +314,7 @@ export async function updateDriverStatus(
  * @param driverId - Mã tài xế (DriverID)
  * @returns Promise<DriverApiResponse>
  */
-export async function deleteDriver(driverId: number): Promise<DriverApiResponse> {
+export async function deleteDriver(driverId: string): Promise<DriverApiResponse> {
   try {
     const response = await fetch(`${API_URL}/${driverId}`, {
       method: "DELETE",
@@ -344,34 +350,18 @@ export async function fetchDriverStats(): Promise<DriverStats> {
     });
 
     if (!response.ok) {
-      throw new Error("Không thể tải thống kê");
+      throw new Error("Không thể tải thống kê tài xế");
     }
 
     const result = await response.json();
 
-    if (result.success) {
+    if (result.success && result.data) {
       return result.data;
     }
 
-    throw new Error("Dữ liệu không hợp lệ");
+    return { total: 0, active: 0, rest: 0 };
   } catch (error) {
     console.error("Lỗi fetchDriverStats:", error);
     throw error;
-  }
-}
-
-/**
- * Kiểm tra kết nối với backend
- * @returns Promise<boolean>
- */
-export async function checkBackendConnection(): Promise<boolean> {
-  try {
-    const response = await fetch(`http://localhost:3002/health`, {
-      method: "GET",
-    });
-    return response.ok;
-  } catch (error) {
-    console.error("Backend không phản hồi:", error);
-    return false;
   }
 }

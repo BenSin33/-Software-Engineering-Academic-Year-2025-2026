@@ -26,11 +26,13 @@ SET time_zone = "+00:00";
 --
 -- Cấu trúc bảng cho bảng `routes`
 --
+CREATE DATABASE IF NOT EXISTS routes CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE routes;
 
 CREATE TABLE `routes` (
   `RouteID` int(11) NOT NULL,
-  `DriverID` char(36) DEFAULT NULL,
-  `BusID` char(36) DEFAULT NULL,
+  `DriverID` VARCHAR(20) DEFAULT NULL,
+  `BusID` VARCHAR(20) DEFAULT NULL,
   `RouteName` varchar(100) DEFAULT NULL,
   `StartLocation` varchar(100) DEFAULT NULL,
   `EndLocation` varchar(100) DEFAULT NULL
@@ -39,10 +41,12 @@ CREATE TABLE `routes` (
 --
 -- Đang đổ dữ liệu cho bảng `routes`
 --
+CREATE DATABASE IF NOT EXISTS routes CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE routes;
 
 INSERT INTO `routes` (`RouteID`, `DriverID`, `BusID`, `RouteName`, `StartLocation`, `EndLocation`) VALUES
 (1, 'DRI001', '01', 'Tuyến 01', 'Bến Thành', 'Suối Tiên'),
-(2, 'DRI002', '02', 'Tuyến 02', 'Chợ Lớn', 'Suối Tiên\r\n'),
+(2, 'DRI002', '02', 'Tuyến 02', 'Chợ Lớn', 'Suối Tiên'),
 (3, 'DRI003', '03', 'Tuyến 03', 'Ngã tư Hàng Xanh', 'Đại học Sài Gòn');
 
 -- --------------------------------------------------------
