@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.post("/coordinates", async (req, res) => {
   const routeReq = req.body; // rename để tránh trùng
-
+  console.log('fe')
   let addressArr = [];
   let coordinates = [];
 
@@ -16,7 +16,7 @@ router.post("/coordinates", async (req, res) => {
       `/students/route/${routeReq.RouteID}/PickUpPoint`,
       "GET"
     );
-  
+    console.log('student: ',studentRes)
 
     addressArr = studentRes.students || [];
 
@@ -29,7 +29,7 @@ router.post("/coordinates", async (req, res) => {
         "GET"
       );
 
-
+      console.log('route: ',routeData)
       if (Array.isArray(routeData) && routeData.length > 0) {
         const startLocation = routeData[0].StartLocation;
         const endLocation = routeData[0].EndLocation;
@@ -51,8 +51,9 @@ router.post("/coordinates", async (req, res) => {
       "POST",
       addressArr
     );
-
+    
     coordinates = coordinatesData.coordinates || [];
+    console.log('cor: ',coordinatesData)
     return res.status(200).json({
       message: "Tạo mảng tọa độ tuyến đường thành công",
       coordinates,

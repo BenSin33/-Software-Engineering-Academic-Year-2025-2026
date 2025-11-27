@@ -418,7 +418,7 @@ export default function RoutesPage() {
                         <button
                             suppressHydrationWarning={true}
                             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-                            className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${showAdvancedSearch ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                            className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm text-white bg-orange-500 text-white border-none`}
                             style={showAdvancedSearch ? { backgroundColor: PRIMARY_COLOR } : {}}
                         >
                             <Filter className="w-4 h-4" />
@@ -426,7 +426,7 @@ export default function RoutesPage() {
                         </button>
                     </div>
 
-                    {showAdvancedSearch && (
+                    
                         <div className="mt-4 pt-4 border-t border-gray-200">
                             <div className="grid gap-4 mb-4 grid-cols-1 sm:grid-cols-2">
                                 <div className="flex flex-col">
@@ -464,39 +464,10 @@ export default function RoutesPage() {
                                 Xóa bộ lọc
                             </button>
                         </div>
-                    )}
+                
 
                     <div className="flex gap-2 flex-wrap mt-4">
-                        <button
-                            suppressHydrationWarning={true}
-                            onClick={() => setFilterStatus('all')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'all' ? 'text-white bg-orange-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                            style={filterStatus === 'all' ? { backgroundColor: PRIMARY_COLOR } : {}}
-                        >
-                            Tất cả
-                        </button>
-                        {/* Note: Status filters below are non-functional until 'status' is added to Route interface/data */}
-                        <button
-                            suppressHydrationWarning={true}
-                            onClick={() => setFilterStatus('active')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'active' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                        >
-                            Đang hoạt động
-                        </button>
-                        <button
-                            suppressHydrationWarning={true}
-                            onClick={() => setFilterStatus('inactive')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'inactive' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                        >
-                            Tạm ngưng
-                        </button>
-                        <button
-                            suppressHydrationWarning={true}
-                            onClick={() => setFilterStatus('maintenance')}
-                            className={`px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm ${filterStatus === 'maintenance' ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                        >
-                            Bảo trì
-                        </button>
+                    
                     </div>
                 </div>
 

@@ -13,6 +13,8 @@ services:
       - app-net
     environment:
       - TZ=Asia/Ho_Chi_Minh
+    env_file:
+      - API_gateway/.env
     depends_on:
       - auth_service
       - bus_service
@@ -58,6 +60,8 @@ services:
     command: [ "node", "Services/route_service/app.js" ]
     environment:
       - PORT=5003
+    env_file:
+      - Services/route_service/.env
     volumes:
       - .:/app
     networks:
@@ -70,6 +74,8 @@ services:
     ports:
       - "5001:5001"
     command: [ "node", "Services/student_service/app.js" ]
+    env_file:
+      - Services/student_service/.env
     environment:
       - PORT=5001
     volumes:
@@ -86,6 +92,8 @@ services:
     command: [ "node", "Services/user_service/app.js" ]
     environment:
       - PORT=5012
+    env_file:
+      - Services/user_service/.env
     volumes:
       - .:/app
     networks:
@@ -99,6 +107,8 @@ services:
     command: [ "node", "Services/schedule_service/app.js" ]
     environment:
       - PORT=5005
+    env_file:
+      - Services/schedule_service/.env
     volumes:
       - .:/app
     networks:
@@ -112,6 +122,8 @@ services:
     command: [ "node", "Services/location_service/app.js" ]
     environment:
       - PORT=5009
+    env_file:
+      - Services/location_service/.env
     volumes:
       - .:/app
     networks:
