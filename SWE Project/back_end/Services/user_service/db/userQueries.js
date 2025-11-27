@@ -4,7 +4,7 @@ const pool = require('./pool');
 const getAllUsers = async () => {
   const [rows] = await pool.query(`
     SELECT 
-      u.UserID, u.UserName, u.RoleID, r.RoleName,
+      u.UserID, u.UserName, u.RoleID, r.RoleName,u.Password,
       a.AdminID, a.FullName, a.PhoneNumber, a.Email
     FROM users u
     LEFT JOIN roles r ON u.RoleID = r.RoleID
@@ -75,11 +75,24 @@ const createAdminProfile = async (userId, fullName, phoneNumber, email) => {
   return adminId;
 };
 
-const updateUser = async (userId, username, roleId) => {
-  await pool.query(
-    'UPDATE users SET UserName = ?, RoleID = ? WHERE UserID = ?',
-    [username, roleId, userId]
-  );
+const updateUser = async (userId, username, roleId, password = null) => {
+  console.log(`🔥 UPDATE CALL #${updateCounter}`, { userId, username, roleId, password });
+  try {
+    if (password) {
+      await pool.query(
+        'UPDATE users SET UserName = ?, RoleID = ?, Password = ? WHERE UserID = ?',
+        [username, roleId, password, userId]
+      );
+    } else {
+      await pool.query(
+        'UPDATE users SET UserName = ?, RoleID = ? WHERE UserID = ?',
+        [username, roleId, userId]
+      );
+    }
+    console.log('Update successful');
+  } catch (err) {
+    console.error('Update failed:', err);
+  }
 };
 
 const updateAdminProfile = async (userId, fullName, phoneNumber, email) => {
