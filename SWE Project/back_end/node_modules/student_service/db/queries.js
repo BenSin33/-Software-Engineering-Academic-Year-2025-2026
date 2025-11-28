@@ -9,8 +9,8 @@ async function getStudents() {
 // Lấy học sinh theo tuyến (trả về StudentID + pickUpPoint)
 async function getStudentsByRouteID(id) {
   const [rows] = await pool.query(
-    'SELECT StudentID, pickUpPoint FROM students WHERE routeID = ?',
-    [id]
+    'SELECT StudentID, pickUpPoint FROM students WHERE routeID = ? AND status NOT IN (?, ?)',
+    [id, 'inactive', 'graduated']
   );
   return rows;
 }
@@ -25,24 +25,25 @@ async function getStudent(id) {
 }
 
 // Thêm học sinh mới
-async function addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID) {
+async function addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status) {
+  console.log('status: ',status)
   const sql = `
     INSERT INTO students
-      (FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  const [result] = await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID]);
+  const [result] = await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status]);
   return result.insertId;
 }
 
 // Cập nhật thông tin học sinh
-async function updateCurrentStudent(StudentID, FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID) {
+async function updateCurrentStudent(StudentID, FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status) {
   const sql = `
     UPDATE students 
-    SET FullName=?, ParentID=?, DateOfBirth=?, PickUpPoint=?, DropOffPoint=?, routeID=? 
+    SET FullName=?, ParentID=?, DateOfBirth=?, PickUpPoint=?, DropOffPoint=?, routeID=?,status=?
     WHERE StudentID=?;
   `;
-  await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID, StudentID]);
+  await pool.query(sql, [FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status, StudentID]);
 }
 
 // Xóa học sinh

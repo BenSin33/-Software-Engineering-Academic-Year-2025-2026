@@ -18,22 +18,28 @@ router.get("/search", async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const studentData = await callService("student_service", "/students", "GET");
+
     let parentData = [];
+    let parent = null;   // ⬅️ đặt bên ngoài try để dùng được sau đó
+
     try {
-      parentData = await callService("parent_service", "/parents", "GET");
+      parent = await callService("user_service", "/api/parents", "GET");
     } catch (err) {
       console.warn("⚠️ Không thể gọi parent_service:", err.message);
-      parentData = []; // vẫn chạy tiếp
     }
+
+    // Nếu gọi OK thì gán, còn failed thì để array rỗng
+    parentData = parent ? parent.data : [];
 
     // Ghép parentName
     const mergedData = studentData.map(student => {
-      const parent = parentData.find(p => p.ParentID == student.ParentID);
+      const p = parentData.find(x => x.ParentID == student.ParentID);
       return {
         ...student,
-        ParentName: parent ? parent.FullName : "Không có thông tin phụ huynh"
+        ParentName: p ? p.FullName : "Không có thông tin phụ huynh"
       };
     });
+
     res.json(mergedData);
 
   } catch (error) {
@@ -44,8 +50,8 @@ router.get("/", async (req, res) => {
 
 router.post("/add", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status } = req.body;
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status };
 
     // 🧩 Gọi student_service để thêm học sinh
     const addedStudent = await callService("student_service", "/students/add", "POST", formData);
@@ -88,8 +94,9 @@ router.post("/delete/:id", async (req, res) => {
 });
 router.post("/edit/:id", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status } = req.body;
+    console.log('status: ',status)
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status };
 
     // 🧩 Gọi student_service để cập nhật học sinh
     const result = await callService("student_service", `/students/edit/${req.params.id}`, "POST", formData);
