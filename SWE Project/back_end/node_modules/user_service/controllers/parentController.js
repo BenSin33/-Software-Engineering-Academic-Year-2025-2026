@@ -64,7 +64,9 @@ const createParent = async (req, res) => {
 // =============================================
 const getAllParents = async (req, res) => {
   try {
+    console.log('aaa')
     const parents = await queries.getAllParents();
+    console.log('bs: ',parents)
     success(res, parents, 'Lấy danh sách phụ huynh thành công');
   } catch (err) {
     console.error('Error getting all parents:', err);

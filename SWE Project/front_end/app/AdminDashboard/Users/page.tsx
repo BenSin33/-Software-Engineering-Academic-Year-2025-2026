@@ -508,9 +508,9 @@ export default function UserManagementPage() {
             }
         }
 
-        // setShowModal(false);
-        // setUserToEdit(null);
-        // resetForm();
+        setShowModal(false);
+        setUserToEdit(null);
+        resetForm();
     };
 
     const resetForm = () => {
