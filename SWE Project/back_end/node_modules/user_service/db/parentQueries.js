@@ -106,8 +106,22 @@ const getParentByUserId = async (userId) => {
 // ============================
 const getAllParents = async () => {
   try {
-    const [rows] = await pool.query('SELECT * FROM parents ORDER BY CreatedAt DESC');
+    // Kiểm tra cột CreatedAt có tồn tại không
+    const [hasColumn] = await pool.query(`
+      SELECT 1 
+      FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'parents'
+        AND column_name = 'CreatedAt'
+    `);
+
+    const query = hasColumn.length > 0
+      ? 'SELECT * FROM parents ORDER BY CreatedAt DESC'
+      : 'SELECT * FROM parents';
+
+    const [rows] = await pool.query(query);
     return rows;
+
   } catch (error) {
     console.error('Error fetching all parents:', error);
     throw error;

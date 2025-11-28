@@ -10,6 +10,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/accounts',accountRoutes)
 
+
 const PORT = process.env.PORT || 5010;
 app.listen(PORT, () => {
   console.log(`Auth Service running on http://localhost:${PORT}`);

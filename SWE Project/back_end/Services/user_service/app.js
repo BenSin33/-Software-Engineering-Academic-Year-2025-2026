@@ -7,7 +7,7 @@ const driverRoutes = require('./routes/driverRoutes');
 
 
 const app = express();
-const PORT = process.env.PORT || 3019;
+const PORT = process.env.PORT || 5012;
 
 app.use(cors());
 app.use(express.json());
