@@ -11,9 +11,9 @@ const validateCreateUser = [
     .isLength({ min: 6 })
     .withMessage('Mật khẩu phải từ 6 ký tự'),
   body('roleId')
-    .optional()
-    .isUUID(4)
-    .withMessage('RoleID phải là UUID v4'),
+  .optional()
+  .isIn(['R001', 'R002', 'R003'])
+  .withMessage('RoleID phải là R001, R002 hoặc R003'),
   // Admin fields
   body('fullName').optional().trim().isLength({ min: 2 }),
   body('phoneNumber').optional().matches(/^[\d\s\-\+\(\)]+$/),

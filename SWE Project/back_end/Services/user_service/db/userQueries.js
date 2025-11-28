@@ -76,7 +76,6 @@ const createAdminProfile = async (userId, fullName, phoneNumber, email) => {
 };
 
 const updateUser = async (userId, username, roleId, password = null) => {
-  console.log(`🔥 UPDATE CALL #${updateCounter}`, { userId, username, roleId, password });
   try {
     if (password) {
       await pool.query(
