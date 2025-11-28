@@ -36,8 +36,29 @@ const getUserByUsername = async (username) => {
   return rows[0];
 };
 
+const generateNextUserId = async () => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT UserID FROM users WHERE UserID LIKE 'U%' ORDER BY LENGTH(UserID) DESC, UserID DESC LIMIT 1"
+    );
+
+    if (rows.length === 0) {
+      return 'U001';
+    }
+
+    const lastId = rows[0].UserID;
+    const numericPart = parseInt(lastId.substring(1));
+    const nextId = numericPart + 1;
+
+    return `U${nextId.toString().padStart(3, '0')}`;
+  } catch (error) {
+    console.error('Error generating UserID:', error);
+    throw error;
+  }
+};
+
 const createUser = async (username, password, roleId = null) => {
-  const userId = uuidv4();
+  const userId = await generateNextUserId();
   await pool.query(
     'INSERT INTO users (UserID, RoleID, UserName, Password) VALUES (?, ?, ?, ?)',
     [userId, roleId, username, password]

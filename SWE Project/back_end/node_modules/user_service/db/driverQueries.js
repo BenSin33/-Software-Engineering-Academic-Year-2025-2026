@@ -73,7 +73,7 @@ const createDriverUUID = async (userId, fullName, phoneNumber, email, status = '
 const getAllDrivers = async () => {
   try {
     const [rows] = await pool.query(
-      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, CreatedAt 
+      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, BusID, RouteID, CreatedAt 
        FROM drivers 
        ORDER BY CreatedAt DESC`
     );
@@ -180,6 +180,7 @@ const getDriverStats = async () => {
 };
 
 module.exports = {
+  createDriver: createDriverSequential,
   createDriverSequential,
   createDriverUUID,
   getAllDrivers,
