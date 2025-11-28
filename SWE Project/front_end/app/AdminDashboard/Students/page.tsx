@@ -186,7 +186,7 @@ export default function StudentsPage() {
 
     const validateForm = (): boolean => {
         const errors: Record<string, string> = {};
-
+        console.log('fomr: ',formData)
         if (!formData.FullName.trim()) {
             errors.FullName = 'Vui lòng nhập họ tên học sinh';
         } else if (formData.FullName.trim().length < 3) {
@@ -216,14 +216,14 @@ export default function StudentsPage() {
             errors.DropOffPoint = 'Vui lòng nhập điểm trả';
         }
 
-        if (!formData.routeID.trim()) {
+        if (!formData.routeID) {
             errors.routeID = 'Vui lòng chọn mã tuyến';
         }
 
         if (!formData.status) {
             errors.status = 'Vui lòng chọn trạng thái';
         }
-
+        
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
     };

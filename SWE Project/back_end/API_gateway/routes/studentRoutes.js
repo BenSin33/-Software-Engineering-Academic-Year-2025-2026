@@ -50,8 +50,8 @@ router.get("/", async (req, res) => {
 
 router.post("/add", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status } = req.body;
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status };
 
     // 🧩 Gọi student_service để thêm học sinh
     const addedStudent = await callService("student_service", "/students/add", "POST", formData);
@@ -94,8 +94,9 @@ router.post("/delete/:id", async (req, res) => {
 });
 router.post("/edit/:id", async (req, res) => {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
-    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID };
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status } = req.body;
+    console.log('status: ',status)
+    const formData = { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status };
 
     // 🧩 Gọi student_service để cập nhật học sinh
     const result = await callService("student_service", `/students/edit/${req.params.id}`, "POST", formData);
