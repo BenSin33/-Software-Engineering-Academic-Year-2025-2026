@@ -10,14 +10,31 @@ async function getSchedulesByRouteID(routeID) {
   return rows;
 }
 
-async function addSchedule(RouteID, Date, StartTime,EndTime) {
+async function addSchedule(RouteID, DriverID, Date, StartTime,EndTime) {
   const sql = `
     INSERT INTO schedules
-      (RouteID, Date, TimeStart,TimeEnd)
-    VALUES (?, ?, ?, ?)
+      (RouteID, DriverID, Date, TimeStart, TimeEnd, status)
+    VALUES (?, ?, ?, ?, ?, 'NOT_STARTED')
   `;
-  const [result] = await pool.query(sql, [RouteID, Date, StartTime,EndTime]);
+  const [result] = await pool.query(sql, [RouteID, DriverID, Date, StartTime,EndTime]);
   return result.insertId;
+}
+
+async function getSchedulesByDriverID(driverID) {
+  const sql = `
+    SELECT 
+      ScheduleID as id,
+      RouteID, 
+      Date as date,
+      TimeStart as startTime,
+      TimeEnd as endTime,
+      status
+    FROM schedules
+    WHERE DriverID = ?
+    ORDER BY Date DESC, TimeStart ASC
+  `;
+  const [rows] = await pool.query(sql, [driverID]);
+  return rows;
 }
 
 async function updateSchedule(ScheduleID, RouteID, Date, StartTime,EndTime) {
@@ -39,5 +56,6 @@ module.exports = {
   getSchedulesByRouteID,
   addSchedule,
   updateSchedule,
-  deleteSchedule
+  deleteSchedule,
+  getSchedulesByDriverID
 };

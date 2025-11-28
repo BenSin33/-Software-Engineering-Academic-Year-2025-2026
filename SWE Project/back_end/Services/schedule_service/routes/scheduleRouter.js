@@ -4,6 +4,7 @@ const scheduleRouter = Router();
 
 // Các route khác
 scheduleRouter.get('/', scheduleController.getAllSchedules);
+scheduleRouter.get('/driver/:driverID', scheduleController.getSchedulesByDriver);
 scheduleRouter.post('/add', scheduleController.addNewSchedule);
 scheduleRouter.put('/edit/:scheduleID',scheduleController.updateSchedule)
 scheduleRouter.delete('/delete/:scheduleID',scheduleController.deleteSchedule)

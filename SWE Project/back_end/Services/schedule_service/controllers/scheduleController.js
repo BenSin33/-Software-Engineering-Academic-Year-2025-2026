@@ -38,15 +38,20 @@ async function getSchedulesByRouteID(req, res) {
 // 🟦 Thêm lịch trình mới
 async function addNewSchedule(req, res) {
   try {
-    const { RouteID, Date, StartTime, EndTime } = req.body;
+    const { RouteID, DriverID, Date, StartTime, EndTime } = req.body;
 
-    const insertId = await queries.addSchedule(RouteID, Date, StartTime, EndTime);
+    if (!DriverID) {
+        return res.status(400).json({ error: "Thiếu thông tin Tài xế (DriverID)" });
+    }
+
+    const insertId = await queries.addSchedule(RouteID, DriverID, Date, StartTime, EndTime);
 
     res.status(201).json({
       message: "Thêm lịch trình thành công",
       schedule: {
         ScheduleID: insertId,
         RouteID,
+        DriverID,
         Date,
         StartTime,
         EndTime,
@@ -58,6 +63,18 @@ async function addNewSchedule(req, res) {
       error: "Không thể thêm lịch trình",
       details: error.message,
     });
+  }
+}
+
+async function getSchedulesByDriver(req, res) {
+  try {
+    const { driverID } = req.params;
+    const schedules = await queries.getSchedulesByDriverID(driverID);
+    
+    res.status(200).json(schedules);
+  } catch (error) {
+    console.error("Lỗi lấy lịch trình driver:", error);
+    res.status(500).json({ message: "Lỗi khi lấy lịch trình của tài xế" });
   }
 }
 
@@ -104,4 +121,5 @@ module.exports = {
   addNewSchedule,
   updateSchedule,
   deleteSchedule,
+  getSchedulesByDriver
 };
