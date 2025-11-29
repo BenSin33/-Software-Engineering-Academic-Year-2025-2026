@@ -8,6 +8,7 @@ scheduleRouter.get('/driver/my-schedules', authMiddleware.verifyToken, scheduleC
 scheduleRouter.get('/driver/:driverID', scheduleController.getSchedulesByDriverID); 
 scheduleRouter.get('/:routeID', scheduleController.getSchedulesByRouteID);
 scheduleRouter.get('/', scheduleController.getAllSchedules);
+scheduleRouter.get('/driver/:driverID', scheduleController.getSchedulesByDriver);
 scheduleRouter.post('/add', scheduleController.addNewSchedule);
 scheduleRouter.put('/edit/:scheduleID',scheduleController.updateSchedule)
 scheduleRouter.delete('/delete/:scheduleID',scheduleController.deleteSchedule)

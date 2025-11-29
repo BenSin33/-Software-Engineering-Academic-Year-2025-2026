@@ -132,6 +132,17 @@ const getDriverStats = async (req, res) => {
   }
 };
 
+const getActiveDrivers = async (req, res) => {
+  try {
+    const drivers = await queries.getActiveDrivers();
+    // Trả về mảng JSON gọn nhẹ: [{ DriverID: 'D001', FullName: '...' }, ...]
+    success(res, drivers, 'Lấy danh sách tài xế active thành công');
+  } catch (err) {
+    console.error('Error getting active drivers:', err);
+    error(res, err.message);
+  }
+};
+
 module.exports = {
   createDriverWithAccount, // khi cần tạo cả user account
   createDriver,            // khi đã có userId
@@ -140,5 +151,6 @@ module.exports = {
   getDriverByUserId,
   updateDriver,
   deleteDriver,
-  getDriverStats
+  getDriverStats,
+  getActiveDrivers
 };

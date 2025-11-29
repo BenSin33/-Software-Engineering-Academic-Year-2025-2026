@@ -179,6 +179,22 @@ const getDriverStats = async () => {
   }
 };
 
+const getActiveDrivers = async () => {
+  try {
+    // Chỉ lấy DriverID và FullName, và chỉ lấy Status = 'Active'
+    const [rows] = await pool.query(
+      `SELECT DriverID, FullName 
+       FROM drivers 
+       WHERE Status = 'Active' 
+       ORDER BY FullName ASC`
+    );
+    return rows;
+  } catch (err) {
+    console.error('Lỗi khi lấy danh sách tài xế active:', err);
+    throw new Error('Không thể lấy danh sách tài xế active: ' + err.message);
+  }
+};
+
 module.exports = {
   createDriver: createDriverSequential,
   createDriverSequential,
@@ -188,5 +204,6 @@ module.exports = {
   getDriverByUserId,
   updateDriver,
   deleteDriver,
-  getDriverStats
+  getDriverStats,
+  getActiveDrivers
 };

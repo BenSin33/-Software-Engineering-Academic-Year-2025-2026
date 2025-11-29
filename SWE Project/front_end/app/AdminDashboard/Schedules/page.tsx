@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, ReactElement } from "react";
 // Import icons
 import { Clock, CheckCircle, XCircle, Bus, UserCheck, Calendar, Filter, Plus, Edit, Trash2, MapPin, Eye, ChevronLeft, ChevronRight, X, Info } from "lucide-react";
 import MapView from "@/components/Layouts/MapView";
+import { callService } from "@/utils/callService";
 
 // ====================================================================
 // 1. INTERFACES & TYPES (Giao diện dữ liệu)
@@ -20,6 +21,7 @@ interface Schedule {
     RouteName: string;
     BusID: string;
     DriverName: string;
+    DriverID: number;
     StartTime: string;
     EndTime: string;
     Date: string;
@@ -29,6 +31,7 @@ interface Schedule {
 interface ScheduleFormData {
     RouteID: string;
     StartTime: string;
+    DriverID: string;
     EndTime: string;
     Date: string;
 }
@@ -260,10 +263,13 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
     const isEdit = !!schedule;
     const today = new Date().toISOString().split('T')[0];
 
+    const [driverList, setDriverList] = useState<any[]>([]);
+
     const getInitialFormData = (s: Schedule | null): ScheduleFormData => {
         if (s) {
             return {
                 RouteID: String(s.RouteID),
+                DriverID: s.DriverID ? String(s.DriverID) : '',
                 Date: s.Date || today,
                 StartTime: s.StartTime,
                 EndTime: s.EndTime,
@@ -272,6 +278,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
         return {
             RouteID: '',
             Date: today,
+            DriverID: '',
             StartTime: '08:00',
             EndTime: '10:00',
         };
@@ -279,6 +286,7 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
 
     const [formData, setFormData] = useState<ScheduleFormData>(getInitialFormData(schedule));
 
+    // Cập nhật state khi prop schedule thay đổi (cho edit)
     useEffect(() => {
         setFormData(getInitialFormData(schedule));
     }, [schedule, isOpen]); // Reset form khi mở modal
@@ -299,25 +307,31 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
     return (
         <ModalWrapper onClose={onClose}>
             <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-5">{isEdit ? 'Chỉnh sửa Lịch trình' : 'Tạo Lịch trình mới'}</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-5">
+                    {isEdit ? 'Chỉnh sửa Lịch trình' : 'Tạo Lịch trình mới'}
+                </h3>
                 <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        {/* 1. Input Tuyến đường (RouteID) */}
                         <div className="mb-4 col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Route ID (Mã Tuyến) <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tuyến đường <span className="text-red-500">*</span></label>
+
                             <input
                                 type="text"
                                 name="RouteID"
                                 value={formData.RouteID}
                                 onChange={handleChange}
                                 required
-                                placeholder="Nhập Route ID (ví dụ: R001)..."
+                                placeholder="Nhập Tuyến..."
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                             />
                             <p className="text-xs text-gray-500 mt-1">Hệ thống sẽ tự động tìm Tài xế và Xe dựa trên Route ID này.</p>
                         </div>
 
+                        {/* 2. Input Ngày (Date) */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Ngày chạy <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Ngày <span className="text-red-500">*</span></label>
                             <input
                                 type="date"
                                 name="Date"
@@ -328,8 +342,9 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                             />
                         </div>
 
+                        {/* 3. Input Thời gian Bắt đầu (StartTime) */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Giờ bắt đầu <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian Bắt đầu <span className="text-red-500">*</span></label>
                             <input
                                 type="time"
                                 name="StartTime"
@@ -340,8 +355,9 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                             />
                         </div>
 
+                        {/* 4. Input Thời gian Kết thúc (EstimatedEndTime) */}
                         <div className="mb-4 col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Giờ kết thúc (dự kiến) <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian Kết thúc (dự kiến) <span className="text-red-500">*</span></label>
                             <input
                                 type="time"
                                 name="EndTime"
@@ -351,6 +367,32 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                             />
                         </div>
+                    </div>
+
+                    {/* --- DROPDOWN TÀI XẾ (Đã cập nhật dùng API) --- */}
+                    <div className="mb-4 col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Chọn Tài xế <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="DriverID"
+                            value={formData.DriverID}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm bg-white"
+                        >
+                            <option value="">-- Chọn Tài xế --</option>
+                            {/* Render danh sách lấy từ API */}
+                            {driverList.length > 0 ? (
+                                driverList.map((driver: any) => (
+                                    <option key={driver.DriverID} value={driver.DriverID}>
+                                        {driver.FullName} (ID: {driver.DriverID})
+                                    </option>
+                                ))
+                            ) : (
+                                <option disabled>Đang tải danh sách...</option>
+                            )}
+                        </select>
                     </div>
 
                     <div className="flex justify-end gap-3 mt-6">
