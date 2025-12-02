@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Bus, MessageSquare } from 'lucide-react';
 import MapView from '@/components/Layouts/MapView';
 import MessagePanel from '@/components/Driver/MessagePanel';
+import ReportIncidentModal from '@/components/Driver/ReportIncidentModal';
 import { userIdToMessageId } from '@/utils/idConverter';
 import './DriverJourney.css';
 
@@ -34,6 +35,7 @@ export default function DriverJourneyPage() {
   const [students, setStudents] = useState(initialStudents);
   const [showMessagePanel, setShowMessagePanel] = useState(false);
   const [driverId, setDriverId] = useState<number | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // 🔧 Lấy driver ID khi component mount
   useEffect(() => {
@@ -62,6 +64,13 @@ export default function DriverJourneyPage() {
     ));
   };
 
+  const handleReportSubmit = (data: any) => {
+    console.log("Dữ liệu báo cáo:", data);
+    // Sau này gọi API gửi về server ở đây
+    alert("Đã gửi báo cáo thành công!");
+    setShowReportModal(false);
+  };
+
   return (
     <div className="driver-journey-page">
       {/* Header */}
@@ -76,7 +85,11 @@ export default function DriverJourneyPage() {
             <MessageSquare size={16} />
             TIN NHẮN
           </button>
-          <button className="report-button">
+          <button 
+            className="report-button"
+            onClick={() => setShowReportModal(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }} 
+            >
             <AlertTriangle size={16} />
             BÁO CÁO SỰ CỐ
           </button>
@@ -149,6 +162,12 @@ export default function DriverJourneyPage() {
           </div>
         </div>
       )}
+
+      <ReportIncidentModal 
+        isOpen={showReportModal} 
+        onClose={() => setShowReportModal(false)} 
+        onSubmit={handleReportSubmit} 
+      />
 
       <style jsx>{`
         .message-modal-overlay {
