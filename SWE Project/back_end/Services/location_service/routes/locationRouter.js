@@ -21,4 +21,12 @@ router.post('/coordinates',locationController.getCoordinatesArray);
 // // Xóa tracking
 // router.delete('/tracking/:busId', locationController.deleteTracking);
 
+// 1. Driver gửi tọa độ (POST)
+// URL: /Location/update/:scheduleId
+router.post('/update/:scheduleId', locationController.updateLocation);
+
+// 2. Admin lấy tọa độ mới nhất (GET)
+// URL: /Location/latest/:scheduleId
+router.get('/latest/:scheduleId', locationController.getLatestLocation);
+
 module.exports = router;

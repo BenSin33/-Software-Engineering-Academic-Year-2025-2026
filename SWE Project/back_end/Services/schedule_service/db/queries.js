@@ -10,14 +10,13 @@ async function getSchedulesByRouteID(routeID) {
   return rows;
 }
 
-async function addSchedule(RouteID, DriverID, Date, StartTime, EndTime) {
+async function addSchedule(RouteID, DriverID, BusID, Date, StartTime, EndTime) {
   const sql = `
     INSERT INTO schedules
-      (RouteID, DriverID, Date, TimeStart, TimeEnd)
-    VALUES (?, ?, ?, ?, ?)
+      (RouteID, DriverID, BusID, Date, TimeStart, TimeEnd, Status)
+    VALUES (?, ?, ?, ?, ?, ?, 'NOT_STARTED')
   `;
-  // Lưu ý: Thứ tự biến phải khớp với dấu ?
-  const [result] = await pool.query(sql, [RouteID, DriverID, Date, StartTime, EndTime]);
+  const [result] = await pool.query(sql, [RouteID, DriverID, BusID, Date, StartTime, EndTime]);
   return result.insertId;
 }
 
@@ -46,11 +45,17 @@ async function getSchedulesByDriverID(driverID) {
   return rows;
 }
 
+async function updateScheduleStatus(scheduleID, status) {
+  const sql = `UPDATE schedules SET Status = ? WHERE ScheduleID = ?`;
+  await pool.query(sql, [status, scheduleID]);
+}
+
 module.exports = {
   getSchedules,
   getSchedulesByRouteID,
   addSchedule,
   updateSchedule,
   deleteSchedule,
-  getSchedulesByDriverID
+  getSchedulesByDriverID,
+  updateScheduleStatus
 };

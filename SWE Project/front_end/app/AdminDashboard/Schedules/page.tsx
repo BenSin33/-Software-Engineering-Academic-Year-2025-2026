@@ -164,27 +164,34 @@ const useScheduleActions = (
       let result: Schedule;
 
       if (isEdit && scheduleId) {
-        // Cập nhật
+        // --- TRƯỜNG HỢP SỬA ---
         result = await ScheduleService.updateSchedule(scheduleId, data);
+        
+        // Cập nhật UI ngay lập tức (Optimistic update) vì Sửa thường trả về đủ data
         if (setSchedules) {
           setSchedules(prev =>
-            prev.map(s => (s.ScheduleID === result.ScheduleID ? result : s))
+            prev.map(s => (s.ScheduleID === result.ScheduleID ? { ...s, ...result } : s))
           );
         }
+        
+        // Gọi load lại cho chắc chắn đồng bộ
+        refetchSchedules(); 
         alert(`✅ Cập nhật lịch trình thành công!`);
+        
       } else {
-        // Thêm mới
-        result = await ScheduleService.createSchedule(data);
-        if (setSchedules) {
-          // Thêm item mới vào đầu danh sách ngay lập tức
-          setSchedules(prev => [result, ...prev]);
-        }
-        alert(`✅ Tạo lịch trình mới thành công!`);
-      }
+        // --- TRƯỜNG HỢP THÊM MỚI (Đoạn cần sửa) ---
+        await ScheduleService.createSchedule(data);
+        
+        // ❌ BỎ ĐOẠN NÀY: Không tự setSchedules thủ công nữa vì dữ liệu trả về bị thiếu tên
+        // if (setSchedules) {
+        //   setSchedules(prev => [result, ...prev]);
+        // }
 
-      // Nếu không có setSchedules thì gọi API load lại toàn bộ
-      if (!setSchedules) {
-        refetchSchedules();
+        // ✅ THÊM ĐOẠN NÀY: Bắt buộc tải lại danh sách từ server
+        // Để server thực hiện các lệnh JOIN và trả về đầy đủ Tên Tài Xế, Biển Số, Tên Tuyến...
+        await refetchSchedules(); 
+        
+        alert(`✅ Tạo lịch trình mới thành công!`);
       }
 
       return true;
@@ -259,17 +266,59 @@ const ModalWrapper = ({ children, onClose }: { children: React.ReactNode, onClos
     </div>
 );
 
+// Tìm component ScheduleFormModal và thay thế nội dung bên trong như sau:
+
 const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: any) => {
     const isEdit = !!schedule;
     const today = new Date().toISOString().split('T')[0];
 
+    // State lưu danh sách dữ liệu tải từ API
     const [driverList, setDriverList] = useState<any[]>([]);
+    const [routeList, setRouteList] = useState<any[]>([]); // <--- THÊM MỚI
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Hàm lấy dữ liệu (Tài xế + Tuyến đường)
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!isOpen) return;
+            
+            setIsLoading(true);
+            try {
+                // 1. Gọi API lấy danh sách Tài xế
+                const driverRes = await fetch('http://localhost:5000/api/drivers');
+                if (driverRes.ok) {
+                    const data = await driverRes.json();
+                    setDriverList(Array.isArray(data) ? data : (data.data || []));
+                }
+
+                // 2. Gọi API lấy danh sách Tuyến đường (THÊM MỚI)
+                // Lưu ý: Đảm bảo Gateway có route này (xem hướng dẫn Bước 2 bên dưới nếu chưa có)
+                console.log("🚀 Đang gọi API Routes...");
+            const routeRes = await fetch('http://localhost:5000/Routes'); // Chữ R hoa
+            
+            if (routeRes.ok) {
+                const data = await routeRes.json();
+                console.log("✅ Kết quả API Routes:", data); // Xem cái này trong F12 Console
+                
+                const list = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+                setRouteList(list);
+            } else {
+                console.error("❌ API Routes báo lỗi:", routeRes.status);
+            }
+        } catch (error) {
+            console.error("❌ Lỗi mạng:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
+}, [isOpen]);
 
     const getInitialFormData = (s: Schedule | null): ScheduleFormData => {
         if (s) {
             return {
                 RouteID: String(s.RouteID),
-                DriverID: s.DriverID ? String(s.DriverID) : '',
+                DriverID: s.DriverID ? String(s.DriverID) : '', 
                 Date: s.Date || today,
                 StartTime: s.StartTime,
                 EndTime: s.EndTime,
@@ -277,8 +326,8 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
         }
         return {
             RouteID: '',
-            Date: today,
             DriverID: '',
+            Date: today,
             StartTime: '08:00',
             EndTime: '10:00',
         };
@@ -286,10 +335,9 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
 
     const [formData, setFormData] = useState<ScheduleFormData>(getInitialFormData(schedule));
 
-    // Cập nhật state khi prop schedule thay đổi (cho edit)
     useEffect(() => {
         setFormData(getInitialFormData(schedule));
-    }, [schedule, isOpen]); // Reset form khi mở modal
+    }, [schedule, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -313,23 +361,50 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                 <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                        {/* 1. Input Tuyến đường (RouteID) */}
+                        {/* 1. Chọn Tuyến đường (ĐÃ NÂNG CẤP THÀNH SELECT) */}
                         <div className="mb-4 col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Tuyến đường <span className="text-red-500">*</span></label>
-
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Nhập Route ID <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 type="text"
                                 name="RouteID"
                                 value={formData.RouteID}
                                 onChange={handleChange}
                                 required
-                                placeholder="Nhập Tuyến..."
+                                placeholder="Nhập số ID (VD: 1, 2)... Đừng nhập tên!"
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                             />
-                            <p className="text-xs text-gray-500 mt-1">Hệ thống sẽ tự động tìm Tài xế và Xe dựa trên Route ID này.</p>
+                        
                         </div>
 
-                        {/* 2. Input Ngày (Date) */}
+                        {/* 2. Chọn Tài xế */}
+                        <div className="mb-4 col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Chọn Tài xế <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                name="DriverID"
+                                value={formData.DriverID}
+                                onChange={handleChange}
+                                required
+                                disabled={isLoading}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm bg-white"
+                            >
+                                <option value="">-- Chọn Tài xế --</option>
+                                {driverList.length > 0 ? (
+                                    driverList.map((driver: any) => (
+                                        <option key={driver.DriverID} value={driver.DriverID}>
+                                            {driver.FullName} ({driver.DriverID})
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled>Không tìm thấy tài xế nào</option>
+                                )}
+                            </select>
+                        </div>
+
+                        {/* 3. Input Ngày */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Ngày <span className="text-red-500">*</span></label>
                             <input
@@ -342,9 +417,9 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                             />
                         </div>
 
-                        {/* 3. Input Thời gian Bắt đầu (StartTime) */}
+                        {/* 4. Input StartTime */}
                         <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian Bắt đầu <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Giờ Bắt đầu <span className="text-red-500">*</span></label>
                             <input
                                 type="time"
                                 name="StartTime"
@@ -355,9 +430,9 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                             />
                         </div>
 
-                        {/* 4. Input Thời gian Kết thúc (EstimatedEndTime) */}
+                        {/* 5. Input EndTime */}
                         <div className="mb-4 col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian Kết thúc (dự kiến) <span className="text-red-500">*</span></label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Giờ Kết thúc <span className="text-red-500">*</span></label>
                             <input
                                 type="time"
                                 name="EndTime"
@@ -369,36 +444,10 @@ const ScheduleFormModal = ({ isOpen, onClose, schedule, onSave, formatDate }: an
                         </div>
                     </div>
 
-                    {/* --- DROPDOWN TÀI XẾ (Đã cập nhật dùng API) --- */}
-                    <div className="mb-4 col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Chọn Tài xế <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            name="DriverID"
-                            value={formData.DriverID}
-                            onChange={handleChange}
-                            required
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm bg-white"
-                        >
-                            <option value="">-- Chọn Tài xế --</option>
-                            {/* Render danh sách lấy từ API */}
-                            {driverList.length > 0 ? (
-                                driverList.map((driver: any) => (
-                                    <option key={driver.DriverID} value={driver.DriverID}>
-                                        {driver.FullName} (ID: {driver.DriverID})
-                                    </option>
-                                ))
-                            ) : (
-                                <option disabled>Đang tải danh sách...</option>
-                            )}
-                        </select>
-                    </div>
-
                     <div className="flex justify-end gap-3 mt-6">
                         <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-50 transition">Hủy</button>
-                        <button type="submit" className={`px-4 py-2 text-sm font-medium rounded-md text-white ${PRIMARY_COLOR} ${PRIMARY_HOVER} transition shadow-md shadow-orange-300`}>
-                            {isEdit ? 'Lưu thay đổi' : 'Tạo lịch trình'}
+                        <button type="submit" disabled={isLoading} className={`px-4 py-2 text-sm font-medium rounded-md text-white ${PRIMARY_COLOR} ${PRIMARY_HOVER} transition shadow-md shadow-orange-300`}>
+                            {isLoading ? 'Đang tải...' : (isEdit ? 'Lưu thay đổi' : 'Tạo lịch trình')}
                         </button>
                     </div>
                 </form>

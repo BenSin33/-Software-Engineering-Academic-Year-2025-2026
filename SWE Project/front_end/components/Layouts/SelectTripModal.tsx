@@ -42,27 +42,30 @@ export default function SelectTripModal({ isOpen, onClose, trips, onSelect }: Mo
             </div>
           ) : (
             <div className="space-y-3">
-              {trips.map((trip) => (
+              {trips.map((trip: any) => (
                 <div 
-                  key={trip.id} 
-                  className="border border-gray-200 rounded-lg p-4 hover:border-yellow-400 hover:bg-yellow-50 transition cursor-pointer group"
-                  onClick={() => onSelect(trip.id)}
+                  // ✅ SỬA 1: Dùng ScheduleID làm key
+                  key={trip.ScheduleID} 
+                  
+                  className="border border-gray-200 rounded-lg p-4 hover:border-orange-400 hover:bg-orange-50 transition cursor-pointer group"
+                  
+                  // ✅ SỬA 2: Truyền ScheduleID vào hàm select
+                  onClick={() => onSelect(trip.ScheduleID)}
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-gray-800 group-hover:text-yellow-700">{trip.routeName}</h4>
-                      <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                        <Clock size={14} />
-                        <span>{trip.startTime} - {trip.endTime}</span>
-                      </div>
-                      {/* Bạn có thể thêm ngày tháng nếu cần */}
-                      {/* <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
-                         <span>Ngày: {new Date(trip.date).toLocaleDateString('vi-VN')}</span>
-                      </div> */}
-                    </div>
-                    <button className="px-3 py-1.5 bg-yellow-500 text-white text-sm font-semibold rounded shadow-sm group-hover:bg-yellow-600">
-                      Chọn
-                    </button>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-gray-800">
+                       {/* Hiển thị tên tuyến hoặc ID */}
+                       {trip.RouteName || `Tuyến #${trip.RouteID}`}
+                    </span>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      {trip.TimeStart?.slice(0, 5)}
+                    </span>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 flex gap-2">
+                     <span>📅 {new Date(trip.Date).toLocaleDateString('vi-VN')}</span>
+                     <span>•</span>
+                     <span>🆔 {trip.ScheduleID}</span>
                   </div>
                 </div>
               ))}

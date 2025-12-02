@@ -1,7 +1,7 @@
-const queries = require('../db/queries'); // import file queries bạn vừa tạo
-const pool = require('../db/pool'); // import pool để truy vấn trực tiếp khi cần
+const queries = require('../db/queries'); 
+const pool = require('../db/pool'); 
 
-// 🟩 Lấy tất cả lịch trình
+// 1. Lấy tất cả lịch trình
 async function getAllSchedules(req, res) {
   try {
     const data = await queries.getSchedules();
@@ -12,7 +12,7 @@ async function getAllSchedules(req, res) {
   }
 }
 
-// 🟨 Lấy lịch trình theo RouteID
+// 2. Lấy lịch trình theo RouteID
 async function getSchedulesByRouteID(req, res) {
   const { routeID } = req.params;
   try {
@@ -23,40 +23,26 @@ async function getSchedulesByRouteID(req, res) {
         schedules: [],
       });
     }
-
-    res.status(200).json({
-      message: "Fetch lịch trình theo tuyến thành công",
-      schedules,
-    });
+    res.status(200).json({ message: "Thành công", schedules });
   } catch (err) {
-    console.error("Lỗi khi lấy lịch trình:", err);
-    return res.status(500).json({
-      message: "Lỗi server khi lấy danh sách lịch trình",
-    });
+    res.status(500).json({ message: "Lỗi server" });
   }
 }
 
-// 🟦 Thêm lịch trình mới
+// 3. Thêm lịch trình mới
 async function addNewSchedule(req, res) {
   try {
-    // Nhớ destructure thêm DriverID
-    const { RouteID, DriverID, Date, StartTime, EndTime } = req.body; 
+    const { RouteID, DriverID, BusID, Date, StartTime, EndTime } = req.body; 
 
     if (!DriverID) {
         return res.status(400).json({ message: "Cần phải gán Tài xế cho lịch trình" });
     }
 
-    const insertId = await queries.addSchedule(RouteID, Date, StartTime, EndTime);
+    const insertId = await queries.addSchedule(RouteID, DriverID, BusID, Date, StartTime, EndTime);
 
     res.status(201).json({
       message: "Thêm lịch trình thành công",
-      schedule: {
-        ScheduleID: insertId,
-        RouteID,
-        Date,
-        StartTime,
-        EndTime,
-      },
+      schedule: { ScheduleID: insertId, RouteID, DriverID, BusID, Date, StartTime, EndTime },
     });
   } catch (error) {
     console.error("❌ Lỗi khi thêm lịch trình:", error);
@@ -64,19 +50,7 @@ async function addNewSchedule(req, res) {
   }
 }
 
-async function getSchedulesByDriver(req, res) {
-  try {
-    const { driverID } = req.params;
-    const schedules = await queries.getSchedulesByDriverID(driverID);
-    
-    res.status(200).json(schedules);
-  } catch (error) {
-    console.error("Lỗi lấy lịch trình driver:", error);
-    res.status(500).json({ message: "Lỗi khi lấy lịch trình của tài xế" });
-  }
-}
-
-// 🟧 Cập nhật lịch trình
+// 4. Cập nhật lịch trình
 async function updateSchedule(req, res) {
   try {
     const { scheduleID } = req.params;
@@ -85,7 +59,7 @@ async function updateSchedule(req, res) {
     await queries.updateSchedule(scheduleID, RouteID, DriverID, Date, StartTime, EndTime);
 
     res.status(200).json({
-      message: "Cập nhật lịch trình thành công",
+      message: "Cập nhật thành công",
       schedule: { ScheduleID: scheduleID, RouteID, DriverID, Date, StartTime, EndTime },
     });
   } catch (error) {
@@ -93,68 +67,37 @@ async function updateSchedule(req, res) {
   }
 }
 
-// 🟥 Xóa lịch trình
+// 5. Xóa lịch trình
 async function deleteSchedule(req, res) {
   try {
     const { scheduleID } = req.params;
     await queries.deleteSchedule(scheduleID);
-    res.status(200).json({ message: "Xóa lịch trình thành công" });
+    res.status(200).json({ message: "Xóa thành công" });
   } catch (err) {
-    console.error(err);
-    res.status(501).send("Lỗi khi xóa lịch trình: " + err);
+    res.status(500).send("Lỗi khi xóa: " + err);
   }
 }
 
-async function getSchedulesByDriverID(req, res) {
-  try {
-    const { driverID } = req.params; // Lấy từ URL /driver/:driverID
-
-    if (!driverID) {
-      return res.status(400).json({ message: "Thiếu DriverID" });
-    }
-
-    const schedules = await queries.getSchedulesByDriverID(driverID);
-    
-    // Trả về mảng rỗng cũng là thành công (nghĩa là không có lịch)
-    res.status(200).json({
-      message: "Lấy lịch trình tài xế thành công",
-      schedules: schedules || [],
-    });
-
-  } catch (err) {
-    console.error("Lỗi lấy lịch tài xế:", err);
-    res.status(500).json({ message: "Lỗi server" });
-  }
-}
-
+// 6. Lấy lịch trình của TÔI (Driver Dashboard)
 async function getMySchedules(req, res) {
   try {
-    // 1. Lấy UserID từ Token (do middleware verifyToken giải mã)
     const currentUserID = req.user.userID || req.user.UserID || req.user.userId;
-
-    console.log("Token Payload:", req.user); 
-    console.log("Current UserID:", currentUserID);
 
     if (!currentUserID) {
       return res.status(401).json({ message: "Không xác thực được người dùng" });
     }
 
-    console.log("Đang tìm lịch cho UserID:", currentUserID);
-
-    // 2. Tìm DriverID dựa trên UserID
-    // (Vì bảng schedules lưu DriverID chứ không lưu UserID)
     const [driverRows] = await pool.query(
       "SELECT DriverID FROM user_service.drivers WHERE UserID = ?", 
       [currentUserID]
     );
 
     if (driverRows.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy hồ sơ tài xế." });
+      return res.status(404).json({ message: "Tài khoản chưa liên kết với hồ sơ Tài xế" });
     }
 
     const myDriverID = driverRows[0].DriverID;
 
-    // 3. Lấy lịch trình dựa trên DriverID
     const [schedules] = await pool.query(`
       SELECT 
         s.ScheduleID,
@@ -162,19 +105,14 @@ async function getMySchedules(req, res) {
         s.Date,
         s.TimeStart,
         s.TimeEnd,
-        r.RouteName,                 -- Lấy tên tuyến
+        s.Status,
+        r.RouteName,
         r.StartLocation,
         r.EndLocation,
-        b.PlateNumber                -- Lấy biển số xe
+        b.PlateNumber
       FROM schedules s
-      
-      -- 1. JOIN BẢNG ROUTES (Thử 'transport_db' trước, nếu lỗi thì thử 'routes_db')
-      -- Chú ý: s.RouteID khớp với r.RouteID (theo file SQL của bạn)
-      LEFT JOIN transport_db.routes r ON s.RouteID = r.RouteID  
-
-      -- 2. JOIN BẢNG BUSES (Nếu bảng buses nằm ở transport_db thì dùng transport_db, nếu ở bus_service_db thì đổi lại)
-      LEFT JOIN transport_db.buses b ON s.BusID = b.BusID       
-
+      LEFT JOIN transport_db.routes r ON s.RouteID = r.RouteID
+      LEFT JOIN transport_db.buses b ON s.BusID = b.BusID
       WHERE s.DriverID = ? 
       ORDER BY s.Date DESC, s.TimeStart ASC
     `, [myDriverID]);
@@ -190,10 +128,45 @@ async function getMySchedules(req, res) {
   }
 }
 
+// 7. Lấy lịch trình theo DriverID (Admin xem hoặc Internal Call)
+async function getSchedulesByDriverID(req, res) {
+  try {
+    const { driverID } = req.params;
+    if (!driverID) return res.status(400).json({ message: "Thiếu DriverID" });
+
+    const [schedules] = await pool.query('SELECT * FROM schedules WHERE DriverID = ?', [driverID]);
+    
+    res.status(200).json({ message: "Thành công", schedules });
+  } catch (err) {
+    res.status(500).json({ message: "Lỗi server" });
+  }
+}
+
+async function updateStatus(req, res) {
+  try {
+    const { scheduleID } = req.params;
+    const { status } = req.body; // Ví dụ: "IN_PROGRESS"
+    
+    if (!status) return res.status(400).json({ message: "Thiếu status" });
+
+    // Gọi hàm query update status (Đảm bảo queries.js đã có hàm updateScheduleStatus)
+    await queries.updateScheduleStatus(scheduleID, status);
+    
+    res.json({ message: "Cập nhật trạng thái thành công" });
+  } catch (err) {
+    console.error("Lỗi update status:", err);
+    res.status(500).json({ message: "Lỗi server: " + err.message });
+  }
+}
+
+// ✅ QUAN TRỌNG: Phải export đầy đủ tên hàm tại đây
 module.exports = {
   getAllSchedules,
   getSchedulesByRouteID,
   addNewSchedule,
   updateSchedule,
   deleteSchedule,
+  getMySchedules,        
+  getSchedulesByDriverID,
+  updateStatus
 };

@@ -56,16 +56,20 @@ exports.getScheduleData = async function (routeID, driverID = null) {
     }
 
     return {
-      driverID: resolvedDriverID,
+      // ✅ SỬA: Trả về null nếu không có ID, để bên Router tự fallback về 'D001'/'BUS-01'
+      driverID: resolvedDriverID || null,
+      busID: routeData?.BusID || null, 
+      
+      // Các trường hiển thị (Display) thì giữ nguyên text cho đẹp
       routeName: routeData?.RouteName || "không có dữ liệu",
       driverName: driverData?.DriverName || "không có dữ liệu",
-      busID: routeData?.BusID || "không có dữ liệu",
     };
   } catch (error) {
     return {
+      driverID: null, // ✅ Null
+      busID: null,    // ✅ Null
       routeName: "không có dữ liệu",
       driverName: "không có dữ liệu",
-      busID: "không có dữ liệu",
     };
   }
 };
@@ -77,31 +81,56 @@ exports.getScheduleData = async function (routeID, driverID = null) {
 // ✅ Mới: exports.getAllSchedules = ... (Đúng tên router đang gọi)
 exports.getAllSchedules = async function (req, res) {
   try {
+    // 1. Lấy Schedules
     let schedules = [];
     try {
-      const scheduleResponse = await callService("schedule_service", "/Schedules", "GET");
-      schedules = scheduleResponse.schedules || scheduleResponse || [];
-    } catch (err) {
-      console.warn("⚠️ Lỗi khi lấy dữ liệu schedule_service:", err.message);
-    }
+      const sRes = await callService("schedule_service", "/Schedules", "GET");
+      schedules = sRes.schedules || sRes.data || sRes || [];
+      if (!Array.isArray(schedules)) schedules = [];
+    } catch (err) { console.warn("Lỗi Schedule Service:", err.message); }
     
-    // Lưu ý: Đảm bảo đường dẫn file utils đúng
-    const { getStatus } = require("../utils/utils"); 
-    
-    const routes = await routeProcessing();
+    // 2. Lấy Routes
+    let routes = [];
+    try {
+        const rRes = await callService("route_service", "/Routes", "GET"); 
+        routes = rRes.data || rRes || [];
+        if (!Array.isArray(routes)) routes = [];
+    } catch (err) { console.warn("Lỗi Route Service:", err.message); }
 
+    // --- DEBUG LOG ---
+    console.log(`\n🔹 MERGE START: ${schedules.length} schedules vs ${routes.length} routes`);
+    if(routes.length > 0) console.log("👉 Sample Route ID:", routes[0].RouteID, "Type:", typeof routes[0].RouteID);
+    if(schedules.length > 0) console.log("👉 Sample Schedule RouteID:", schedules[0].RouteID, "Type:", typeof schedules[0].RouteID);
+
+    const { getStatus } = require("../utils/utils");
+
+    // 3. Ghép dữ liệu (Logic chấp nhận mọi kiểu tên)
     const mergedData = schedules.map((schedule) => {
-      const matchedRoute = routes.find((r) => r.RouteID === schedule.RouteID);
+      
+      const sID = schedule.RouteID || schedule.routeID;
+
+      // Tìm Route tương ứng (Ép kiểu về String để so sánh)
+      const matchedRoute = routes.find((r) => {
+          const rID = r.RouteID || r.routeID || r.id; 
+          return String(rID) === String(sID); 
+      });
+
       return {
-        ScheduleID: schedule.ScheduleID || "Không có dữ liệu",
-        RouteID: matchedRoute ? schedule.RouteID : "Không có dữ liệu",
-        RouteName: matchedRoute ? matchedRoute.RouteName : "Không có dữ liệu",
-        BusID: matchedRoute ? matchedRoute.BusID : "Không có dữ liệu",
-        DriverName: matchedRoute ? matchedRoute.DriverName : "Không có dữ liệu",
-        StartTime: schedule.TimeStart || "Không có dữ liệu",
-        EndTime: schedule.TimeEnd || "Không có dữ liệu",
-        Date: schedule.Date || "Không có dữ liệu",
-        Status: getStatus(schedule.TimeStart, schedule.TimeEnd, schedule.Date),
+        ScheduleID: schedule.ScheduleID,
+        RouteID: sID,
+        
+        // Nếu tìm thấy -> Lấy tên thật.
+        // Nếu không thấy -> Fallback hiển thị ID (để đỡ xấu giao diện)
+        RouteName: matchedRoute ? (matchedRoute.RouteName || matchedRoute.name) : `Tuyến số ${sID}`,
+        
+        // Fallback thông minh cho Bus/Driver
+        BusID: schedule.BusID || matchedRoute?.BusID || "---",
+        DriverName: matchedRoute?.DriverName || schedule.DriverID || "---", 
+        
+        StartTime: schedule.TimeStart || "--:--",
+        EndTime: schedule.TimeEnd || "--:--",
+        Date: schedule.Date || "",
+        Status: schedule.Status || getStatus(schedule.TimeStart, schedule.TimeEnd, schedule.Date),
       };
     });
 
@@ -110,7 +139,7 @@ exports.getAllSchedules = async function (req, res) {
       mergedData,
     });
   } catch (err) {
-    console.error("❌ Lỗi không mong muốn:", err);
-    return res.status(500).json({ message: "Lỗi server khi lấy dữ liệu schedule" });
+    console.error("❌ Lỗi getAllSchedules:", err);
+    return res.status(500).json({ message: "Lỗi server" });
   }
 };
