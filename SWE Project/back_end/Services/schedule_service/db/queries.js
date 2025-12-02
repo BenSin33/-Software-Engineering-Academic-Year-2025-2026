@@ -10,23 +10,23 @@ async function getSchedulesByRouteID(routeID) {
   return rows;
 }
 
-async function addSchedule(RouteID, Date, StartTime,EndTime) {
+async function addSchedule(RouteID, DriverID, BusID, Date, StartTime, EndTime) {
   const sql = `
     INSERT INTO schedules
-      (RouteID, Date, TimeStart,TimeEnd)
-    VALUES (?, ?, ?, ?)
+      (RouteID, DriverID, BusID, Date, TimeStart, TimeEnd, Status)
+    VALUES (?, ?, ?, ?, ?, ?, 'NOT_STARTED')
   `;
-  const [result] = await pool.query(sql, [RouteID, Date, StartTime,EndTime]);
+  const [result] = await pool.query(sql, [RouteID, DriverID, BusID, Date, StartTime, EndTime]);
   return result.insertId;
 }
 
-async function updateSchedule(ScheduleID, RouteID, Date, StartTime,EndTime) {
+async function updateSchedule(ScheduleID, RouteID, DriverID, Date, StartTime, EndTime) {
   const sql = `
     UPDATE schedules
-    SET RouteID = ?, \`Date\` = ?, TimeStart = ?, TimeEnd = ?
+    SET RouteID = ?, DriverID = ?, \`Date\` = ?, TimeStart = ?, TimeEnd = ?
     WHERE ScheduleID = ?
   `;
-  await pool.query(sql, [RouteID, Date, StartTime,EndTime, ScheduleID]);
+  await pool.query(sql, [RouteID, DriverID, Date, StartTime, EndTime, ScheduleID]);
 }
 
 async function deleteSchedule(ScheduleID) {
@@ -34,10 +34,28 @@ async function deleteSchedule(ScheduleID) {
   await pool.query(sql, [ScheduleID]);
 }
 
+async function getSchedulesByDriverID(driverID) {
+  // Lấy lịch của tài xế đó, ưu tiên lịch chưa chạy hoặc đang chạy (Date >= hôm nay)
+  const sql = `
+    SELECT * FROM schedules 
+    WHERE DriverID = ? 
+    ORDER BY Date ASC, TimeStart ASC
+  `;
+  const [rows] = await pool.query(sql, [driverID]);
+  return rows;
+}
+
+async function updateScheduleStatus(scheduleID, status) {
+  const sql = `UPDATE schedules SET Status = ? WHERE ScheduleID = ?`;
+  await pool.query(sql, [status, scheduleID]);
+}
+
 module.exports = {
   getSchedules,
   getSchedulesByRouteID,
   addSchedule,
   updateSchedule,
-  deleteSchedule
+  deleteSchedule,
+  getSchedulesByDriverID,
+  updateScheduleStatus
 };

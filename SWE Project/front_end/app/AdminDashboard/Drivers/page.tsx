@@ -314,6 +314,12 @@ export default function DriversPage() {
       return;
     }
 
+    // ✅ Validate phone number - only digits, no special characters
+    if (!/^\d+$/.test(formData.phone)) {
+      alert("Số điện thoại chỉ được chứa các chữ số, không được chứa ký tự đặc biệt!");
+      return;
+    }
+
     const newDriverData = {
       fullName: formData.name,
       phoneNumber: formData.phone,
@@ -393,6 +399,12 @@ export default function DriversPage() {
       return;
     }
     if (!editingDriver) return;
+
+    // ✅ Validate phone number - only digits, no special characters
+    if (!/^\d+$/.test(formData.phone)) {
+      alert("Số điện thoại chỉ được chứa các chữ số, không được chứa ký tự đặc biệt!");
+      return;
+    }
 
     const updatedData = {
       fullName: formData.name,

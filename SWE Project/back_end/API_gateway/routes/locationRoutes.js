@@ -138,4 +138,40 @@ router.post("/coordinates", async (req, res) => {
   }
 });
 
+// POST: Driver gửi tọa độ
+router.post("/update/:scheduleId", async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    // Forward sang service location
+    const result = await callService(
+        "location_service", 
+        `/Location/update/${scheduleId}`, 
+        "POST", 
+        req.body
+    );
+    res.json(result);
+  } catch (err) {
+    console.error("Gateway Location Error:", err.message);
+    res.status(500).json({ message: "Lỗi Gateway Location" });
+  }
+});
+
+// GET: Admin lấy tọa độ
+router.get("/latest/:scheduleId", async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const result = await callService(
+        "location_service", 
+        `/Location/latest/${scheduleId}`, 
+        "GET"
+    );
+    res.json(result);
+  } catch (err) {
+    // Nếu service con trả về 404 (chưa có tọa độ), gateway cũng nên trả về null hoặc lỗi nhẹ nhàng
+    res.status(200).json({ data: null, message: "Chưa có dữ liệu" });
+  }
+});
+
+
+
 module.exports = router;
