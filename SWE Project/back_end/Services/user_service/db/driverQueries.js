@@ -125,12 +125,23 @@ const getDriverByUserId = async (userId) => {
 // ============================
 const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
   try {
-    const [result] = await pool.query(
-      `UPDATE drivers 
-       SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
-       WHERE DriverID = ?`,
-      [fullName, phoneNumber, email, status, driverId]
-    );
+    // If status is being changed to Inactive, automatically clear BusID and RouteID
+    let query;
+    let params;
+
+    if (status && (status.toLowerCase() === 'inactive' || status === 'Inactive')) {
+      query = `UPDATE drivers 
+               SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, BusID = NULL, RouteID = NULL, UpdatedAt = NOW()
+               WHERE DriverID = ?`;
+      params = [fullName, phoneNumber, email, status, driverId];
+    } else {
+      query = `UPDATE drivers 
+               SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
+               WHERE DriverID = ?`;
+      params = [fullName, phoneNumber, email, status, driverId];
+    }
+
+    const [result] = await pool.query(query, params);
 
     if (result.affectedRows === 0) {
       throw new Error('Không tìm thấy tài xế để cập nhật');
@@ -146,6 +157,29 @@ const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
 // ============================
 const deleteDriver = async (driverId) => {
   try {
+    // First, check if driver exists and get their current status and assignments
+    const [drivers] = await pool.query(
+      'SELECT DriverID, Status, BusID, RouteID FROM drivers WHERE DriverID = ?',
+      [driverId]
+    );
+
+    if (drivers.length === 0) {
+      throw new Error('Không tìm thấy tài xế để xóa');
+    }
+
+    const driver = drivers[0];
+
+    // Check if driver is currently assigned to a bus or route
+    if (driver.BusID || driver.RouteID) {
+      throw new Error('Không thể xóa tài xế đang được phân công. Vui lòng đưa trạng thái về "Inactive" (đang nghỉ) và gỡ phân công trước khi xóa.');
+    }
+
+    // Check if driver status is Inactive (case-insensitive comparison)
+    if (driver.Status && driver.Status.toLowerCase() !== 'inactive') {
+      throw new Error('Không thể xóa tài xế. Vui lòng đưa trạng thái về "Inactive" (đang nghỉ) trước khi xóa.');
+    }
+
+    // If all checks pass, proceed with deletion
     const [result] = await pool.query(
       'DELETE FROM drivers WHERE DriverID = ?',
       [driverId]
@@ -156,7 +190,7 @@ const deleteDriver = async (driverId) => {
     }
   } catch (err) {
     console.error('Lỗi khi xóa tài xế:', err);
-    throw new Error('Xóa tài xế thất bại: ' + err.message);
+    throw new Error(err.message || 'Xóa tài xế thất bại');
   }
 };
 

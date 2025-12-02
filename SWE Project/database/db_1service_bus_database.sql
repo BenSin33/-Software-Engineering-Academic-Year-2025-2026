@@ -18,7 +18,7 @@ CREATE TABLE buses (
     license_plate VARCHAR(20) NOT NULL UNIQUE,
     model VARCHAR(100) NOT NULL,
     year INT NOT NULL,
-    status ENUM('running', 'waiting', 'maintenance', 'ready') DEFAULT 'ready',
+    status ENUM('running', 'waiting', 'inactive', 'ready') DEFAULT 'ready',
     capacity INT NOT NULL,
     current_load INT DEFAULT 0,
     fuel_level INT DEFAULT 100,
@@ -92,7 +92,7 @@ CREATE TABLE bus_location_tracking (
 -- ===================================
 INSERT INTO buses (id, license_plate, model, year, status, capacity, current_load, fuel_level, driver_name, route_id, speed, distance, location, last_maintenance) VALUES
 ('BUS-01', '51A-12345', 'Hyundai Universe', 2020, 'running', 45, 38, 85, 'Lê Văn Cường', 'ROUTE-001', 42, 156200, 'Võ Văn Tần, Q.3', '2024-05-10'),
-('BUS-02', '51A-98765', 'Hyundai County', 2021, 'maintenance', 35, 0, 50, 'Trần Văn Hùng', 'ROUTE-005', 0, 98500, 'Xưởng bảo trì', '2024-06-01'),
+('BUS-02', '51A-98765', 'Hyundai County', 2021, 'inactive', 35, 0, 50, 'Trần Văn Hùng', 'ROUTE-005', 0, 98500, 'Xưởng bảo trì', '2024-06-01'),
 ('BUS-03', '51B-23456', 'Thaco Universe', 2021, 'running', 40, 32, 75, 'Nguyễn Thị Mai', 'ROUTE-002', 38, 142300, 'Lê Lợi, Q.1', '2024-04-15'),
 ('BUS-04', '51B-11223', 'Thaco Town', 2020, 'ready', 30, 0, 100, 'Võ Minh Tuấn', 'ROUTE-006', 0, 125600, 'Bãi đỗ trường', '2024-05-20'),
 ('BUS-05', '51C-34567', 'Hyundai County', 2019, 'running', 35, 28, 85, 'Lê Văn Cường', 'ROUTE-003', 42, 156200, 'Võ Văn Tần, Q.3', '2024-05-10'),
@@ -108,19 +108,6 @@ INSERT INTO bus_maintenance_history (bus_id, maintenance_type, description, cost
 ('BUS-04', 'routine', 'Thay lốp xe, kiểm tra hệ thống treo', 2800000, '2024-05-20', 'Nguyễn Văn Sơn', '2024-08-20'),
 ('BUS-05', 'emergency', 'Sửa chữa khẩn cấp động cơ', 5000000, '2024-03-15', 'Trần Minh Tuấn', '2024-06-15');
 
--- ===================================
--- INSERT SAMPLE DATA - Bus Events
--- ===================================
-INSERT INTO bus_events (bus_id, event_type, event_data) VALUES
-('BUS-01', 'created', '{"action": "Bus created", "timestamp": "2024-01-15 09:00:00"}'),
-('BUS-01', 'status_changed', '{"old_status": "ready", "new_status": "running", "timestamp": "2024-01-20 07:30:00"}'),
-('BUS-02', 'status_changed', '{"old_status": "running", "new_status": "maintenance", "timestamp": "2024-06-01 14:00:00"}'),
-('BUS-02', 'maintenance_scheduled', '{"type": "repair", "date": "2024-06-01", "timestamp": "2024-06-01 14:00:00"}'),
-('BUS-03', 'created', '{"action": "Bus created", "timestamp": "2024-01-10 10:00:00"}'),
-('BUS-04', 'created', '{"action": "Bus created", "timestamp": "2024-01-08 11:00:00"}');
-
--- ===================================
--- INSERT SAMPLE DATA - Location Tracking (Backup history)
 -- ===================================
 INSERT INTO bus_location_tracking (bus_id, latitude, longitude, location_name, speed, recorded_at) VALUES
 ('BUS-01', 10.7769, 106.7009, 'Võ Văn Tần, Q.3', 42, '2024-01-20 07:35:00'),
@@ -155,7 +142,7 @@ SELECT
     COUNT(*) as total_buses,
     SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running,
     SUM(CASE WHEN status = 'waiting' THEN 1 ELSE 0 END) as waiting,
-    SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) as maintenance,
+    SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
     SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) as ready,
     SUM(capacity) as total_capacity,
     SUM(current_load) as total_load,
