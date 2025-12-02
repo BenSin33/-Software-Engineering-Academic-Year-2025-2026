@@ -3,13 +3,20 @@ const queries = require('../db/queries');
 async function getAllRoutes(req, res) {
   try {
     const routes = await queries.getRoutes();
+    
+    // --- DEBUG LOG CỦA CONTROLLER ---
+    console.log("🟢 [Controller] Dữ liệu cuối cùng nhận được từ DB:", routes.length);
+    // -------------------------------------
+    
     if (!routes || routes.length === 0) {
       return res.status(200).json({ message: 'Không có dữ liệu tuyến đường', routes: [] });
     }
-    return res.status(200).json({ routes });
+    // Nếu có dữ liệu, trả về { routes: [...] }
+    return res.status(200).json({ routes }); 
   } catch (err) {
-    console.error('❌ Server error:', err);
-    return res.status(500).json({ message: 'Lỗi server', error: err.message });
+    // Nếu queries.getRoutes() ném lỗi (ví dụ: Timeout), sẽ bắt ở đây và trả về 500
+    console.error('❌ Server error (Lỗi DB):', err);
+    return res.status(500).json({ message: 'Lỗi server (DB error)', error: err.message });
   }
 }
 
@@ -37,18 +44,17 @@ async function getRoute(req, res) {
 
 async function addNewRoute(req, res) {
   try {
-    const { driverID, busID, routeName, startLocation, endLocation } = req.body;
-    
-    if (!routeName || !startLocation || !endLocation) {
+    const { driverID, busID, routeName, startLocation, endLocation,status } = req.body;
+    if (!routeName || !startLocation || !endLocation || !status) {
       return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
     }
 
-    const RouteID = await queries.addRoute(driverID, busID, routeName, startLocation, endLocation);
+    const RouteID = await queries.addRoute(driverID, busID, routeName, startLocation, endLocation,status);
     
     res.status(201).json({
       message: "Thêm tuyến thành công",
       RouteID,
-      data: { driverID, busID, routeName, startLocation, endLocation }
+      data: { driverID, busID, routeName, startLocation, endLocation,status }
     });
 
   } catch (error) {
@@ -60,13 +66,13 @@ async function addNewRoute(req, res) {
 async function updateCurrentRoute(req, res) {
   try {
     const { routeID } = req.params;
-    const { driverID, busID, routeName, startLocation, endLocation } = req.body;
+    const { driverID, busID, routeName, startLocation, endLocation,status } = req.body;
     
-    await queries.updateCurrentRoute(routeID, driverID, busID, routeName, startLocation, endLocation);
+    await queries.updateCurrentRoute(routeID, driverID, busID, routeName, startLocation, endLocation,status);
     
     res.status(200).json({
       message: 'Cập nhật tuyến thành công',
-      route: { driverID, busID, routeName, startLocation, endLocation }
+      route: { driverID, busID, routeName, startLocation, endLocation, status }
     });
   } catch (error) {
     console.error("❌ Error updating route:", error);

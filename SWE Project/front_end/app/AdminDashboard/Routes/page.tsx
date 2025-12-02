@@ -5,12 +5,6 @@ import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye
 import './routes.css'
 import MapView from "@/components/Layouts/MapView";
 
-// Interface for a single bus stop (Kept for potential future use, though not used in form/API)
-interface BusStop {
-    id: number;
-    name: string;
-    time: string; // Estimated arrival time
-}
 
 // Interface for a bus route
 interface Route {
@@ -39,6 +33,15 @@ interface AdvancedFilters {
     busNumber: string;
     status: string;
 }
+
+// Interface for API response structure from Gateway
+interface GatewayResponse {
+    message: string;
+    data: Route[]; // Dữ liệu routes thực tế nằm trong thuộc tính 'data'
+    // Thêm thuộc tính 'routes' để phòng trường hợp API Gateway trả về cả hai key
+    routes?: Route[]; 
+}
+
 
 // --- Màu sắc tùy chỉnh (Orange-Yellow: #FFAC50, Dark Hover: #E59B48) ---
 const PRIMARY_COLOR = "#FFAC50";
@@ -93,25 +96,42 @@ export default function RoutesPage() {
 
     const [routes, setRoutes] = useState<Route[]>([]);
     const [formData, setFormData] = useState<FormData>(initialFormData);
-    console.log('mapLoading: ', mapLoading)
-    console.log('mapError: ', mapError)
+    // console.log('mapLoading: ', mapLoading)
+    // console.log('mapError: ', mapError)
+    
     // --- Data Fetching ---
     useEffect(() => {
         const fetchRoutesAndCoordinates = async () => {
+            console.log("[FRONTEND] Bắt đầu gọi API Routes...");
             try {
                 // --- Fetch routes ---
                 const resRoutes = await fetch(API_BASE_URL);
-                if (!resRoutes.ok) throw new Error("Lỗi fetch routes");
-                const data = await resRoutes.json();
-                if (!data?.routes?.length) return;
+                if (!resRoutes.ok) throw new Error(`Lỗi fetch routes: HTTP ${resRoutes.status}`);
+                
+                // Lấy dữ liệu API Gateway trả về
+                const responseData: GatewayResponse = await resRoutes.json();
+                
+                // LOG QUAN TRỌNG: Kiểm tra cấu trúc dữ liệu Frontend nhận
+                console.log("[FRONTEND DEBUG] Phản hồi JSON thô:", responseData);
+                
+                // CẦN SỬA ĐOẠN NÀY: LẤY MẢNG ROUTES CHÍNH XÁC TỪ 'data' (hoặc 'routes' nếu có)
+                const fetchedRoutes = responseData.data || responseData.routes; // <--- ĐÃ SỬA: Lấy từ thuộc tính .data
 
-                setRoutes(data.routes);
+                if (!fetchedRoutes || fetchedRoutes.length === 0) {
+                    console.warn("[FRONTEND DEBUG] Không tìm thấy dữ liệu tuyến đường trong response.data.");
+                    setRoutes([]);
+                    return;
+                }
+
+                setRoutes(fetchedRoutes);
+                console.log(`[FRONTEND DEBUG] Đã tải thành công ${fetchedRoutes.length} tuyến.`);
+
 
                 // --- Chọn route đầu tiên làm mặc định ---
-                const firstRoute = data.routes[0];
+                const firstRoute = fetchedRoutes[0];
                 // --- Fetch coordinates của route đầu tiên ---
                 setMapLoading(true);
-                const resCoords = await fetch("http://localhost:5000/location/coordinates", {
+                const resCoords = await fetch("http://localhost:5000/Location/coordinates", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(firstRoute)
@@ -120,8 +140,8 @@ export default function RoutesPage() {
                 const coordData = await resCoords.json();
                 setCoordinates(coordData.coordinates);
             } catch (err) {
-                console.error(err);
-                setMapError("Không thể tải dữ liệu");
+                console.error("[FRONTEND ERROR]", err);
+                setMapError("Không thể tải dữ liệu tuyến đường");
             } finally {
                 setMapLoading(false);
             }
@@ -186,7 +206,8 @@ export default function RoutesPage() {
     const handleAddRoute = async (e: FormEvent) => {
         e.preventDefault();
         if (!formData.routeName || !formData.startLocation || !formData.endLocation) {
-            alert("Vui lòng điền đầy đủ thông tin tuyến đường!");
+            // SỬA LỖI: Thay alert bằng console.error
+            console.error("Vui lòng điền đầy đủ thông tin tuyến đường!");
             return;
         }
         try {
@@ -201,14 +222,17 @@ export default function RoutesPage() {
                 if (data) {
                     setRoutes((prevRoutes) => [...prevRoutes, data.newRoute])
                 }
-                alert('Thêm tuyến xe thành công!');
+                // SỬA LỖI: Thay alert bằng console.log
+                console.log('Thêm tuyến xe thành công!');
                 closeAllModals();
             } else {
-                alert('Có lỗi xảy ra khi thêm tuyến.');
+                // SỬA LỖI: Thay alert bằng console.error
+                console.error('Có lỗi xảy ra khi thêm tuyến.');
             }
         } catch (err) {
             console.error(err);
-            alert('Lỗi kết nối hoặc hệ thống.');
+            // SỬA LỖI: Thay alert bằng console.error
+            console.error('Lỗi kết nối hoặc hệ thống.');
         }
     };
     const displayRouteOnMap = async (route: any) => {
@@ -243,7 +267,8 @@ export default function RoutesPage() {
     const handleEditRoute = async (e: FormEvent) => {
         e.preventDefault();
         if (!selectedRoute || !formData.routeName || !formData.startLocation || !formData.endLocation) {
-            alert('Vui lòng nhập đầy đủ các trường!');
+            // SỬA LỖI: Thay alert bằng console.error
+            console.error('Vui lòng nhập đầy đủ các trường!');
             return;
         }
         try {
@@ -261,14 +286,17 @@ export default function RoutesPage() {
                         prevRoute.map((route) => route.RouteID.toString() === selectedRoute.RouteID.toString() ? data.updatedRoute : route)
                     )
                 }
-                alert('Cập nhật thông tin tuyến thành công!');
+                // SỬA LỖI: Thay alert bằng console.log
+                console.log('Cập nhật thông tin tuyến thành công!');
                 closeAllModals();
             } else {
-                alert('Có lỗi xảy ra khi cập nhật tuyến.');
+                 // SỬA LỖI: Thay alert bằng console.error
+                console.error('Có lỗi xảy ra khi cập nhật tuyến.');
             }
         } catch (err) {
             console.error(err);
-            alert('Lỗi kết nối hoặc hệ thống.');
+             // SỬA LỖI: Thay alert bằng console.error
+            console.error('Lỗi kết nối hoặc hệ thống.');
         }
     };
 
@@ -286,14 +314,17 @@ export default function RoutesPage() {
                     const updatedRoutes = routes.filter((route) => route.RouteID != routeToDelete.RouteID);
                     setRoutes(updatedRoutes)
                 };
-                alert("Xóa tuyến xe thành công!");
+                // SỬA LỖI: Thay alert bằng console.log
+                console.log("Xóa tuyến xe thành công!");
                 closeAllModals();
             } else {
-                alert('Có lỗi xảy ra khi xóa tuyến.');
+                 // SỬA LỖI: Thay alert bằng console.error
+                console.error('Có lỗi xảy ra khi xóa tuyến.');
             }
         } catch (err) {
             console.error(err);
-            alert('Lỗi kết nối hoặc hệ thống.');
+             // SỬA LỖI: Thay alert bằng console.error
+            console.error('Lỗi kết nối hoặc hệ thống.');
         }
     };
 
@@ -498,6 +529,7 @@ export default function RoutesPage() {
                             <p className="text-gray-700 text-lg font-medium">Đang lấy dữ liệu tuyến đường...</p>
                         </div>
                     ) : (
+                        // ĐÃ HOÀN NGUYÊN: Sử dụng component MapView chính thức
                         <MapView coordinates={coordinates} showBuses={false} />
                     )}
                 </div>

@@ -1,5 +1,6 @@
 const SERVICE_URLS = {
   user_service: "http://user_service:5012",
+  bus_service: "http://bus_service:5011",
   auth_service: "http://auth_service:5010",
   student_service: "http://student_service:5001",
   parent_service: "http://user_service:5012",
@@ -24,24 +25,52 @@ async function callService(serviceName, path, method = "GET", data = null) {
   if (data) {
     options.body = JSON.stringify(data);
   }
+  
+  // --- BẮT ĐẦU DEBUG: LOG TRƯỚC KHI GỌI FETCH ---
+  console.log(`[GW DEBUG] Gọi dịch vụ ${serviceName}: ${url}`);
+  // ------------------------------------------------
 
   const response = await fetch(url, options);
 
+  // --- DEBUG 1: LOG STATUS VÀ CLONE RESPONSE ---
+  console.log(`[GW DEBUG] Phản hồi Status từ ${serviceName}: ${response.status}`);
+  
+  // Clone response để có thể đọc body cho debug mà không làm hỏng response gốc
+  const debugResponse = response.clone();
+  // -----------------------------------------------
+
   // Kiểm tra response
   if (!response.ok) {
-    // Thử lấy error message chi tiết từ response
+    // Xử lý lỗi HTTP status code (4xx, 5xx)
     let errorMessage = `Lỗi khi gọi ${serviceName}: ${response.statusText}`;
     try {
-      const errorData = await response.json();
+      const errorData = await debugResponse.json();
       errorMessage = errorData.message || errorData.error || errorMessage;
     } catch (e) {
-      // Nếu không parse được JSON, dùng statusText
+      const text = await debugResponse.text();
+      errorMessage = `Phản hồi lỗi không phải JSON: ${text.substring(0, 50)}...`;
     }
     const error = new Error(errorMessage);
     error.status = response.status;
     throw error;
   }
-  return await response.json()
+  
+  // Parse JSON
+  let responseData;
+  try {
+    responseData = await response.json();
+  } catch (parseError) {
+    // Nếu JSON parsing thất bại, hãy đọc body dưới dạng text để tìm nguyên nhân
+    const rawText = await debugResponse.text();
+    console.error(`[GW DEBUG] LỖI PARSE JSON: Body nhận được không hợp lệ.`, rawText);
+    throw new Error(`Phản hồi từ ${serviceName} không phải là JSON hợp lệ.`);
+  }
+  
+  // --- DEBUG 2: LOG DỮ LIỆU ĐÃ PARSE THÀNH CÔNG ---
+  console.log(`[GW DEBUG] Parsed JSON từ ${serviceName}:`, JSON.stringify(responseData, null, 2));
+  // ------------------------------------------------
+
+  return responseData
 }
 
 module.exports = { callService };
