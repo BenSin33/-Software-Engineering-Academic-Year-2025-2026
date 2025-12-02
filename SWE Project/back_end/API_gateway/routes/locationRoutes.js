@@ -3,24 +3,71 @@ const { callService } = require("../services/callService.js");
 
 const router = express.Router();
 
+// router.post("/coordinates", async (req, res) => {
+//   const routeReq = req.body; // rename để tránh trùng
+//   let addressArr = [];
+//   let coordinates = [];
+
+//   try {
+//     // 🔹 Lấy danh sách điểm đón từ student_service
+//     const studentRes = await callService(
+//       "student_service",
+//       `/students/route/${routeReq.RouteID}/PickUpPoint`,
+//       "GET"
+//     );
+//     console.log('student: ',studentRes)
+
+//     addressArr = studentRes.students || [];
+
+//     // 🔹 Lấy điểm trả từ route_service
+//     let routeData = null;
+//     try {
+//       routeData = await callService(
+//         "route_service",
+//         `/Routes/${routeReq.RouteID}`,
+//         "GET"
+//       );
+
+//       if (routeData) {
+//         const startLocation = routeData.StartLocation;
+//         const endLocation = routeData.EndLocation;
+//         if (startLocation) addressArr.unshift(startLocation); // thêm vào đầu
+//         if (endLocation) addressArr.push(endLocation);       // thêm vào cuối
+//       }
+//     } catch (err) {
+//       console.error("Lỗi call route_service:", err);
+//     }
+
+//     if (addressArr.length === 0) {
+//       return res.status(400).json({ message: "Không đủ địa chỉ để tạo tuyến đường" });
+//     }
+//     // 🔹 Chuyển đổi địa chỉ thành tọa độ
+//     const coordinatesData = await callService(
+//       "location_service",
+//       "/api/locations/coordinates",
+//       "POST",
+//       addressArr
+//     );
+    
+//     coordinates = coordinatesData.coordinates || [];
+//     console.log('cor: ',coordinatesData)
+//     return res.status(200).json({
+//       message: "Tạo mảng tọa độ tuyến đường thành công",
+//       coordinates,
+//     });
+
+//   } catch (err) {
+//     console.error("Lỗi chung:", err);
+//     return res.status(500).json({ message: "Lỗi server khi xử lý dữ liệu" });
+//   }
+// });
 router.post("/coordinates", async (req, res) => {
-  const routeReq = req.body; // rename để tránh trùng
-  console.log('fe')
+  const routeReq = req.body;
   let addressArr = [];
   let coordinates = [];
 
   try {
-    // 🔹 Lấy danh sách điểm đón từ student_service
-    const studentRes = await callService(
-      "student_service",
-      `/students/route/${routeReq.RouteID}/PickUpPoint`,
-      "GET"
-    );
-    console.log('student: ',studentRes)
-
-    addressArr = studentRes.students || [];
-
-    // 🔹 Lấy điểm trả từ route_service
+    // 🔹 Lấy thông tin route trước
     let routeData = null;
     try {
       routeData = await callService(
@@ -28,22 +75,44 @@ router.post("/coordinates", async (req, res) => {
         `/Routes/${routeReq.RouteID}`,
         "GET"
       );
-
-      console.log('route: ',routeData)
-      if (Array.isArray(routeData) && routeData.length > 0) {
-        const startLocation = routeData[0].StartLocation;
-        const endLocation = routeData[0].EndLocation;
-
-        if (startLocation) addressArr.unshift(startLocation); // thêm vào đầu
-        if (endLocation) addressArr.push(endLocation);       // thêm vào cuối
-      }
     } catch (err) {
       console.error("Lỗi call route_service:", err);
+      return res.status(400).json({ message: "Không tìm thấy thông tin tuyến đường" });
     }
 
-    if (addressArr.length === 0) {
-      return res.status(400).json({ message: "Không đủ địa chỉ để tạo tuyến đường" });
+    // 🔹 Lấy danh sách điểm đón từ student_service
+    let studentRes = null;
+    try {
+      studentRes = await callService(
+        "student_service",
+        `/students/route/${routeReq.RouteID}/PickUpPoint`,
+        "GET"
+      );
+      addressArr = studentRes.students || [];
+    } catch (err) {
+      console.log("Tuyến đường chưa có học sinh, chỉ lấy điểm đầu/cuối");
+      addressArr = []; // Không có học sinh
     }
+
+    // 🔹 Thêm StartLocation và EndLocation
+    const startLocation = routeData?.StartLocation;
+    const endLocation = routeData?.EndLocation;
+
+    if (!startLocation || !endLocation) {
+      return res.status(400).json({ 
+        message: "Tuyến đường thiếu thông tin điểm đầu hoặc điểm cuối" 
+      });
+    }
+
+    // Nếu có học sinh: startLocation -> các điểm đón -> endLocation
+    // Nếu không có học sinh: chỉ startLocation -> endLocation
+    if (addressArr.length > 0) {
+      addressArr.unshift(startLocation);
+      addressArr.push(endLocation);
+    } else {
+      addressArr = [startLocation, endLocation];
+    }
+
     // 🔹 Chuyển đổi địa chỉ thành tọa độ
     const coordinatesData = await callService(
       "location_service",
@@ -53,10 +122,14 @@ router.post("/coordinates", async (req, res) => {
     );
     
     coordinates = coordinatesData.coordinates || [];
-    console.log('cor: ',coordinatesData)
+    console.log('Coordinates:', coordinatesData);
+
     return res.status(200).json({
-      message: "Tạo mảng tọa độ tuyến đường thành công",
+      message: addressArr.length === 2 
+        ? "Tuyến đường chưa có học sinh, chỉ có điểm đầu và cuối"
+        : "Tạo mảng tọa độ tuyến đường thành công",
       coordinates,
+      hasStudents: addressArr.length > 2
     });
 
   } catch (err) {
@@ -98,6 +171,7 @@ router.get("/latest/:scheduleId", async (req, res) => {
     res.status(200).json({ data: null, message: "Chưa có dữ liệu" });
   }
 });
+
 
 
 module.exports = router;
