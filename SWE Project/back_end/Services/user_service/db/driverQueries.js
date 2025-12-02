@@ -125,12 +125,23 @@ const getDriverByUserId = async (userId) => {
 // ============================
 const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
   try {
-    const [result] = await pool.query(
-      `UPDATE drivers 
-       SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
-       WHERE DriverID = ?`,
-      [fullName, phoneNumber, email, status, driverId]
-    );
+    // Nếu status là Inactive, tự động xóa BusID và RouteID
+    let query, params;
+
+    if (status === 'Inactive') {
+      query = `UPDATE drivers 
+               SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, 
+                   BusID = NULL, RouteID = NULL, UpdatedAt = NOW()
+               WHERE DriverID = ?`;
+      params = [fullName, phoneNumber, email, status, driverId];
+    } else {
+      query = `UPDATE drivers 
+               SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
+               WHERE DriverID = ?`;
+      params = [fullName, phoneNumber, email, status, driverId];
+    }
+
+    const [result] = await pool.query(query, params);
 
     if (result.affectedRows === 0) {
       throw new Error('Không tìm thấy tài xế để cập nhật');
@@ -146,6 +157,29 @@ const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
 // ============================
 const deleteDriver = async (driverId) => {
   try {
+    // Kiểm tra trạng thái và phân công của tài xế trước khi xóa
+    const [driver] = await pool.query(
+      'SELECT Status, BusID, RouteID FROM drivers WHERE DriverID = ?',
+      [driverId]
+    );
+
+    if (driver.length === 0) {
+      throw new Error('Không tìm thấy tài xế để xóa');
+    }
+
+    const driverData = driver[0];
+
+    // Kiểm tra nếu tài xế đang có trạng thái Active
+    if (driverData.Status === 'Active') {
+      throw new Error('Không thể xóa tài xế đang hoạt động. Vui lòng chuyển trạng thái về "Đang nghỉ" trước khi xóa.');
+    }
+
+    // Kiểm tra nếu tài xế vẫn còn được phân công xe hoặc tuyến
+    if (driverData.BusID || driverData.RouteID) {
+      throw new Error('Không thể xóa tài xế đang được phân công. Vui lòng chuyển trạng thái về "Đang nghỉ" để tự động hủy phân công trước khi xóa.');
+    }
+
+    // Nếu tất cả điều kiện đều thỏa mãn, thực hiện xóa
     const [result] = await pool.query(
       'DELETE FROM drivers WHERE DriverID = ?',
       [driverId]
@@ -156,7 +190,7 @@ const deleteDriver = async (driverId) => {
     }
   } catch (err) {
     console.error('Lỗi khi xóa tài xế:', err);
-    throw new Error('Xóa tài xế thất bại: ' + err.message);
+    throw new Error(err.message || 'Xóa tài xế thất bại');
   }
 };
 
