@@ -1,135 +1,108 @@
 'use client';
-import { useEffect, useState, useMemo } from 'react';
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
-import { v4 as uuidv4 } from 'uuid';
-import polylineDecode from '@mapbox/polyline';
 
-type Coordinate = { lat: number; lng: number };
-type BusState = { id: string; routeKey: string; position: Coordinate; stepIndex: number };
-type MapViewProps = { coordinates?: Coordinate[] | Coordinate[][]; showBuses?: boolean };
+import React, { memo } from 'react';
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
+
+// Định nghĩa kiểu dữ liệu Props nhận vào từ TrackingPage
+interface MapViewProps {
+  coordinates?: { lat: number; lng: number }[]; // Đường vẽ (Polyline)
+  currentPoint?: { lat: number; lng: number };  // Vị trí xe (Real-time)
+  startPoint?: { lat: number; lng: number };    // Điểm A
+  endPoint?: { lat: number; lng: number };      // Điểm B
+}
 
 const mapContainerStyle = { width: '100%', height: '100%', borderRadius: '12px' };
-const defaultCenter = { lat: 10.77653, lng: 106.700981 };
-const updateInterval = 200; // 0.2s để mượt
+const defaultCenter = { lat: 10.762622, lng: 106.660172 }; // Mặc định TP.HCM
 
-// Hàm hash tuyến để nhận diện duy nhất
-function hashRoute(route: Coordinate[]) {
-  return route.map(p => `${p.lat.toFixed(6)}_${p.lng.toFixed(6)}`).join('|');
-}
-
-// Sinh màu theo index
-function getColor(index: number) {
-  const colors = ['#4285F4', '#EA4335', '#FBBC05', '#34A853', '#FF5722', '#9C27B0'];
-  return colors[index % colors.length];
-}
-
-export default function MapView({ coordinates = [], showBuses = true }: MapViewProps) {
+function MapView({ coordinates = [], currentPoint, startPoint, endPoint }: MapViewProps) {
+  
+  // Load Google Maps Script
   const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    id: 'google-map-script',
+    // ⚠️ Đảm bảo bạn đã có API Key trong file .env.local
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "" 
   });
 
-  const [routes, setRoutes] = useState<{ key: string; path: Coordinate[] }[]>([]);
-  const [busStates, setBusStates] = useState<BusState[]>([]);
+  const [map, setMap] = React.useState<google.maps.Map | null>(null);
 
-  const normalizedRoutes: Coordinate[][] = Array.isArray(coordinates[0])
-    ? (coordinates as Coordinate[][])
-    : [coordinates as Coordinate[]];
+  const onLoad = React.useCallback(function callback(map: google.maps.Map) {
+    setMap(map);
+  }, []);
 
-  const busIcon = useMemo(() => {
-    if (!isLoaded) return undefined;
-    return {
-      url: '/bus.svg',
-      scaledSize: new window.google.maps.Size(40, 40),
-      anchor: new window.google.maps.Point(20, 20),
-    };
-  }, [isLoaded]);
+  const onUnmount = React.useCallback(function callback(map: google.maps.Map) {
+    setMap(null);
+  }, []);
 
-  /** Fetch geometry từ ORS */
-  const fetchRoutesFromAPI = async () => {
-    const newRoutes: { key: string; path: Coordinate[] }[] = [];
-
-    for (const route of normalizedRoutes) {
-      if (route.length < 2) continue;
-      try {
-        const res = await fetch('http://localhost:5000/ORS/drivingCar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coordinates: route.map(p => [p.lng, p.lat]) }),
-        });
-        if (!res.ok) continue;
-        const data = await res.json();
-
-        let line: Coordinate[] = [];
-        if (typeof data.routes[0].geometry === 'string') {
-          line = polylineDecode.decode(data.routes[0].geometry).map(([lat, lng]) => ({ lat, lng }));
-        } else if (data.routes[0].geometry?.coordinates) {
-          line = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
-        }
-
-        newRoutes.push({ key: hashRoute(line), path: line });
-      } catch (err) {
-        console.error('Fetch route error:', err);
-      }
+  // Tự động zoom bản đồ để thấy toàn bộ lộ trình
+  React.useEffect(() => {
+    if (map && coordinates.length > 0) {
+      const bounds = new window.google.maps.LatLngBounds();
+      coordinates.forEach(coord => bounds.extend(coord));
+      if (currentPoint) bounds.extend(currentPoint);
+      map.fitBounds(bounds);
     }
+  }, [map, coordinates, currentPoint]);
 
-    // Chỉ cập nhật nếu tuyến thay đổi
-    const isSame =
-      routes.length === newRoutes.length &&
-      routes.every((r, i) => r.key === newRoutes[i].key);
-
-    if (!isSame) {
-      setRoutes(newRoutes);
-      setBusStates(prevBus => {
-        const busMap = new Map(prevBus.map(b => [b.routeKey, b]));
-        return newRoutes.map(r => {
-          const oldBus = busMap.get(r.key);
-          return oldBus
-            ? { ...oldBus }
-            : { id: uuidv4(), routeKey: r.key, position: r.path[0], stepIndex: 0 };
-        });
-      });
-    }
-  };
-
-  useEffect(() => {
-    if (normalizedRoutes.length === 0) return;
-    fetchRoutesFromAPI();
-    const interval = setInterval(fetchRoutesFromAPI, 15000);
-    return () => clearInterval(interval);
-  }, [normalizedRoutes]);
-
-  /** Di chuyển bus */
-  useEffect(() => {
-    if (!showBuses || routes.length === 0 || busStates.length === 0) return;
-    const interval = setInterval(() => {
-      setBusStates(prev =>
-        prev.map(bus => {
-          const route = routes.find(r => r.key === bus.routeKey);
-          if (!route || route.path.length < 2) return bus;
-          const nextStep = (bus.stepIndex + 1) % route.path.length;
-          return { ...bus, stepIndex: nextStep, position: route.path[nextStep] };
-        })
-      );
-    }, updateInterval);
-    return () => clearInterval(interval);
-  }, [routes, busStates, showBuses]);
-
-  if (!isLoaded) return <div>Loading map...</div>;
-  const center = routes[0]?.path[0] || defaultCenter;
+  if (!isLoaded) return <div className="flex justify-center items-center h-full bg-gray-100">Loading Map...</div>;
 
   return (
-    <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13}>
-      {/* markers */}
-      {normalizedRoutes.map((route, i) =>
-        route.map((pos, j) => <Marker key={`marker-${i}-${j}`} position={pos} />)
+    <GoogleMap
+      mapContainerStyle={mapContainerStyle}
+      center={currentPoint || startPoint || defaultCenter}
+      zoom={14}
+      onLoad={onLoad}
+      onUnmount={onUnmount}
+      options={{
+        streetViewControl: false,
+        mapTypeControl: false,
+      }}
+    >
+      {/* 1. Vẽ đường đi (Polyline) màu xanh */}
+      {coordinates.length > 0 && (
+        <Polyline
+          path={coordinates}
+          options={{
+            strokeColor: "#2563EB", // Màu xanh dương
+            strokeWeight: 5,
+            strokeOpacity: 0.8,
+          }}
+        />
       )}
-      {/* polylines */}
-      {routes.map((r, i) => (
-        <Polyline key={`route-${i}`} path={r.path} options={{ strokeColor: getColor(i), strokeWeight: 5 }} />
-      ))}
-      {/* buses */}
-      {showBuses &&
-        busStates.map(bus => <Marker key={bus.id} position={bus.position} icon={busIcon} />)}
+
+      {/* 2. Điểm Bắt đầu (A) */}
+      {startPoint && (
+        <Marker
+          position={startPoint}
+          label={{ text: "A", color: "white", fontWeight: "bold" }}
+          title="Điểm Bắt Đầu"
+        />
+      )}
+
+      {/* 3. Điểm Kết thúc (B) */}
+      {endPoint && (
+        <Marker
+          position={endPoint}
+          label={{ text: "B", color: "white", fontWeight: "bold" }}
+          title="Điểm Đến"
+        />
+      )}
+
+      {/* 4. Xe Bus đang chạy (C) */}
+      {currentPoint && (
+        <Marker
+          position={currentPoint}
+          icon={{
+            // Icon xe buýt (bạn có thể thay bằng link ảnh khác)
+            url: "https://cdn-icons-png.flaticon.com/512/3448/3448339.png", 
+            scaledSize: new window.google.maps.Size(45, 45),
+            anchor: new window.google.maps.Point(22, 22)
+          }}
+          title="Vị trí hiện tại"
+          zIndex={999} // Luôn hiện trên cùng
+        />
+      )}
     </GoogleMap>
   );
 }
+
+export default memo(MapView);

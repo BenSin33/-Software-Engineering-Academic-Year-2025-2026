@@ -47,3 +47,34 @@ exports.routeController = async function (req, res) {
     res.status(500).json({ message: "Lỗi server", error: err.message });
   }
 };
+
+exports.getAllRoutes = async (req, res) => {
+  try {
+    // 1. Gọi sang route_service
+    // Lưu ý: Đảm bảo đường dẫn '/Routes' khớp với server.js của route_service
+    const response = await callService("route_service", "/Routes", "GET");
+    
+    const rawRoutes = response.data || response || [];
+    const list = Array.isArray(rawRoutes) ? rawRoutes : [];
+
+    // 2. Map lại dữ liệu để đảm bảo Frontend luôn nhận được đúng key
+    const standardizedRoutes = list.map(r => ({
+        // Ưu tiên lấy RouteID (hoa), nếu không có thì lấy routeID (thường) hoặc id
+        RouteID: r.RouteID || r.routeID || r.id, 
+        RouteName: r.RouteName || r.name || "Tuyến chưa đặt tên",
+        StartLocation: r.StartLocation || r.start_point || "",
+        EndLocation: r.EndLocation || r.end_point || ""
+    }));
+
+    console.log("👉 Data Routes trả về Frontend:", JSON.stringify(standardizedRoutes, null, 2));
+
+    return res.status(200).json({
+      message: "Lấy danh sách tuyến thành công",
+      data: standardizedRoutes
+    });
+
+  } catch (error) {
+    console.error("Gateway Error (getAllRoutes):", error.message);
+    return res.status(500).json({ message: "Lỗi khi lấy danh sách tuyến" });
+  }
+};

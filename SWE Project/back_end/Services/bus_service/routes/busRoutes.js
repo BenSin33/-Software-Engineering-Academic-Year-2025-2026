@@ -4,7 +4,8 @@ const busController = require('../controllers/busController');
 
 // Lấy thống kê xe buýt
 router.get('/stats', busController.getBusStatistics);
-
+// Lấy các xe buýt chưa được gán Route (RouteID = 'N/A')
+router.get('/no-route', busController.getBusesWithoutRoute);
 // CRUD operations
 router.get('/', busController.getAllBuses);
 router.get('/:id', busController.getBusById);
@@ -15,5 +16,7 @@ router.delete('/:id', busController.deleteBus);
 // Assignment operations
 router.put('/:id/driver', busController.updateBusDriver);
 router.put('/:id/route', busController.updateBusRoute);
+
+
 
 module.exports = router;

@@ -26,4 +26,4 @@ pool.getConnection()
   });
 
 
-// module.exports = pool;
+module.exports = pool;

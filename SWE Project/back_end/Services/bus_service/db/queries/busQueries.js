@@ -308,6 +308,22 @@ class BusQueries {
         );
         return buses;
     }
+
+    async findBusWithoutRoute() {
+        try {
+            const [buses] = await pool.query(
+                `SELECT * FROM Buses
+WHERE RouteID IS NULL OR RouteID IN ('N/A', 'Null')
+ORDER BY CreatedAt DESC;`
+            );
+            return buses;
+        } catch (error) {
+            console.error('Error in findBusWithoutRoute:', error);
+            throw error;
+        }
+    }
+
 }
+
 
 module.exports = new BusQueries();
