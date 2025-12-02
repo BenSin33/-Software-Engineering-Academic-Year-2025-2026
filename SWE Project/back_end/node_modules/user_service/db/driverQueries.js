@@ -5,6 +5,22 @@ const { v4: uuidv4 } = require('uuid');
 // ============================
 // Helper: Generate sequential DriverID (Dxxx)
 // ============================
+
+async function findDriversWithoutRoute() {
+  try {
+    const [drivers] = await pool.query(
+      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, BusID, RouteID, CreatedAt
+FROM drivers
+WHERE RouteID IS NULL OR RouteID IN ('null', 'N/A', 'Null')
+ORDER BY CreatedAt DESC;`
+    );
+    return drivers;
+  } catch (error) {
+    console.error('Error in findDriversWithoutRoute:', error);
+    throw error;
+  }
+}
+
 const generateNextDriverId = async (connection = null) => {
   const db = connection || pool;
   try {
@@ -123,21 +139,86 @@ const getDriverByUserId = async (userId) => {
 // ============================
 // UPDATE DRIVER
 // ============================
-const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
+// const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
+//   try {
+//     const [result] = await pool.query(
+//       `UPDATE drivers 
+//        SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
+//        WHERE DriverID = ?`,
+//       [fullName, phoneNumber, email, status, driverId]
+//     );
+
+//     if (result.affectedRows === 0) {
+//       throw new Error('Không tìm thấy tài xế để cập nhật');
+//     }
+//   } catch (err) {
+//     console.error('Lỗi khi cập nhật tài xế:', err);
+//     throw new Error('Cập nhật tài xế thất bại: ' + err.message);
+//   }
+// };
+const updateDriver = async (
+  driverId,
+  fullName,
+  phoneNumber,
+  email,
+  status,
+  routeID,
+  busID
+) => {
   try {
-    const [result] = await pool.query(
-      `UPDATE drivers 
-       SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
-       WHERE DriverID = ?`,
-      [fullName, phoneNumber, email, status, driverId]
-    );
+    const fields = [];
+    const values = [];
+    // Chỉ push field nếu có giá trị
+    if (fullName !== undefined && fullName !== null) {
+      fields.push("FullName = ?");
+      values.push(fullName);
+    }
+    if (phoneNumber !== undefined && phoneNumber !== null) {
+      fields.push("PhoneNumber = ?");
+      values.push(phoneNumber);
+    }
+    if (email !== undefined && email !== null) {
+      fields.push("Email = ?");
+      values.push(email);
+    }
+    if (status !== undefined && status !== null) {
+      fields.push("Status = ?");
+      values.push(status);
+    }
+    if (routeID !== undefined && routeID !== null) {
+      fields.push("RouteID = ?");
+      values.push(routeID);
+    }
+    if (busID !== undefined && busID !== null) {
+      fields.push("BusID = ?");
+      values.push(busID);
+    }
+
+    // Nếu không có field nào để update
+    if (fields.length === 0) {
+      throw new Error("Không có dữ liệu để cập nhật");
+    }
+
+    // Cập nhật UpdatedAt
+    fields.push("UpdatedAt = NOW()");
+
+    const sql = `
+      UPDATE drivers 
+      SET ${fields.join(", ")}
+      WHERE DriverID = ?
+    `;
+
+    values.push(driverId); // Cuối cùng là driverID cho câu WHERE
+
+    const [result] = await pool.query(sql, values);
 
     if (result.affectedRows === 0) {
-      throw new Error('Không tìm thấy tài xế để cập nhật');
+      throw new Error("Không tìm thấy tài xế để cập nhật");
     }
+
   } catch (err) {
-    console.error('Lỗi khi cập nhật tài xế:', err);
-    throw new Error('Cập nhật tài xế thất bại: ' + err.message);
+    console.error("Lỗi khi cập nhật tài xế:", err);
+    throw new Error("Cập nhật tài xế thất bại: " + err.message);
   }
 };
 
@@ -188,5 +269,6 @@ module.exports = {
   getDriverByUserId,
   updateDriver,
   deleteDriver,
-  getDriverStats
+  getDriverStats,
+  findDriversWithoutRoute
 };

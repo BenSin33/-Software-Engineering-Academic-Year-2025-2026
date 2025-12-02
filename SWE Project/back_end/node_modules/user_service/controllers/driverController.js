@@ -4,6 +4,15 @@ const { success, error } = require('../utils/response');
 const { syncDriverToService, deleteDriverFromService } = require('../utils/syncUtils');
 const pool = require('../db/pool');
 
+const getDriversWithoutRoute = async (req, res) => {
+  try {
+    const drivers = await queries.findDriversWithoutRoute();
+    success(res, drivers, 'Danh sách tài xế chưa có tuyến');
+  } catch (err) {
+    console.error('Error getting drivers without route:', err);
+    error(res, 'Không thể lấy danh sách tài xế chưa có tuyến', 500);
+  }
+};
 // Tạo tài xế mới (tự động tạo user account)
 const createDriverWithAccount = async (req, res) => {
   const connection = await pool.getConnection();
@@ -95,15 +104,36 @@ const getDriverByUserId = async (req, res) => {
 // Cập nhật tài xế
 const updateDriver = async (req, res) => {
   try {
-    const { fullName, phoneNumber, email, status } = req.body;
+    const { fullName, phoneNumber, email, status, routeID, busID } = req.body;
     const driverId = req.params.id;
+    
+    // --- Bước 1: Update trong database local (driver_service) ---
+    await queries.updateDriver(driverId, fullName, phoneNumber, email, status, routeID, busID);
 
-    await queries.updateDriver(driverId, fullName, phoneNumber, email, status);
-    await syncDriverToService({ driverId, fullName, phoneNumber, email, status });
+    // --- Bước 2: Sync sang user_service (CHỈ gửi các field user_service cần) ---
+    try {
+      // ⭐ QUAN TRỌNG: Chỉ sync những field mà user_service chấp nhận
+      // Không gửi routeID và busID nếu user_service không có field này
+      const syncData = {
+        driverId,
+        fullName,
+        phoneNumber,
+        email,
+        status
+        // ❌ KHÔNG gửi routeID và busID vào đây
+      };
+
+      await syncDriverToService(syncData);
+      console.log('✅ Đồng bộ user_service thành công');
+    } catch (syncErr) {
+      // Nếu sync lỗi, chỉ log warning, không fail toàn bộ request
+      console.warn('⚠️ Lỗi đồng bộ tài xế sang user_service:', syncErr.message);
+      // Có thể return success vì đã update thành công ở database chính
+    }
 
     success(res, null, 'Cập nhật tài xế thành công');
   } catch (err) {
-    console.error('Error updating driver:', err);
+    console.error('❌ Error updating driver:', err);
     error(res, err.message);
   }
 };
@@ -140,5 +170,6 @@ module.exports = {
   getDriverByUserId,
   updateDriver,
   deleteDriver,
-  getDriverStats
+  getDriverStats,
+  getDriversWithoutRoute,
 };

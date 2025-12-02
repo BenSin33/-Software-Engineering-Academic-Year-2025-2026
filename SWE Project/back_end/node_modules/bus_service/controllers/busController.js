@@ -4,6 +4,23 @@ const eventPublisher = require('../events/eventPublisher');
 // ===================================
 // BUS CONTROLLERS
 // ===================================
+async function getBusesWithoutRoute(req, res) {
+  try {
+    const buses = await busQueries.findBusWithoutRoute(); // hoặc tự viết query riêng nếu cần
+    res.json({
+      success: true,
+      data: buses,
+      count: buses.length
+    });
+  } catch (error) {
+    console.error('Error fetching buses without route:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
 
 async function getAllBuses(req, res) {
   console.log("📥 [GET] /api/buses - Backend đã nhận request");
@@ -20,7 +37,7 @@ async function getAllBuses(req, res) {
       offset = 0
     } = req.query;
 
-    console.log("🔍 Query params:", req.query);
+   
 
     const filters = { status, search, minCapacity, maxCapacity, minFuel, route };
     const pagination = { limit: parseInt(limit), offset: parseInt(offset) };
@@ -74,6 +91,8 @@ async function getBusById(req, res) {
     });
   }
 }
+
+
 
 async function getBusStatistics(req, res) {
   try {
@@ -139,7 +158,7 @@ async function updateBus(req, res) {
   try {
     const busId = req.params.id;
     const updateData = req.body;
-
+    
     // Check if bus exists
     const existingBus = await busQueries.findById(busId);
     if (!existingBus) {
@@ -150,7 +169,6 @@ async function updateBus(req, res) {
     }
 
     const result = await busQueries.update(busId, updateData);
-
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
@@ -387,5 +405,6 @@ module.exports = {
   getBusEvents,
   getBusesByRoute,
   getBusesNeedingMaintenance,
-  getAvailableBuses
+  getAvailableBuses,
+  getBusesWithoutRoute
 };
