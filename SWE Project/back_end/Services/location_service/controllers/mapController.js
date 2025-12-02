@@ -27,7 +27,7 @@ function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
 
 }
 
-const ORS_API_KEY = process.env.ORS_API_KEY;
+const ORS_API_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImFiMmZiZTgzNDQ2MzQ0Mzg5MWU3NTIzYjdhY2MxYjhjIiwiaCI6Im11cm11cjY0In0=";
 const MAPTILER_API_KEY = process.env.MAPTILER_API_KEY;
 
 const ORS_BASE_URL = 'https://api.openrouteservice.org';

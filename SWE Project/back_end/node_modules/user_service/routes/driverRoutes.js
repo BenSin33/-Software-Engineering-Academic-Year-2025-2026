@@ -4,6 +4,8 @@ const authorize = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
+router.get("/active", controller.getActiveDrivers);
+
 // Admin (R001) có thể xem thống kê tài xế
 router.get("/stats", controller.getDriverStats);
 
@@ -12,6 +14,7 @@ router.get("/user/:userId", controller.getDriverByUserId);
 
 // Chỉ cho phép tài xế (R002) cập nhật thông tin của chính họ
 router.put("/user/:userId", controller.updateDriver);
+
 
 
 // Admin (R001) có thể xem tất cả tài xế

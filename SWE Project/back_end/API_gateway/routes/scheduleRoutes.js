@@ -1,88 +1,117 @@
 const express = require("express");
+const router = express.Router();
 const { callService } = require("../services/callService.js");
 
-const router = express.Router();
-const {scheduleController, getScheduleData}= require('../controllers/scheduleController.js')
-// GET /api/schedule
-router.get('/',scheduleController );
+// Controller cho các hàm logic phức tạp
+const scheduleController = require('../controllers/scheduleController.js');
 
-router.delete('/delete/:id',async (req,res)=>{
+// Middleware xác thực
+const authMiddleware = require('../middleware/auth.middleware.js'); 
 
-const {id} = req.params;
-try{
-   const response = await callService("schedule_service",`/Schedules/delete/${id}`,"delete");
-}catch(error){
-  console.error(error);
-  res.status(400).json({message:'không thể xóa lịch trình'})
-}
+// ==========================================
+// 1. API CHO TÀI XẾ (Driver App)
+// ==========================================
+router.get('/driver/my-schedules', authMiddleware.verifyToken, scheduleController.getMySchedules);
 
-})
+
+// ==========================================
+// 2. API CHO ADMIN (Web Dashboard)
+// ==========================================
+
+// GET: Lấy danh sách
+router.get('/', scheduleController.getAllSchedules);
+
+// POST: Thêm mới (Đã tối ưu hóa)
+router.post("/add", async (req, res) => {
+  try {
+    const { RouteID, StartTime, EndTime, Date, DriverID } = req.body;
+
+    // 1. Gọi hàm lấy thông tin Route MỘT LẦN DUY NHẤT
+    // Hàm này sẽ trả về cả: driverID, busID (nếu controller gateway đã sửa đúng)
+    const routeInfo = await scheduleController.getScheduleData(RouteID);
+
+    // 2. Logic điền tự động (Auto-fill)
+    const finalBusID = routeInfo.busID || 'BUS-01'; // Lấy bus từ route, fallback BUS-01
+    const finalDriverID = DriverID || routeInfo.driverID || 'D001'; // Ưu tiên FE gửi -> Route -> Fallback
+
+    // 3. Gọi Service con
+    const scheduleData = await callService(
+      "schedule_service", 
+      "/Schedules/add", 
+      "POST", 
+      { 
+        RouteID,
+        DriverID: finalDriverID,
+        BusID: finalBusID, // ✅ Đã gửi BusID sang service con
+        StartTime,
+        EndTime,
+        Date 
+      }
+    );
+    
+    // 4. Trả về kết quả
+    res.status(201).json({
+      message: "Thêm lịch trình thành công",
+      data: scheduleData
+    });
+
+  } catch (err) {
+    console.error("❌ Gateway Add Error:", err.message);
+    res.status(500).json({ message: "Không thể thêm lịch trình" });
+  }
+});
+
+// PUT: Cập nhật
 router.put("/edit/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { RouteID, StartTime, EndTime, Date } = req.body;
-    const data = { RouteID, StartTime, EndTime, Date };
-
-    console.log('data:', data);
-
+    
     const scheduleData = await callService(
-      "schedule_service",
-      `/Schedules/edit/${id}`,
-      "PUT",
-      data
+      "schedule_service", 
+      `/Schedules/edit/${id}`, 
+      "PUT", 
+      { RouteID, StartTime, EndTime, Date }
     );
 
-    const routeDriverMergedData = await getScheduleData(RouteID);
+    const enrichedData = await scheduleController.getScheduleData(RouteID);
 
-    const mergedData = {
-      ...scheduleData,
-      ...routeDriverMergedData,
-    };
-
-    // ✅ Gửi response JSON về client
     res.status(200).json({
-      message: "Cập nhật lịch trình thành công",
-      data: mergedData,
+      message: "Cập nhật thành công",
+      data: { ...scheduleData, ...enrichedData }
     });
-
   } catch (error) {
-    console.error("❌ Lỗi update:", error);
-    res.status(error.status || 400).json({
-      message: error.message || "Lỗi update",
-    });
+    console.error("❌ Gateway Edit Error:", error);
+    res.status(400).json({ message: "Lỗi cập nhật" });
   }
 });
 
-
-router.post("/add", async (req, res) => {
+// DELETE: Xóa
+router.delete('/delete/:id', async (req, res) => {
   try {
-    const { RouteID, StartTime, EndTime, Date } = req.body;
-    const formData = { RouteID, StartTime, EndTime, Date };
-    // 🟢 1. Gọi schedule_service để thêm lịch trình
-    const scheduleData = await callService(
-      "schedule_service",
-      "/Schedules/add",
-      "POST",
-      formData
-    );
+     const { id } = req.params;
+     await callService("schedule_service", `/Schedules/delete/${id}`, "DELETE");
+     res.status(200).json({ message: "Xóa thành công" });
+  } catch (error) {
+    console.error("❌ Gateway Delete Error:", error);
+    res.status(400).json({ message: 'Không thể xóa' });
+  }
+});
+
+router.patch("/status/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
     
-    // 🟢 2. Lấy thông tin Route + Driver theo RouteID
-    const routeDriverMergedData = await getScheduleData(RouteID);
-
-    // 🟢 3. Gộp tất cả dữ liệu lại thành một record hoàn chỉnh
-    const mergedData = {
-      ...scheduleData,
-      ...routeDriverMergedData,
-    };
-
-    // 🟢 4. Gửi về frontend
-    res.status(201).json({
-      message: "Thêm lịch trình thành công",
-      data: mergedData,
-    });
+    const result = await callService(
+      "schedule_service", 
+      `/Schedules/status/${id}`, 
+      "PATCH", 
+      { status }
+    );
+    res.json(result);
   } catch (err) {
-    console.error("❌ Lỗi khi thêm lịch trình:", err.message);
-    res.status(500).json({ message: "Không thể thêm lịch trình" });
+    res.status(500).json({ message: "Lỗi cập nhật trạng thái Gateway" });
   }
 });
 
