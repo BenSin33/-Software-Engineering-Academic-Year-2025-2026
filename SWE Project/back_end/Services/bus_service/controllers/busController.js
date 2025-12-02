@@ -209,7 +209,7 @@ async function updateBusStatus(req, res) {
       });
     }
 
-    const validStatuses = ['running', 'waiting', 'maintenance', 'ready'];
+    const validStatuses = ['running', 'waiting', 'inactive', 'ready'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -292,6 +292,33 @@ async function deleteBus(req, res) {
   try {
     const busId = req.params.id;
 
+    // First, check if bus exists and get its current status and route assignment
+    const existingBus = await busQueries.findById(busId);
+
+    if (!existingBus) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bus not found'
+      });
+    }
+
+    // Check if bus is currently assigned to a route
+    if (existingBus.RouteID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa xe buýt đang được phân công cho một tuyến. Vui lòng đưa trạng thái về "inactive" (không hoạt động) và gỡ phân công tuyến trước khi xóa.'
+      });
+    }
+
+    // Check if bus status is inactive
+    if (existingBus.Status !== 'inactive') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa xe buýt. Vui lòng đưa trạng thái về "inactive" (không hoạt động) trước khi xóa.'
+      });
+    }
+
+    // If all checks pass, proceed with deletion
     const result = await busQueries.delete(busId);
 
     if (result.affectedRows === 0) {
@@ -356,7 +383,7 @@ async function getBusesByRoute(req, res) {
 
 async function getBusesNeedingMaintenance(req, res) {
   try {
-    const buses = await busQueries.findByStatus('maintenance');
+    const buses = await busQueries.findByStatus('inactive');
 
     res.json({
       success: true,

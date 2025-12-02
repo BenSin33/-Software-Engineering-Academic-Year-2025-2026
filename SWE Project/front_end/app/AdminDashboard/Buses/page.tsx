@@ -156,7 +156,7 @@ export default function BusesPage() {
       total: buses.length,
       running: buses.filter((b) => b.status === "running").length,
       waiting: buses.filter((b) => b.status === "waiting").length,
-      maintenance: buses.filter((b) => b.status === "maintenance").length,
+      inactive: buses.filter((b) => b.status === "inactive").length,
       ready: buses.filter((b) => b.status === "ready").length,
       totalCapacity: buses.reduce((sum, b) => sum + b.capacity, 0),
       registered: buses.reduce((sum, b) => sum + b.current_load, 0),
@@ -167,7 +167,7 @@ export default function BusesPage() {
     const badges = {
       running: { text: "Đang chạy", class: "status-badge-running" },
       waiting: { text: "Đang chờ", class: "status-badge-waiting" },
-      maintenance: { text: "Bảo trì", class: "status-badge-maintenance" },
+      inactive: { text: "Không hoạt động", class: "status-badge-inactive" },
       ready: { text: "Sẵn sàng", class: "status-badge-ready" },
     };
     return badges[status as keyof typeof badges] || badges.ready;
@@ -391,8 +391,8 @@ export default function BusesPage() {
         <div className="stat-card stat-red">
           <div className="stat-icon">🔧</div>
           <div className="stat-content">
-            <div className="stat-label">Bảo trì</div>
-            <div className="stat-value">{stats.maintenance}</div>
+            <div className="stat-label">Không hoạt động</div>
+            <div className="stat-value">{stats.inactive}</div>
           </div>
         </div>
         <div className="stat-card stat-light-blue">
@@ -562,7 +562,7 @@ export default function BusesPage() {
 
       {/* Filter Tabs */}
       <div className="filter-tabs">
-        {(["all", "running", "waiting", "maintenance", "ready"] as const).map((status) => (
+        {(["all", "running", "waiting", "inactive", "ready"] as const).map((status) => (
           <button
             key={status}
             className={`filter-tab ${filterStatus === status ? "active" : ""}`}
@@ -836,7 +836,7 @@ export default function BusesPage() {
                       <option value="ready">Sẵn sàng</option>
                       <option value="running">Đang chạy</option>
                       <option value="waiting">Đang chờ</option>
-                      <option value="maintenance">Bảo trì</option>
+                      <option value="inactive">Không hoạt động</option>
                     </select>
                   </div>
                 </div>
@@ -1109,7 +1109,7 @@ export default function BusesPage() {
                     <option value="ready">Sẵn sàng</option>
                     <option value="running">Đang chạy</option>
                     <option value="waiting">Đang chờ</option>
-                    <option value="maintenance">Bảo trì</option>
+                    <option value="inactive">Không hoạt động</option>
                   </select>
                 </div>
 
