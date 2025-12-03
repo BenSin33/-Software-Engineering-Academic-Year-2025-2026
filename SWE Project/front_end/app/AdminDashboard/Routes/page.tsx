@@ -1,12 +1,9 @@
+//SWE Project/front_end/app/AdminDashboard/Routes/page.tsx
 "use client";
-
-import React, { useState, ReactElement, useEffect, FormEvent } from "react";
-import { Users, Phone, Mail, MapPin, UserCircle, Search, Plus, Edit, Trash2, Eye, MessageSquare, Bell, BellOff, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter, Bus, School, Route as RouteIcon, UserCheck } from "lucide-react";
-import './routes.css'
 import MapView from "@/components/Layouts/MapView";
+import React, { useState, useEffect, FormEvent } from "react";
+import { Search, Plus, Edit, Trash2, Eye, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter, Bus, Route as RouteIcon, UserCheck, AlertCircle } from "lucide-react";
 
-
-// Interface for a bus route
 interface Route {
     RouteID: number;
     RouteName: string;
@@ -15,73 +12,57 @@ interface Route {
     StartLocation: string;
     EndLocation: string;
     DriverName: string;
-    // Add 'status' here if the backend supports it, otherwise filtering by status won't work
+    Status: 'Đang hoạt động' | 'Bảo trì' | 'Tạm dừng';
 }
 
-// Interface for the form data
+interface Coordinates {
+    lng: number;
+    lat: number;
+}
+
 interface FormData {
     routeName: string;
     driverID: string;
     busID: string;
     startLocation: string;
     endLocation: string;
+    status: 'Đang hoạt động' | 'Bảo trì' | 'Tạm dừng';
 }
 
-// Interface for advanced filters
 interface AdvancedFilters {
     driverName: string;
     busNumber: string;
     status: string;
 }
 
-// Interface for API response structure from Gateway
-interface GatewayResponse {
-    message: string;
-    data: Route[]; // Dữ liệu routes thực tế nằm trong thuộc tính 'data'
-    // Thêm thuộc tính 'routes' để phòng trường hợp API Gateway trả về cả hai key
-    routes?: Route[]; 
+interface Driver {
+    DriverID: string;
+    DriverName: string;
 }
 
+interface Bus {
+    BusID: string;
+    PlateNumber: string;
+    Capacity: number;
+}
 
-// --- Màu sắc tùy chỉnh (Orange-Yellow: #FFAC50, Dark Hover: #E59B48) ---
 const PRIMARY_COLOR = "#FFAC50";
-const PRIMARY_HOVER = "#E59B48";
-const PRIMARY_RING = "rgba(255, 172, 80, 0.3)";
-const API_BASE_URL = 'http://localhost:5000/routes'; // Centralize API URL
-
-// Hàm khởi tạo form rỗng
-interface coordinates {
-    lng: number,
-    lat: number
-}
+const API_BASE_URL = 'http://localhost:5000';
 
 const initialFormData: FormData = {
     routeName: '',
     driverID: '',
     busID: '',
     startLocation: '',
-    endLocation: ''
+    endLocation: '',
+    status: 'Đang hoạt động'
 };
-const routePoints = [
-    [10.77653, 106.700981], // TP.HCM
-    [11.9404, 108.4583],    // Đà Lạt
-    [16.047079, 108.20623], // Đà Nẵng
-    [21.0245, 105.84117],   // Hà Nội
-];
-// =================================================================
-// ╔═╗┌─┐┬ ┬┌─┐┌┬┐┌─┐  Main Component
-// ╚═╗├┤ │ │├─┘ │ ├┤
-// ╚═╝└─┘└─┘┴  ┴ └─┘
-// =================================================================
 
 export default function RoutesPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-    const [coordinates, setCoordinates] = useState<coordinates[]>([]);
-    const [mapError, setMapError] = useState('')
-    const [mapLoading, setMapLoading] = useState(true)
     const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
         driverName: "",
         busNumber: "",
@@ -96,42 +77,98 @@ export default function RoutesPage() {
 
     const [routes, setRoutes] = useState<Route[]>([]);
     const [formData, setFormData] = useState<FormData>(initialFormData);
-    // console.log('mapLoading: ', mapLoading)
-    // console.log('mapError: ', mapError)
-    
-    // --- Data Fetching ---
+
+    // Available drivers and buses without route
+    const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
+    const [availableBuses, setAvailableBuses] = useState<Bus[]>([]);
+    const [loadingDrivers, setLoadingDrivers] = useState(false);
+    const [loadingBuses, setLoadingBuses] = useState(false);
+    const [coordinates, setCoordinates] = useState<Coordinates[]>([]);
+    const [mapError, setMapError] = useState('');
+    const [mapLoading, setMapLoading] = useState(true);
+    // Fetch routes
     useEffect(() => {
-        const fetchRoutesAndCoordinates = async () => {
-            console.log("[FRONTEND] Bắt đầu gọi API Routes...");
-            try {
-                // --- Fetch routes ---
-                const resRoutes = await fetch(API_BASE_URL);
-                if (!resRoutes.ok) throw new Error(`Lỗi fetch routes: HTTP ${resRoutes.status}`);
-                
-                // Lấy dữ liệu API Gateway trả về
-                const responseData: GatewayResponse = await resRoutes.json();
-                
-                // LOG QUAN TRỌNG: Kiểm tra cấu trúc dữ liệu Frontend nhận
-                console.log("[FRONTEND DEBUG] Phản hồi JSON thô:", responseData);
-                
-                // CẦN SỬA ĐOẠN NÀY: LẤY MẢNG ROUTES CHÍNH XÁC TỪ 'data' (hoặc 'routes' nếu có)
-                const fetchedRoutes = responseData.data || responseData.routes; // <--- ĐÃ SỬA: Lấy từ thuộc tính .data
-
-                if (!fetchedRoutes || fetchedRoutes.length === 0) {
-                    console.warn("[FRONTEND DEBUG] Không tìm thấy dữ liệu tuyến đường trong response.data.");
-                    setRoutes([]);
-                    return;
-                }
-
-                setRoutes(fetchedRoutes);
-                console.log(`[FRONTEND DEBUG] Đã tải thành công ${fetchedRoutes.length} tuyến.`);
+        fetchRoutes();
+    }, []);
 
 
-                // --- Chọn route đầu tiên làm mặc định ---
-                const firstRoute = fetchedRoutes[0];
-                // --- Fetch coordinates của route đầu tiên ---
+
+    // Fetch available drivers (no route assigned)
+    const fetchAvailableDrivers = async () => {
+setLoadingDrivers(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/drivers/no-route`);
+            if (!res.ok) throw new Error("Lỗi fetch drivers");
+            const data = await res.json();
+            if (data.success && data.data) {
+                setAvailableDrivers(data.data);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Không thể tải danh sách tài xế");
+        } finally {
+            setLoadingDrivers(false);
+        }
+    };
+
+    // Fetch available buses (no route assigned)
+    const fetchAvailableBuses = async () => {
+        setLoadingBuses(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/buses/no-route`);
+            if (!res.ok) throw new Error("Lỗi fetch buses");
+            const data = await res.json();
+     
+            if (data.success && data.data) {
+                setAvailableBuses(data.data);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Không thể tải danh sách xe buýt");
+        } finally {
+            setLoadingBuses(false);
+        }
+    };
+
+    const displayRouteOnMap = async (route: Route) => {
+        setMapError('');
+        setMapLoading(true);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/Location/coordinates`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(route)
+            });
+
+            if (!response.ok) throw new Error('Lỗi server khi fetch tọa độ');
+
+            const data = await response.json();
+            
+
+            if (!data?.coordinates?.length) throw new Error('Tọa độ trống');
+
+            setCoordinates(data.coordinates);
+            
+        } catch (err: any) {
+            console.error(err);
+            setMapError(err.message || 'Lỗi không lấy được dữ liệu');
+        } finally {
+            setMapLoading(false);
+        }
+    };
+    const fetchRoutes = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/routes`);
+            if (!res.ok) throw new Error("Lỗi fetch routes");
+            const data = await res.json();
+            if (data?.routes?.length) {
+                setRoutes(data.routes);
+
+                // Fetch coordinates của route đầu tiên
+                const firstRoute = data.routes[0];
                 setMapLoading(true);
-                const resCoords = await fetch("http://localhost:5000/Location/coordinates", {
+                const resCoords = await fetch(`${API_BASE_URL}/Location/coordinates`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(firstRoute)
@@ -139,24 +176,27 @@ export default function RoutesPage() {
                 if (!resCoords.ok) throw new Error("Lỗi fetch coordinates");
                 const coordData = await resCoords.json();
                 setCoordinates(coordData.coordinates);
-            } catch (err) {
-                console.error("[FRONTEND ERROR]", err);
-                setMapError("Không thể tải dữ liệu tuyến đường");
-            } finally {
-                setMapLoading(false);
             }
-        };
-
-        fetchRoutesAndCoordinates();
-    }, []);
-
+        } catch (err) {
+            console.error(err);
+setMapError("Không thể tải dữ liệu");
+            alert("Không thể tải danh sách tuyến");
+        } finally {
+            setMapLoading(false);
+        }
+    };
+    // Load available resources when opening add modal
+    useEffect(() => {
+        if (showAddModal || showEditModal) {
+            fetchAvailableDrivers();
+            fetchAvailableBuses();
+        }
+    }, [showAddModal, showEditModal]);
 
     const itemsPerPage = 6;
-    // --- Filtering Logic ---
+
     const filteredRoutes = routes.filter(route => {
         const searchTermLower = searchTerm.toLowerCase();
-        // Check if route data is available before filtering
-        if (routes.length === 0) return true;
 
         const matchesSearch = String(route.RouteName).toLowerCase().includes(searchTermLower) ||
             String(route.BusID).toLowerCase().includes(searchTermLower) ||
@@ -168,14 +208,12 @@ export default function RoutesPage() {
         const matchesBusNumber = advancedFilters.busNumber === "" ||
             String(route.BusID).toLowerCase().includes(advancedFilters.busNumber.toLowerCase());
 
-        // Note: Status filtering is disabled as 'status' field is missing from Route interface/sample data
-        // const matchesStatus = filterStatus === 'all' || (route as any).status === filterStatus;
+        const matchesStatus = filterStatus === 'all' || route.Status === filterStatus;
 
-        return matchesSearch && matchesDriver && matchesBusNumber; // && matchesStatus;
+        return matchesSearch && matchesDriver && matchesBusNumber && matchesStatus;
     });
 
-    const routeLength = filteredRoutes.length;
-    const totalPages = Math.ceil(routeLength / itemsPerPage);
+    const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentRoutes = filteredRoutes.slice(startIndex, endIndex);
@@ -190,6 +228,7 @@ export default function RoutesPage() {
             busNumber: "",
             status: ""
         });
+        setFilterStatus("all");
     };
 
     const closeAllModals = () => {
@@ -201,130 +240,98 @@ export default function RoutesPage() {
         setFormData(initialFormData);
     };
 
-    // --- CRUD Handlers ---
-
     const handleAddRoute = async (e: FormEvent) => {
         e.preventDefault();
-        if (!formData.routeName || !formData.startLocation || !formData.endLocation) {
-            // SỬA LỖI: Thay alert bằng console.error
-            console.error("Vui lòng điền đầy đủ thông tin tuyến đường!");
+        if (!formData.routeName || !formData.startLocation || !formData.endLocation || !formData.status) {
+            alert("Vui lòng điền đầy đủ thông tin tuyến đường!");
             return;
         }
+        
         try {
-            const response = await fetch(`${API_BASE_URL}/add`, {
+            const response = await fetch(`${API_BASE_URL}/routes/add`, {
                 method: 'POST',
                 headers: { "Content-Type": 'application/json' },
                 body: JSON.stringify(formData)
             });
-            console.log('res: ', response)
+
             if (response.ok) {
                 const data = await response.json();
+                
                 if (data) {
-                    setRoutes((prevRoutes) => [...prevRoutes, data.newRoute])
+                    setRoutes((prevRoutes) => [...prevRoutes, data.newRoute]);
                 }
-                // SỬA LỖI: Thay alert bằng console.log
-                console.log('Thêm tuyến xe thành công!');
+                alert('Thêm tuyến xe thành công!');
                 closeAllModals();
-            } else {
-                // SỬA LỖI: Thay alert bằng console.error
-                console.error('Có lỗi xảy ra khi thêm tuyến.');
+} else {
+                alert('Có lỗi xảy ra khi thêm tuyến.');
             }
         } catch (err) {
             console.error(err);
-            // SỬA LỖI: Thay alert bằng console.error
-            console.error('Lỗi kết nối hoặc hệ thống.');
-        }
-    };
-    const displayRouteOnMap = async (route: any) => {
-    
-        setMapError('');
-        setMapLoading(true);
-
-        try {
-            const response = await fetch('http://localhost:5000/location/coordinates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(route)
-            });
-
-            if (!response.ok) throw new Error('Lỗi server khi fetch tọa độ');
-
-            const data = await response.json();
-            console.log('[DEBUG] Dữ liệu trả về từ API:', data);
-
-            if (!data?.coordinates?.length) throw new Error('Tọa độ trống');
-
-            setCoordinates(data.coordinates);
-            console.log('coorss: ', data.coordinates);
-        } catch (err: any) {
-            console.error(err);
-            setMapError(err.message || 'Lỗi không lấy được dữ liệu');
-        } finally {
-            setMapLoading(false);
+            alert('Lỗi kết nối hoặc hệ thống.');
         }
     };
 
     const handleEditRoute = async (e: FormEvent) => {
         e.preventDefault();
-        if (!selectedRoute || !formData.routeName || !formData.startLocation || !formData.endLocation) {
-            // SỬA LỖI: Thay alert bằng console.error
-            console.error('Vui lòng nhập đầy đủ các trường!');
+        if (!selectedRoute || !formData.routeName || !formData.startLocation || !formData.endLocation || !formData.status) {
+            alert('Vui lòng nhập đầy đủ các trường!');
             return;
         }
+        const testData = {
+            routeName: formData.routeName,
+            driverID: formData.driverID,
+            busID: formData.busID,
+            startLocation: formData.startLocation,
+            endLocation: formData.endLocation,
+            status: formData.status || 'Đang hoạt động' // Force có giá trị
+        };
+
+       
         try {
-            const response = await fetch(`${API_BASE_URL}/edit/${selectedRoute.RouteID}`, {
+            const response = await fetch(`${API_BASE_URL}/routes/edit/${selectedRoute.RouteID}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(testData)
             });
 
             if (response.ok) {
                 const data = await response.json();
-              
                 if (data) {
                     setRoutes((prevRoute) =>
                         prevRoute.map((route) => route.RouteID.toString() === selectedRoute.RouteID.toString() ? data.updatedRoute : route)
-                    )
+                    );
                 }
-                // SỬA LỖI: Thay alert bằng console.log
-                console.log('Cập nhật thông tin tuyến thành công!');
+                alert('Cập nhật thông tin tuyến thành công!');
                 closeAllModals();
             } else {
-                 // SỬA LỖI: Thay alert bằng console.error
-                console.error('Có lỗi xảy ra khi cập nhật tuyến.');
+                alert('Có lỗi xảy ra khi cập nhật tuyến.');
             }
         } catch (err) {
             console.error(err);
-             // SỬA LỖI: Thay alert bằng console.error
-            console.error('Lỗi kết nối hoặc hệ thống.');
+            alert('Lỗi kết nối hoặc hệ thống.');
         }
     };
+
 
     const handleDeleteRoute = async (e: FormEvent) => {
         e.preventDefault();
         if (!routeToDelete) return;
         try {
-            const response = await fetch(`${API_BASE_URL}/delete/${routeToDelete.RouteID}`, {
+            const response = await fetch(`${API_BASE_URL}/routes/delete/${routeToDelete.RouteID}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
             if (response.ok) {
-                const data = await response.json();
-                if (data) {
-                    const updatedRoutes = routes.filter((route) => route.RouteID != routeToDelete.RouteID);
-                    setRoutes(updatedRoutes)
-                };
-                // SỬA LỖI: Thay alert bằng console.log
-                console.log("Xóa tuyến xe thành công!");
+                const updatedRoutes = routes.filter((route) => route.RouteID != routeToDelete.RouteID);
+                setRoutes(updatedRoutes);
+                alert("Xóa tuyến xe thành công!");
                 closeAllModals();
             } else {
-                 // SỬA LỖI: Thay alert bằng console.error
-                console.error('Có lỗi xảy ra khi xóa tuyến.');
+                alert('Có lỗi xảy ra khi xóa tuyến.');
             }
         } catch (err) {
             console.error(err);
-             // SỬA LỖI: Thay alert bằng console.error
-            console.error('Lỗi kết nối hoặc hệ thống.');
+            alert('Lỗi kết nối hoặc hệ thống.');
         }
     };
 
@@ -335,21 +342,21 @@ export default function RoutesPage() {
             busID: route.BusID,
             driverID: route.DriverID,
             startLocation: route.StartLocation,
-            endLocation: route.EndLocation
+            endLocation: route.EndLocation,
+            status: route.Status ?? 'Đang hoạt động'
         });
-        setShowEditModal(true);
+setShowEditModal(true);
+       
     };
 
-    // --- UI Helpers ---
-
-    const getStatusBadge = (status: string): ReactElement => {
+    const getStatusBadge = (status: string) => {
         switch (status) {
-            case "active":
+            case "Đang hoạt động":
                 return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3.5 h-3.5" /> Đang hoạt động</span>;
-            case "inactive":
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"><XCircle className="w-3.5 h-3.5" /> Tạm ngưng</span>;
-            case "maintenance":
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"><Users className="w-3.5 h-3.5" /> Đang bảo trì</span>;
+            case "Tạm dừng":
+                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"><XCircle className="w-3.5 h-3.5" /> Tạm dừng</span>;
+            case "Bảo trì":
+                return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"><AlertCircle className="w-3.5 h-3.5" /> Bảo trì</span>;
             default:
                 return <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Không rõ</span>;
         }
@@ -357,36 +364,129 @@ export default function RoutesPage() {
 
     const stats = [
         { label: "Tổng số tuyến", value: routes.length.toString(), color: "bg-orange-400", icon: RouteIcon },
-        // Placeholder stats (will be meaningful if status field is added to Route)
-        // { label: "Đang hoạt động", value: routes.filter(r => (r as any).status === "active").length.toString(), color: "bg-green-400", icon: CheckCircle },
-        // { label: "Số xe buýt", value: new Set(routes.map(r => r.BusID)).size.toString(), color: "bg-blue-400", icon: Bus },
-        // { label: "Tài xế", value: new Set(routes.map(r => r.DriverID)).size.toString(), color: "bg-purple-400", icon: UserCheck }
+        { label: "Đang hoạt động", value: routes.filter(r => r.Status === "Đang hoạt động").length.toString(), color: "bg-green-400", icon: CheckCircle },
+        { label: "Bảo trì", value: routes.filter(r => r.Status === "Bảo trì").length.toString(), color: "bg-gray-400", icon: AlertCircle },
+        { label: "Tạm dừng", value: routes.filter(r => r.Status === "Tạm dừng").length.toString(), color: "bg-amber-400", icon: XCircle }
     ];
-
-    // --- Render Components ---
 
     const ModalFormContent = (
         <div className="flex flex-col gap-4">
             <div className="flex flex-col">
                 <label className="text-sm text-gray-700 font-medium mb-1.5">Tên tuyến *</label>
-                <input type="text" value={formData.routeName} onChange={(e) => setFormData({ ...formData, routeName: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Tuyến Quận 1 - Quận 3" />
+                <input
+                    type="text"
+                    value={formData.routeName}
+                    onChange={(e) => setFormData({ ...formData, routeName: e.target.value })}
+                    className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    placeholder="VD: Tuyến Quận 1 - Quận 3"
+                />
             </div>
+
             <div className="flex flex-col">
                 <label className="text-sm text-gray-700 font-medium mb-1.5">Mã xe *</label>
-                <input type="text" value={formData.busID} onChange={(e) => setFormData({ ...formData, busID: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: 51F-123.45" />
+                {loadingBuses ? (
+                    <div className="p-3 border border-gray-300 rounded-lg text-gray-400">Đang tải...</div>
+                ) : (
+                    <select
+                        value={formData.busID}
+                        onChange={(e) => setFormData({ ...formData, busID: e.target.value })}
+                        className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+>
+                        <option value="">-- Chọn xe buýt --</option>
+                        {availableBuses && availableBuses.length > 0 ? (
+                            <>
+                                {formData.busID && selectedRoute && (
+                                    <option key={formData.busID} value={formData.busID}>
+                                        {formData.busID}
+                                    </option>
+                                )}
+                                {availableBuses.map((bus) => (
+                                    <option key={bus.BusID} value={bus.BusID}>
+                                        {bus.BusID} - {bus.PlateNumber} (Sức chứa: {bus.Capacity})
+                                    </option>
+                                ))}
+                            </>
+                        ) : (
+                            // Hiển thị bus hiện tại nếu không có danh sách available buses
+                            formData.busID && selectedRoute && (
+                                <option key={formData.busID} value={formData.busID}>
+                                    {formData.busID}
+                                </option>
+                            )
+                        )}
+                    </select>
+                )}
             </div>
+
             <div className="flex flex-col">
                 <label className="text-sm text-gray-700 font-medium mb-1.5">Tài xế *</label>
-                <input type="text" value={formData.driverID} onChange={(e) => setFormData({ ...formData, driverID: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: DRV001" />
+                {loadingDrivers ? (
+                    <div className="p-3 border border-gray-300 rounded-lg text-gray-400">Đang tải...</div>
+                ) : (
+                    <select
+                        value={formData.driverID}
+                        onChange={(e) => setFormData({ ...formData, driverID: e.target.value })}
+                        className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    >
+                        <option value="">-- Chọn tài xế --</option>
+                        {availableDrivers && availableDrivers.length > 0 ? (
+                            <>
+                                {formData.driverID && selectedRoute && (
+                                    <option key={formData.driverID} value={formData.driverID}>
+                                        {formData.driverID}{selectedRoute.DriverName === 'Không tìm thấy tài xế' ? '' : ` - ${selectedRoute.DriverName}`}
+                                    </option>
+                                )}
+                                {availableDrivers.map((driver) => (
+                                    <option key={driver.DriverID} value={driver.DriverID}>
+                                        {driver.DriverID} - {driver.DriverName}
+                                    </option>
+                                ))}
+                            </>
+) : (
+                            // Hiển thị driver hiện tại nếu không có danh sách available drivers
+                            formData.driverID && selectedRoute && (
+                                <option key={formData.driverID} value={formData.driverID}>
+                                    {formData.driverID}{selectedRoute.DriverName === 'Không tìm thấy tài xế' ? '' : ` - ${selectedRoute.DriverName}`}
+                                </option>
+                            )
+                        )}
+                    </select>
+                )}
             </div>
+
+            <div className="flex flex-col">
+                <label className="text-sm text-gray-700 font-medium mb-1.5">Trạng thái *</label>
+                <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as 'Đang hoạt động' | 'Bảo trì' | 'Tạm dừng' })}
+                    className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                >
+                    <option value="Đang hoạt động">Đang hoạt động</option>
+                    <option value="Bảo trì">Bảo trì</option>
+                    <option value="Tạm dừng">Tạm dừng</option>
+                </select>
+            </div>
+
             <div className="flex flex-col">
                 <label className="text-sm text-gray-700 font-medium mb-1.5">Điểm bắt đầu *</label>
-                <input type="text" value={formData.startLocation} onChange={(e) => setFormData({ ...formData, startLocation: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Trường THPT A" />
+                <input
+                    type="text"
+                    value={formData.startLocation}
+                    onChange={(e) => setFormData({ ...formData, startLocation: e.target.value })}
+                    className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    placeholder="VD: Trường THPT A"
+                />
             </div>
-            {/* Thêm trường Điểm kết thúc bị thiếu */}
+
             <div className="flex flex-col">
                 <label className="text-sm text-gray-700 font-medium mb-1.5">Điểm kết thúc *</label>
-                <input type="text" value={formData.endLocation} onChange={(e) => setFormData({ ...formData, endLocation: e.target.value })} className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200" placeholder="VD: Ký túc xá B" />
+                <input
+                    type="text"
+                    value={formData.endLocation}
+                    onChange={(e) => setFormData({ ...formData, endLocation: e.target.value })}
+                    className="p-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                    placeholder="VD: Ký túc xá B"
+                />
             </div>
         </div>
     );
@@ -397,13 +497,12 @@ export default function RoutesPage() {
             <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-1">Quản lý Tuyến xe</h1>
-                    <p className="text-gray-500 text-base">Quản lý thông tin các tuyến xe buýt</p>
+<p className="text-gray-500 text-base">Quản lý thông tin các tuyến xe buýt</p>
                 </div>
                 <button
                     onClick={() => { setShowAddModal(true); setFormData(initialFormData); }}
-                    className="flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium transition duration-200 shadow-md hover:bg-orange-600 active:bg-orange-700"
-                    style={{ backgroundColor: PRIMARY_COLOR, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                    suppressHydrationWarning={true}
+                    className="flex items-center gap-2 text-white px-6 py-3 rounded-lg border-none cursor-pointer font-medium transition duration-200 shadow-md hover:opacity-90"
+                    style={{ backgroundColor: PRIMARY_COLOR }}
                 >
                     <Plus className="w-5 h-5" />
                     Thêm tuyến mới
@@ -427,7 +526,7 @@ export default function RoutesPage() {
                 ))}
             </div>
 
-            {/* Filters and Search - Divided Layout */}
+            {/* Filters and Search */}
             <div className="flex flex-col lg:flex-row gap-6 mb-8">
                 {/* Bộ lọc bên trái */}
                 <div className="bg-white rounded-xl p-6 shadow-md lg:w-1/2">
@@ -440,24 +539,47 @@ export default function RoutesPage() {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg text-base transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-200"
-                                suppressHydrationWarning={true}
-                                style={{
-                                    '--tw-ring-color': PRIMARY_RING
-                                } as React.CSSProperties}
                             />
                         </div>
                         <button
-                            suppressHydrationWarning={true}
                             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-                            className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm text-white bg-orange-500 text-white border-none`}
-                            style={showAdvancedSearch ? { backgroundColor: PRIMARY_COLOR } : {}}
+                            className="flex items-center gap-2 px-5 py-3 rounded-lg font-medium border-none cursor-pointer transition duration-200 text-sm text-white"
+style={{ backgroundColor: showAdvancedSearch ? PRIMARY_COLOR : '#6B7280' }}
                         >
                             <Filter className="w-4 h-4" />
                             Tìm kiếm nâng cao
                         </button>
                     </div>
 
-                    
+                    {/* Status Filter Buttons */}
+                    <div className="flex gap-2 flex-wrap mb-4">
+                        <button
+                            onClick={() => setFilterStatus('all')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filterStatus === 'all' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        >
+                            Tất cả
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('Đang hoạt động')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filterStatus === 'active' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        >
+                            Đang hoạt động
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('Bảo trì')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filterStatus === 'maintenance' ? 'bg-gray-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        >
+                            Bảo trì
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('Tạm dừng')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filterStatus === 'inactive' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                        >
+                            Tạm dừng
+                        </button>
+                    </div>
+
+                    {showAdvancedSearch && (
                         <div className="mt-4 pt-4 border-t border-gray-200">
                             <div className="grid gap-4 mb-4 grid-cols-1 sm:grid-cols-2">
                                 <div className="flex flex-col">
@@ -466,13 +588,8 @@ export default function RoutesPage() {
                                         type="text"
                                         placeholder="VD: DRV001"
                                         value={advancedFilters.driverName}
-                                        onChange={(e) =>
-                                            setAdvancedFilters({
-                                                ...advancedFilters,
-                                                driverName: e.target.value,
-                                            })
-                                        }
-                                        className="p-2.5 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                                        onChange={(e) => setAdvancedFilters({ ...advancedFilters, driverName: e.target.value })}
+className="p-2.5 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                                     />
                                 </div>
                                 <div className="flex flex-col">
@@ -481,12 +598,7 @@ export default function RoutesPage() {
                                         type="text"
                                         placeholder="VD: BUS001"
                                         value={advancedFilters.busNumber}
-                                        onChange={(e) =>
-                                            setAdvancedFilters({
-                                                ...advancedFilters,
-                                                busNumber: e.target.value,
-                                            })
-                                        }
+                                        onChange={(e) => setAdvancedFilters({ ...advancedFilters, busNumber: e.target.value })}
                                         className="p-2.5 border border-gray-300 rounded-lg text-sm transition-all duration-200 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                                     />
                                 </div>
@@ -495,14 +607,10 @@ export default function RoutesPage() {
                                 Xóa bộ lọc
                             </button>
                         </div>
-                
-
-                    <div className="flex gap-2 flex-wrap mt-4">
-                    
-                    </div>
+                    )}
                 </div>
 
-                {/* Bản đồ Google */}
+                {/* Bản đồ bên phải */}
                 <div className="lg:w-1/2 h-[450px] flex items-center justify-center">
                     {mapError ? (
                         <div className="flex flex-col items-center justify-center bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-md space-y-2 w-full h-full">
@@ -525,17 +633,14 @@ export default function RoutesPage() {
                         </div>
                     ) : mapLoading ? (
                         <div className="flex flex-col items-center space-y-4 h-full justify-center">
-                            <div className="w-16 h-16 border-4 border-[#FFAC50] border-t-transparent rounded-full animate-spin -mt-[5rem]"></div>
+<div className="w-16 h-16 border-4 border-[#FFAC50] border-t-transparent rounded-full animate-spin"></div>
                             <p className="text-gray-700 text-lg font-medium">Đang lấy dữ liệu tuyến đường...</p>
                         </div>
                     ) : (
-                        // ĐÃ HOÀN NGUYÊN: Sử dụng component MapView chính thức
                         <MapView coordinates={coordinates} showBuses={false} />
                     )}
                 </div>
-
             </div>
-
 
             {/* Routes Table */}
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
@@ -544,53 +649,39 @@ export default function RoutesPage() {
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên tuyến</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã tuyến</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã xe</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">tài xế</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tài xế</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm bắt đầu</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Điểm kết thúc</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody>
                             {currentRoutes.length > 0 ? (
                                 currentRoutes.map((route) => (
-                                    <tr onClick={() => { displayRouteOnMap(route) }} key={route.RouteID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
+                                    <tr onClick={() => displayRouteOnMap(route)} key={route.RouteID} className="border-b border-gray-100 transition duration-200 hover:bg-gray-50">
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div>
-                                                    <p className="font-medium text-sm text-gray-900 mb-0.5">{route.RouteName}</p>
-                                                </div>
-                                            </div>
+                                            <p className="font-medium text-sm text-gray-900">{route.RouteName}</p>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">{route.RouteID}</div>
-                                            </div>
+                                            <div className="flex items-center gap-1.5 text-sm">{route.BusID}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">{route.BusID}</div>
-                                            </div>
+                                            <div className="flex items-center gap-1.5 text-sm">{route.DriverName}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">{route.DriverName}</div>
-                                            </div>
+<div className="flex items-center gap-1.5 text-sm">{route.StartLocation}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">{route.StartLocation}</div>
-                                            </div>
+                                            <div className="flex items-center gap-1.5 text-sm">{route.EndLocation}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5 text-sm">{route.EndLocation}</div>
-                                            </div>
+                                            {getStatusBadge(route.Status)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => setSelectedRoute(route)} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-orange-50 text-orange-500" title="Xem chi tiết" style={{ color: PRIMARY_COLOR, backgroundColor: 'rgba(255, 172, 80, 0.1)' } as React.CSSProperties}><Eye className="w-4 h-4" /></button>
+                                                <button onClick={() => setSelectedRoute(route)} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 text-orange-500 hover:bg-orange-50" title="Xem chi tiết"><Eye className="w-4 h-4" /></button>
                                                 <button onClick={() => openEditModal(route)} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-green-100 text-green-600" title="Chỉnh sửa"><Edit className="w-4 h-4" /></button>
                                                 <button onClick={() => { setRouteToDelete(route); setShowDeleteConfirm(true); }} className="p-2 rounded-lg cursor-pointer transition duration-200 hover:scale-110 hover:bg-red-100 text-red-600" title="Xóa"><Trash2 className="w-4 h-4" /></button>
                                             </div>
@@ -608,12 +699,12 @@ export default function RoutesPage() {
 
                 {/* Pagination */}
                 {filteredRoutes.length > 0 && (
-                    <div suppressHydrationWarning={true} className="flex justify-between items-center p-6 bg-white border-t border-gray-200 flex-wrap gap-4">
+                    <div className="flex justify-between items-center p-6 bg-white border-t border-gray-200 flex-wrap gap-4">
                         <div className="text-gray-500 text-sm">
                             Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredRoutes.length)} trong tổng số {filteredRoutes.length} tuyến
                         </div>
                         <div className="flex gap-2 items-center">
-                            <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2.5 border border-gray-300 bg-white rounded-md cursor-pointer transition duration-200 text-sm min-w-10 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-orange-500"><ChevronLeft className="w-4 h-4" /></button>
+<button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="p-2.5 border border-gray-300 bg-white rounded-md cursor-pointer transition duration-200 text-sm min-w-10 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-orange-500"><ChevronLeft className="w-4 h-4" /></button>
                             {[...Array(totalPages)].map((_, index) => (
                                 <button
                                     key={index + 1}
@@ -638,20 +729,22 @@ export default function RoutesPage() {
                             <div className="flex items-center gap-4">
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-900 mb-0.5">{selectedRoute.RouteName}</h2>
+                                    <div className="mt-2">{getStatusBadge(selectedRoute.Status)}</div>
                                 </div>
                             </div>
                             <button onClick={() => setSelectedRoute(null)} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
                         </div>
                         <div className="p-6">
                             <div className="mb-6">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin tuyến</h3>
+<h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin tuyến</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                     <div><p className="text-sm text-gray-500 mb-1">Tên tuyến</p><p className="text-base text-gray-900 font-medium">{selectedRoute.RouteName}</p></div>
                                     <div><p className="text-sm text-gray-500 mb-1">Mã tài xế</p><p className="text-base text-gray-900 font-medium">{selectedRoute.DriverID}</p></div>
+                                    <div><p className="text-sm text-gray-500 mb-1">Tên tài xế</p><p className="text-base text-gray-900 font-medium">{selectedRoute.DriverName}</p></div>
                                     <div><p className="text-sm text-gray-500 mb-1">Mã xe</p><p className="text-base text-gray-900 font-medium">{selectedRoute.BusID}</p></div>
                                     <div><p className="text-sm text-gray-500 mb-1">Điểm bắt đầu</p><p className="text-base text-gray-900 font-medium">{selectedRoute.StartLocation}</p></div>
                                     <div><p className="text-sm text-gray-500 mb-1">Điểm kết thúc</p><p className="text-base text-gray-900 font-medium">{selectedRoute.EndLocation}</p></div>
-                                    {/* <div><p className="text-sm text-gray-500 mb-1">Trạng thái</p>{getStatusBadge(selectedRoute.status)}</div> */}
+                                    <div><p className="text-sm text-gray-500 mb-1">Trạng thái</p>{getStatusBadge(selectedRoute.Status)}</div>
                                 </div>
                             </div>
                             <div className="flex gap-3 pt-4">
@@ -669,7 +762,7 @@ export default function RoutesPage() {
                                 <button
                                     onClick={() => setSelectedRoute(null)}
                                     className="flex-1 px-4 py-3 border rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300"
-                                >
+>
                                     Đóng
                                 </button>
                             </div>
@@ -678,7 +771,7 @@ export default function RoutesPage() {
                 </div>
             )}
 
-            {/* Add/Edit Modal (Sử dụng ModalFormContent đã refactor) */}
+            {/* Add/Edit Modal */}
             {(showAddModal || showEditModal) && (
                 <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -693,8 +786,8 @@ export default function RoutesPage() {
                                     <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</button>
                                     <button
                                         type="submit"
-                                        className="flex-1 px-4 py-3 rounded-lg font-medium text-white bg-orange-500 hover:bg-orange-600 transition duration-200"
-                                        style={{ backgroundColor: PRIMARY_COLOR, hover: PRIMARY_HOVER } as React.CSSProperties}
+                                        className="flex-1 px-4 py-3 rounded-lg font-medium text-white transition duration-200 hover:opacity-90"
+                                        style={{ backgroundColor: PRIMARY_COLOR }}
                                     >
                                         {showAddModal ? 'Thêm' : 'Cập nhật'}
                                     </button>
@@ -711,11 +804,11 @@ export default function RoutesPage() {
                     <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
                             <h2 className="text-2xl font-bold text-gray-900">Xác nhận xóa</h2>
-                            <button onClick={closeAllModals} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
+<button onClick={closeAllModals} className="bg-transparent border-none text-gray-400 text-3xl cursor-pointer p-0 leading-none transition duration-200 hover:text-gray-700">×</button>
                         </div>
                         <form onSubmit={handleDeleteRoute}>
                             <div className="p-6">
-                                <p className="text-gray-500 mb-3 text-base leading-relaxed">Bạn có chắc chắn muốn xóa tuyến **{routeToDelete.RouteName}**?</p>
+                                <p className="text-gray-500 mb-3 text-base leading-relaxed">Bạn có chắc chắn muốn xóa tuyến <strong>{routeToDelete.RouteName}</strong>?</p>
                                 <p className="text-sm font-semibold p-3 rounded-lg border border-red-300 bg-red-100 text-red-600">Hành động này không thể hoàn tác!</p>
                                 <div className="flex gap-3 pt-4 flex-col sm:flex-row">
                                     <button type="button" onClick={closeAllModals} className="flex-1 px-4 py-3 border-none rounded-lg font-medium cursor-pointer transition duration-200 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200">Hủy</button>
