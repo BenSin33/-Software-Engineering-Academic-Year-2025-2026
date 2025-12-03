@@ -9,7 +9,7 @@ export interface BusBackend {
     Capacity: number;
     CurrentLoad: number;
     FuelLevel: number;
-    Status: "running" | "waiting" | "maintenance" | "ready";
+    Status: "running" | "waiting" | "inactive" | "ready";
     Location: string | null;
     PickUpLocation: string | null;
     DropOffLocation: string | null;
@@ -23,7 +23,7 @@ export interface BusBackend {
 export interface BusFrontend {
     id: string;
     license_plate: string;
-    status: "running" | "waiting" | "maintenance" | "ready";
+    status: "running" | "waiting" | "inactive" | "ready";
     capacity: number;
     current_load: number;
     fuel_level: number;
@@ -42,7 +42,7 @@ export interface BusCreateRequest {
     Capacity: number;
     CurrentLoad?: number;
     FuelLevel?: number;
-    Status?: "running" | "waiting" | "maintenance" | "ready";
+    Status?: "running" | "waiting" | "inactive" | "ready";
     Location?: string | null;
     PickUpLocation?: string | null;
     DropOffLocation?: string | null;
@@ -55,7 +55,7 @@ export interface BusUpdateRequest {
     Capacity?: number;
     CurrentLoad?: number;
     FuelLevel?: number;
-    Status?: "running" | "waiting" | "maintenance" | "ready";
+    Status?: "running" | "waiting" | "inactive" | "ready";
     Location?: string | null;
     PickUpLocation?: string | null;
     DropOffLocation?: string | null;

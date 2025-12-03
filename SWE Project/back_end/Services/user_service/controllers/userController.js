@@ -1,5 +1,3 @@
-const bcrypt = require('bcrypt');
-const axios = require('axios');
 const queries = require('../db/userQueries');
 const { success, error } = require('../utils/response');
 const { 
@@ -23,9 +21,9 @@ const createUser = async (req, res) => {
     const existing = await queries.getUserByUsername(username);
     if (existing) return error(res, 'Tên đăng nhập đã tồn tại', 400);
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const userId = await queries.createUser(username, hashedPassword, roleId || null);
-
+    // Lưu plain text password
+    const userId = await queries.createUser(username, password, roleId || null);
+    console.log('userID: ',userId)
     if (fullName || phoneNumber || email) {
       await queries.createAdminProfile(userId, fullName, phoneNumber, email);
     }
@@ -33,7 +31,7 @@ const createUser = async (req, res) => {
     // Đồng bộ sang service chính
     await syncUserToService({ userId, username, roleId, fullName, phoneNumber, email });
 
-    // Đồng bộ sang AuthService
+    // Đồng bộ sang AuthService (gửi plain text password)
     await syncUserToAuth({ userID: userId, username, password, roleID: roleId });
 
     success(res, { UserID: userId, UserName: username }, 'Tạo người dùng thành công', 201);
@@ -77,9 +75,10 @@ const getUserById = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, roleId, fullName, phoneNumber, email } = req.body;
-
+    const { username, roleId,RoleID, fullName, phoneNumber, email, password,Password } = req.body;
+    console.log(req.body)
     const user = await queries.getUserById(id);
+    
     if (!user) return error(res, 'Không tìm thấy người dùng', 404);
 
     if (username && username !== user.UserName) {
@@ -87,17 +86,18 @@ const updateUser = async (req, res) => {
       if (existing) return error(res, 'Tên đăng nhập đã tồn tại', 400);
     }
 
-    await queries.updateUser(id, username || user.UserName, roleId || user.RoleID);
+    // Nếu có password mới thì lưu plain text
+await queries.updateUser(id, username || user.UserName, roleId || RoleID, password || user.Password || Password);
 
     if (fullName || phoneNumber || email) {
       await queries.updateAdminProfile(id, fullName, phoneNumber, email);
     }
 
     // Đồng bộ sang service chính
-    await syncUserToService({ userId: id, username, roleId, fullName, phoneNumber, email });
+    // await syncUserToService({ userId: id, username: username || user.UserName, roleId, fullName, phoneNumber, email });
 
-    // Đồng bộ sang AuthService
-    await syncUserToAuth({ userID: id, username: username || user.UserName, password: user.Password, roleID: roleId });
+    // Đồng bộ sang AuthService (gửi plain text password)
+    await syncUserToAuth({ userID: id, username: username || user.UserName, password: password || user.Password || Password, roleID: roleId || user.RoleID || RoleID });
 
     success(res, null, 'Cập nhật người dùng thành công');
   } catch (err) {
@@ -138,18 +138,18 @@ const deleteUser = async (req, res) => {
 // SYNC CREATE / UPDATE
 const syncUser = async (req, res) => {
   try {
-    const { userId, username, roleId, fullName, phoneNumber, email } = req.body;
+    const { userId, username, roleId, fullName, phoneNumber, email, password } = req.body;
 
     const existing = await queries.getUserById(userId);
 
     if (existing) {
-      await queries.updateUser(userId, username, roleId);
+      await queries.updateUser(userId, username, roleId, password || existing.Password);
       await queries.updateAdminProfile(userId, fullName, phoneNumber, email);
       console.log(`🔄 [SYNC] Updated user ${userId}`);
       return success(res, null, "User updated via sync");
     }
 
-    await queries.insertUserFromSync(userId, username, roleId, fullName, phoneNumber, email);
+    await queries.insertUserFromSync(userId, username, roleId, fullName, phoneNumber, email, password);
     console.log(`🆕 [SYNC] Inserted user ${userId}`);
     return success(res, null, "User created via sync");
 
@@ -179,5 +179,5 @@ module.exports = {
   updateUser,
   deleteUser,
   syncUser,
-  syncDeleteUser
+syncDeleteUser
 };

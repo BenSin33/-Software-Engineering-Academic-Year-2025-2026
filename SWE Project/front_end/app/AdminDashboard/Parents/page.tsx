@@ -266,6 +266,11 @@ export default function ParentsPage() {
 
   // 2. handleAddParent
   const handleAddParent = async () => {
+    if (!/^\d+$/.test(formData.phone)) {
+      alert("Số điện thoại chỉ được chứa các chữ số!");
+      return;
+    }
+
     if (!formData.name || !formData.phone || !formData.email) {
       alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
       return;
@@ -309,6 +314,11 @@ export default function ParentsPage() {
   // 3. handleEditParent
   const handleEditParent = async () => {
     if (!selectedParent) return;
+
+    if (!/^\d+$/.test(formData.phone)) {
+      alert("Số điện thoại chỉ được chứa các chữ số!");
+      return;
+    }
 
     if (!formData.name || !formData.phone || !formData.email) {
       alert("Vui lòng điền đầy đủ thông tin bắt buộc!");

@@ -1,4 +1,4 @@
-// const pool = require('../db/pool');
+const pool = require('../db/pool');
 const geoCoding = require("../utils/geoCoding");
 
 // Tạo hàm delay để tránh bị giới hạn tốc độ API
@@ -437,4 +437,71 @@ exports.getCoordinatesArray = async (req, res) => {
 //     });
 //   }
 // };
+
+// ==========================================
+// 1. API CHO TÀI XẾ: Cập nhật vị trí
+exports.updateLocation = async (req, res) => {
+  try {
+    const { scheduleId } = req.params; // Lấy ScheduleID từ URL
+    const { latitude, longitude, speed } = req.body;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ success: false, message: 'Thiếu tọa độ' });
+    }
+
+    const currentSpeed = speed || 0;
+    const currentStatus = currentSpeed > 0 ? 'moving' : 'stopped';
+
+    // A. Lưu vào lịch sử (location_history)
+    await pool.query(
+      `INSERT INTO location_history (ScheduleID, Latitude, Longitude, Speed, RecordedAt) 
+       VALUES (?, ?, ?, ?, NOW())`,
+      [scheduleId, latitude, longitude, currentSpeed]
+    );
+
+    // B. Cập nhật vị trí hiện tại (tracking) - Dùng INSERT ON DUPLICATE UPDATE
+    // Nếu chuyến xe này chưa có trong bảng tracking thì thêm mới.
+    // Nếu đã có rồi thì cập nhật tọa độ mới nhất.
+    await pool.query(
+      `INSERT INTO tracking (ScheduleID, Latitude, Longitude, Speed, Status, Timestamp)
+       VALUES (?, ?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+       Latitude = VALUES(Latitude),
+       Longitude = VALUES(Longitude),
+       Speed = VALUES(Speed),
+       Status = VALUES(Status),
+       Timestamp = NOW()`,
+       [scheduleId, latitude, longitude, currentSpeed, currentStatus]
+    );
+
+    res.json({ success: true, message: 'Updated' });
+  } catch (error) {
+    console.error('Error updating location:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// 2. API CHO ADMIN: Lấy vị trí mới nhất
+exports.getLatestLocation = async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+
+    // Chỉ cần query bảng tracking nhỏ gọn
+    const [rows] = await pool.query(
+      `SELECT Latitude, Longitude, Speed, Status, Timestamp 
+       FROM tracking 
+       WHERE ScheduleID = ?`,
+      [scheduleId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No location data' });
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    console.error('Error getting location:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
 

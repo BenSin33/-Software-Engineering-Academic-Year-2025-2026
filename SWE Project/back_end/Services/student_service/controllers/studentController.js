@@ -55,8 +55,8 @@ async function getPickUpPoint(req, res) {
 
 async function addNewStudent(req, res) {
   try {
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
-    const insertId = await queries.addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID);
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID, status } = req.body;
+    const insertId = await queries.addStudent(FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status);
     res.status(201).json({
       message: "Thêm học sinh thành công",
       student: {
@@ -81,8 +81,9 @@ async function addNewStudent(req, res) {
 async function updateCurrentStudent(req, res) {
   try {
     const { studentID } = req.params;
-    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID } = req.body;
-    await queries.updateCurrentStudent(studentID, FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID);
+    const { FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID, status } = req.body;
+    console.log('status: ',status)
+    await queries.updateCurrentStudent(studentID, FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID,status);
     res.status(201).json({
       message: 'update học sinh thành công',
       student: { StudentID: studentID, FullName, ParentID, DateOfBirth, PickUpPoint, DropOffPoint, routeID }

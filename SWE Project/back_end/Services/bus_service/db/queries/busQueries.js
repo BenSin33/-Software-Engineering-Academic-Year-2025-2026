@@ -147,6 +147,12 @@ class BusQueries {
             'DriverID', 'RouteID'
         ];
 
+        // If status is being changed to inactive, automatically clear RouteID and DriverID
+        if (updates.Status && updates.Status.toLowerCase() === 'inactive') {
+            updates.RouteID = null;
+            updates.DriverID = null;
+        }
+
         const updateFields = [];
         const values = [];
 
@@ -162,18 +168,29 @@ class BusQueries {
         }
 
         values.push(busId);
-        const query = `UPDATE Buses SET ${updateFields.join(', ')} WHERE BusID = ?`;
 
-        const [result] = await pool.query(query, values);
+        const [result] = await pool.query(
+            `UPDATE Buses SET ${updateFields.join(', ')} WHERE BusID = ?`,
+            values
+        );
         return result;
     }
 
     // Cập nhật trạng thái
     async updateStatus(busId, status) {
-        const [result] = await pool.query(
-            'UPDATE Buses SET Status = ? WHERE BusID = ?',
-            [status, busId]
-        );
+        // If status is being changed to inactive, automatically clear RouteID and DriverID
+        let query;
+        let params;
+
+        if (status && status.toLowerCase() === 'inactive') {
+            query = 'UPDATE Buses SET Status = ?, RouteID = NULL, DriverID = NULL WHERE BusID = ?';
+            params = [status, busId];
+        } else {
+            query = 'UPDATE Buses SET Status = ? WHERE BusID = ?';
+            params = [status, busId];
+        }
+
+        const [result] = await pool.query(query, params);
         return result;
     }
 
@@ -238,7 +255,7 @@ class BusQueries {
         COUNT(*) as total,
         SUM(CASE WHEN Status = 'running' THEN 1 ELSE 0 END) as running,
         SUM(CASE WHEN Status = 'waiting' THEN 1 ELSE 0 END) as waiting,
-        SUM(CASE WHEN Status = 'maintenance' THEN 1 ELSE 0 END) as maintenance,
+        SUM(CASE WHEN Status = 'inactive' THEN 1 ELSE 0 END) as inactive,
         SUM(CASE WHEN Status = 'ready' THEN 1 ELSE 0 END) as ready,
         SUM(Capacity) as totalCapacity,
         SUM(CurrentLoad) as registered,
@@ -291,6 +308,22 @@ class BusQueries {
         );
         return buses;
     }
+
+    async findBusWithoutRoute() {
+        try {
+            const [buses] = await pool.query(
+                `SELECT * FROM Buses
+WHERE RouteID IS NULL OR RouteID IN ('N/A', 'Null')
+ORDER BY CreatedAt DESC;`
+            );
+            return buses;
+        } catch (error) {
+            console.error('Error in findBusWithoutRoute:', error);
+            throw error;
+        }
+    }
+
 }
+
 
 module.exports = new BusQueries();

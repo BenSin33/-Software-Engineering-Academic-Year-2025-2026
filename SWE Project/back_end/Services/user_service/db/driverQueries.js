@@ -5,6 +5,22 @@ const { v4: uuidv4 } = require('uuid');
 // ============================
 // Helper: Generate sequential DriverID (Dxxx)
 // ============================
+
+async function findDriversWithoutRoute() {
+  try {
+    const [drivers] = await pool.query(
+      `SELECT DriverID, UserID, FullName, PhoneNumber, Email, Status, BusID, RouteID, CreatedAt
+FROM drivers
+WHERE RouteID IS NULL OR RouteID IN ('null', 'N/A', 'Null')
+ORDER BY CreatedAt DESC;`
+    );
+    return drivers;
+  } catch (error) {
+    console.error('Error in findDriversWithoutRoute:', error);
+    throw error;
+  }
+}
+
 const generateNextDriverId = async (connection = null) => {
   const db = connection || pool;
   try {
@@ -123,21 +139,105 @@ const getDriverByUserId = async (userId) => {
 // ============================
 // UPDATE DRIVER
 // ============================
-const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
+// const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
+//   try {
+//     const [result] = await pool.query(
+//       `UPDATE drivers 
+//        SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
+//        WHERE DriverID = ?`,
+//       [fullName, phoneNumber, email, status, driverId]
+//     );
+
+//     if (result.affectedRows === 0) {
+//       throw new Error('Không tìm thấy tài xế để cập nhật');
+//     }
+//   } catch (err) {
+//     console.error('Lỗi khi cập nhật tài xế:', err);
+//     throw new Error('Cập nhật tài xế thất bại: ' + err.message);
+//   }
+// };
+const updateDriver = async (
+  driverId,
+  fullName,
+  phoneNumber,
+  email,
+  status,
+  routeID,
+  busID
+) => {
   try {
-    const [result] = await pool.query(
-      `UPDATE drivers 
-       SET FullName = ?, PhoneNumber = ?, Email = ?, Status = ?, UpdatedAt = NOW()
-       WHERE DriverID = ?`,
-      [fullName, phoneNumber, email, status, driverId]
-    );
+// Thay thế đoạn code xung đột bằng đoạn này:
+const fields = [];
+const values = [];
+
+// 1. Lấy dữ liệu đầu vào
+// Giả định các biến này (fullName, phoneNumber, email, status, routeID, busID)
+// đã được trích xuất từ request body.
+
+// Xử lý logic nghiệp vụ: Nếu Status là 'Inactive', BẮT BUỘC đặt BusID và RouteID về NULL
+if (status === 'Inactive') {
+    // Nếu trạng thái được đặt thành Inactive, các field này sẽ được đặt NULL (hoặc không được cập nhật)
+    fields.push("Status = ?");
+    values.push('Inactive');
+    
+    // Đặt BusID và RouteID thành NULL (không cần kiểm tra !== undefined/null)
+    fields.push("BusID = NULL");
+    fields.push("RouteID = NULL");
+    
+} else {
+    // 2. Cập nhật linh hoạt các trường khác (chỉ khi có giá trị)
+    if (fullName !== undefined && fullName !== null) {
+        fields.push("FullName = ?");
+        values.push(fullName);
+    }
+    if (phoneNumber !== undefined && phoneNumber !== null) {
+        fields.push("PhoneNumber = ?");
+        values.push(phoneNumber);
+    }
+    if (email !== undefined && email !== null) {
+        fields.push("Email = ?");
+        values.push(email);
+    }
+    if (status !== undefined && status !== null) {
+        fields.push("Status = ?");
+        values.push(status);
+    }
+    if (routeID !== undefined && routeID !== null) {
+        fields.push("RouteID = ?");
+        values.push(routeID);
+    }
+    if (busID !== undefined && busID !== null) {
+        fields.push("BusID = ?");
+        values.push(busID);
+    }
+}
+
+
+// Nếu không có field nào để update (sau khi kiểm tra logic Inactive)
+if (fields.length === 0) {
+    throw new Error("Không có dữ liệu để cập nhật");
+}
+
+// Cập nhật UpdatedAt
+fields.push("UpdatedAt = NOW()");
+
+const sql = `
+    UPDATE drivers 
+    SET ${fields.join(", ")}
+    WHERE DriverID = ?
+`;
+
+values.push(driverId); // Cuối cùng là driverID cho câu WHERE
+
+const [result] = await pool.query(sql, values);
 
     if (result.affectedRows === 0) {
-      throw new Error('Không tìm thấy tài xế để cập nhật');
+      throw new Error("Không tìm thấy tài xế để cập nhật");
     }
+
   } catch (err) {
-    console.error('Lỗi khi cập nhật tài xế:', err);
-    throw new Error('Cập nhật tài xế thất bại: ' + err.message);
+    console.error("Lỗi khi cập nhật tài xế:", err);
+    throw new Error("Cập nhật tài xế thất bại: " + err.message);
   }
 };
 
@@ -146,6 +246,29 @@ const updateDriver = async (driverId, fullName, phoneNumber, email, status) => {
 // ============================
 const deleteDriver = async (driverId) => {
   try {
+    // Kiểm tra trạng thái và phân công của tài xế trước khi xóa
+    const [driver] = await pool.query(
+      'SELECT Status, BusID, RouteID FROM drivers WHERE DriverID = ?',
+      [driverId]
+    );
+
+    if (driver.length === 0) {
+      throw new Error('Không tìm thấy tài xế để xóa');
+    }
+
+    const driverData = driver[0];
+
+    // Kiểm tra nếu tài xế đang có trạng thái Active
+    if (driverData.Status === 'Active') {
+      throw new Error('Không thể xóa tài xế đang hoạt động. Vui lòng chuyển trạng thái về "Đang nghỉ" trước khi xóa.');
+    }
+
+    // Kiểm tra nếu tài xế vẫn còn được phân công xe hoặc tuyến
+    if (driverData.BusID || driverData.RouteID) {
+      throw new Error('Không thể xóa tài xế đang được phân công. Vui lòng chuyển trạng thái về "Đang nghỉ" để tự động hủy phân công trước khi xóa.');
+    }
+
+    // Nếu tất cả điều kiện đều thỏa mãn, thực hiện xóa
     const [result] = await pool.query(
       'DELETE FROM drivers WHERE DriverID = ?',
       [driverId]
@@ -156,7 +279,7 @@ const deleteDriver = async (driverId) => {
     }
   } catch (err) {
     console.error('Lỗi khi xóa tài xế:', err);
-    throw new Error('Xóa tài xế thất bại: ' + err.message);
+    throw new Error(err.message || 'Xóa tài xế thất bại');
   }
 };
 
@@ -179,6 +302,22 @@ const getDriverStats = async () => {
   }
 };
 
+const getActiveDrivers = async () => {
+  try {
+    // Chỉ lấy DriverID và FullName, và chỉ lấy Status = 'Active'
+    const [rows] = await pool.query(
+      `SELECT DriverID, FullName 
+       FROM drivers 
+       WHERE Status = 'Active' 
+       ORDER BY FullName ASC`
+    );
+    return rows;
+  } catch (err) {
+    console.error('Lỗi khi lấy danh sách tài xế active:', err);
+    throw new Error('Không thể lấy danh sách tài xế active: ' + err.message);
+  }
+};
+
 module.exports = {
   createDriver: createDriverSequential,
   createDriverSequential,
@@ -188,5 +327,7 @@ module.exports = {
   getDriverByUserId,
   updateDriver,
   deleteDriver,
-  getDriverStats
+  getDriverStats,
+  findDriversWithoutRoute,
+  getActiveDrivers
 };

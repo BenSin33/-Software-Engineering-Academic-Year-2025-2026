@@ -4,6 +4,23 @@ const eventPublisher = require('../events/eventPublisher');
 // ===================================
 // BUS CONTROLLERS
 // ===================================
+async function getBusesWithoutRoute(req, res) {
+  try {
+    const buses = await busQueries.findBusWithoutRoute(); // hoặc tự viết query riêng nếu cần
+    res.json({
+      success: true,
+      data: buses,
+      count: buses.length
+    });
+  } catch (error) {
+    console.error('Error fetching buses without route:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
 
 async function getAllBuses(req, res) {
   console.log("📥 [GET] /api/buses - Backend đã nhận request");
@@ -20,7 +37,7 @@ async function getAllBuses(req, res) {
       offset = 0
     } = req.query;
 
-    console.log("🔍 Query params:", req.query);
+   
 
     const filters = { status, search, minCapacity, maxCapacity, minFuel, route };
     const pagination = { limit: parseInt(limit), offset: parseInt(offset) };
@@ -74,6 +91,8 @@ async function getBusById(req, res) {
     });
   }
 }
+
+
 
 async function getBusStatistics(req, res) {
   try {
@@ -139,7 +158,7 @@ async function updateBus(req, res) {
   try {
     const busId = req.params.id;
     const updateData = req.body;
-
+    
     // Check if bus exists
     const existingBus = await busQueries.findById(busId);
     if (!existingBus) {
@@ -150,7 +169,6 @@ async function updateBus(req, res) {
     }
 
     const result = await busQueries.update(busId, updateData);
-
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
@@ -191,7 +209,7 @@ async function updateBusStatus(req, res) {
       });
     }
 
-    const validStatuses = ['running', 'waiting', 'maintenance', 'ready'];
+    const validStatuses = ['running', 'waiting', 'inactive', 'ready'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -274,6 +292,33 @@ async function deleteBus(req, res) {
   try {
     const busId = req.params.id;
 
+    // First, check if bus exists and get its current status and route assignment
+    const existingBus = await busQueries.findById(busId);
+
+    if (!existingBus) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bus not found'
+      });
+    }
+
+    // Check if bus is currently assigned to a route
+    if (existingBus.RouteID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa xe buýt đang được phân công cho một tuyến. Vui lòng đưa trạng thái về "inactive" (không hoạt động) và gỡ phân công tuyến trước khi xóa.'
+      });
+    }
+
+    // Check if bus status is inactive
+    if (existingBus.Status !== 'inactive') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể xóa xe buýt. Vui lòng đưa trạng thái về "inactive" (không hoạt động) trước khi xóa.'
+      });
+    }
+
+    // If all checks pass, proceed with deletion
     const result = await busQueries.delete(busId);
 
     if (result.affectedRows === 0) {
@@ -338,7 +383,7 @@ async function getBusesByRoute(req, res) {
 
 async function getBusesNeedingMaintenance(req, res) {
   try {
-    const buses = await busQueries.findByStatus('maintenance');
+    const buses = await busQueries.findByStatus('inactive');
 
     res.json({
       success: true,
@@ -387,5 +432,6 @@ module.exports = {
   getBusEvents,
   getBusesByRoute,
   getBusesNeedingMaintenance,
-  getAvailableBuses
+  getAvailableBuses,
+  getBusesWithoutRoute
 };
